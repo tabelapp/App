@@ -43,6 +43,9 @@ do $$ begin
   assert (select tipo from public.usuarios where id = 'c0000000-0000-4000-a000-00000000000c') = 'cpf',
     'cadastro nunca pode criar admin';
   assert (select nome from public.usuarios where id = 'd0000000-0000-4000-a000-00000000000d') = 'Davi';
+  -- Quem entrou pelo Google (sem tipo) precisa escolher CPF/CNPJ no app.
+  assert (select cadastro_completo from public.usuarios where id = 'a0000000-0000-4000-a000-00000000000a');
+  assert not (select cadastro_completo from public.usuarios where id = 'd0000000-0000-4000-a000-00000000000d');
 end $$;
 
 -- Carla vira admin pelo único caminho possível: direto no banco.
@@ -92,7 +95,8 @@ select pg_temp.espera_erro(
      values ('X', 'Y', 100, 'usuario_nf')$q$, 'permission denied');
 select pg_temp.espera_erro(
   $q$update public.usuarios set tipo = 'admin' where id = auth.uid()$q$, 'row-level security');
-update public.usuarios set nome = 'Ana Maria' where id = auth.uid();
+update public.usuarios set nome = 'Ana Maria', tipo = 'cnpj', cadastro_completo = true where id = auth.uid();
+update public.usuarios set tipo = 'cpf' where id = auth.uid();
 select pg_temp.espera_erro(
   $q$update public.usuarios set email = 'x@y' where id = auth.uid()$q$, 'permission denied');
 

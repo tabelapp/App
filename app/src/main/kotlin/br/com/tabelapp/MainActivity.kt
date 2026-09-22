@@ -1,0 +1,21 @@
+package br.com.tabelapp
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import br.com.tabelapp.ui.RaizApp
+import br.com.tabelapp.ui.tema.TabelappTema
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        val container = (application as TabelappApplication).container
+        setContent {
+            TabelappTema {
+                RaizApp(container)
+            }
+        }
+    }
+}

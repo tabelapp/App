@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- O visual de verdade é Compose (ui/tema); isto só cobre a janela antes do Compose desenhar. -->
+    <style name="Theme.Tabelapp" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/verde_tabelapp</item>
+    </style>
+</resources>

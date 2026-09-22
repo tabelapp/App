@@ -35,7 +35,7 @@ create policy usuarios_update on public.usuarios for update to authenticated
 
 revoke insert, delete on public.usuarios from authenticated;  -- criado pelo trigger do Auth
 revoke update on public.usuarios from authenticated;
-grant update (tipo, nome, telefone) on public.usuarios to authenticated;
+grant update (tipo, nome, telefone, cadastro_completo) on public.usuarios to authenticated;
 
 -- pdvs (dados públicos da empresa) --------------------------------------------
 create policy pdvs_select on public.pdvs for select to authenticated using (true);

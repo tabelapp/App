@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone provisório: etiqueta de preço branca com um "R$" estilizado. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,34 L62,34 L78,54 L62,74 L36,74 Q32,74 32,70 L32,38 Q32,34 36,34 Z" />
+    <path
+        android:fillColor="#1B7F3B"
+        android:pathData="M64,54 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
+    <path
+        android:fillColor="#F2B705"
+        android:pathData="M40,46 L56,46 L56,50 L40,50 Z M40,54 L52,54 L52,58 L40,58 Z M40,62 L56,62 L56,66 L40,66 Z" />
+</vector>

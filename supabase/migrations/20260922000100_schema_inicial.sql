@@ -113,6 +113,8 @@ create table public.usuarios (
   nome        text check (nome is null or length(nome) <= 120),
   email       text,
   telefone    text,
+  -- false até o usuário escolher CPF/CNPJ (ex.: primeiro login pelo Google).
+  cadastro_completo boolean not null default false,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -135,14 +137,15 @@ begin
     v_tipo := 'cnpj';  -- nunca 'admin' por aqui
   end if;
 
-  insert into public.usuarios (id, tipo, nome, email, telefone)
+  insert into public.usuarios (id, tipo, nome, email, telefone, cadastro_completo)
   values (
     new.id,
     v_tipo,
     coalesce(new.raw_user_meta_data ->> 'nome', new.raw_user_meta_data ->> 'full_name',
              new.raw_user_meta_data ->> 'name'),
     new.email,
-    new.phone
+    new.phone,
+    coalesce(new.raw_user_meta_data ->> 'tipo', '') in ('cpf', 'cnpj')
   )
   on conflict (id) do nothing;
   return new;
