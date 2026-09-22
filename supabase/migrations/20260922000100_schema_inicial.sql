@@ -209,6 +209,8 @@ create table public.encartes_pendentes (
   pdv_nome         text,                             -- quando a loja não é cadastrada
   pdv_endereco     text,
   comentario       text check (comentario is null or length(comentario) <= 500),
+  -- Validade das promoções impressa no encarte (o usuário informa; o Admin confirma ao aprovar).
+  validade         date,
   status           public.status_encarte not null default 'pendente',
   revisado_por     uuid references public.usuarios (id) on delete set null,
   revisado_em      timestamptz,
@@ -232,7 +234,8 @@ create table public.cotacoes (
   produto             text not null check (length(btrim(produto)) between 1 and 200),
   produto_busca       text generated always as (public.normalizar(produto)) stored,
   preco_centavos      integer not null check (preco_centavos > 0 and preco_centavos < 100000000),
-  validade            date,
+  -- Todo preço tem validade: PDV até 30 dias, NF 1 dia, encarte a data impressa nele.
+  validade            date not null,
   -- Texto livre do PDV ("cerveja gelada"). A regra de EXIBIÇÃO do campo OBS
   -- (NF / produto de encarte / Preço oficial) é lógica de apresentação, no app.
   obs                 text check (obs is null or length(obs) <= 140),
@@ -265,20 +268,24 @@ create trigger cotacoes_updated_at before update on public.cotacoes
   for each row execute function public.set_updated_at();
 
 -- -----------------------------------------------------------------------------
--- operacoes_log — controle da cota de 50 operações/mês do PDV
+-- operacoes_log — controle da cota de 50 operações grátis/mês POR LOJA
+-- (em modo rede, a rede inteira é uma cota só: loja_id = null)
 -- -----------------------------------------------------------------------------
 create table public.operacoes_log (
   id            bigint generated always as identity primary key,
   pdv_id        uuid not null references public.pdvs (id) on delete cascade,
-  loja_id       uuid references public.lojas (id) on delete set null,  -- null = modo rede
+  loja_id       uuid references public.lojas (id) on delete cascade,  -- null = modo rede
   produto       text not null,
   tipo          public.tipo_operacao not null,
   conta_na_cota boolean generated always as (tipo in ('criar_item', 'aumentar_preco')) stored,
+  -- De onde saiu a operação: null = das 50 grátis do mês; senão, do pacote pago.
+  pagamento_id  uuid,
   competencia   date not null default public.competencia_atual(),
   created_at    timestamptz not null default now()
 );
 
-create index operacoes_cota_idx on public.operacoes_log (pdv_id, competencia) where conta_na_cota;
+create index operacoes_cota_idx on public.operacoes_log (pdv_id, loja_id, competencia) where conta_na_cota;
+create index operacoes_pacote_idx on public.operacoes_log (pagamento_id) where pagamento_id is not null;
 
 -- -----------------------------------------------------------------------------
 -- listas de compra (CPF)
@@ -342,9 +349,11 @@ create table public.pagamentos (
   pdv_id                 uuid not null references public.pdvs (id) on delete cascade,
   tipo                   public.tipo_pagamento not null,
   promocao_id            uuid references public.promocoes (id) on delete set null,
+  -- Pacote de operações é de uma loja (modo varejo) ou da rede toda (null, modo rede).
+  loja_id                uuid references public.lojas (id) on delete cascade,
   quantidade             integer not null check (quantidade > 0),   -- operações ou visualizações
   valor_centavos         integer not null check (valor_centavos > 0),
-  competencia            date,                                        -- mês em que o pacote vale
+  valido_ate             timestamptz,                                 -- pacote de operações: pago_em + 30 dias
   status                 public.status_pagamento not null default 'pendente',
   provedor               text not null default 'mercado_pago',
   provedor_pagamento_id  text unique,
@@ -355,8 +364,8 @@ create table public.pagamentos (
 
   constraint pagamento_promocao_obrigatoria
     check (tipo <> 'pacote_visualizacoes' or promocao_id is not null),
-  constraint pagamento_competencia_obrigatoria
-    check (tipo <> 'pacote_operacoes' or competencia is not null),
+  constraint pagamento_loja_so_em_operacoes
+    check (tipo = 'pacote_operacoes' or loja_id is null),
   -- Tabela de preços do briefing: +50 operações = R$10; 100/250/500 visualizações = R$10/25/50.
   constraint pagamento_pacote_valido check (
     (tipo = 'pacote_operacoes' and quantidade = 50 and valor_centavos = 1000)
@@ -365,5 +374,9 @@ create table public.pagamentos (
 );
 
 create index pagamentos_pdv_idx on public.pagamentos (pdv_id, tipo, status);
+
+alter table public.operacoes_log
+  add constraint operacoes_pagamento_fk foreign key (pagamento_id)
+  references public.pagamentos (id) on delete set null;
 create trigger pagamentos_updated_at before update on public.pagamentos
   for each row execute function public.set_updated_at();

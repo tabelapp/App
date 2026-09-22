@@ -27,34 +27,38 @@ para interpretação. Os itens marcados com **⚠️ confirmar** são premissas 
   permissão/GPS, usa o centro de Petrópolis como referência. PDV sem coordenadas vai para o fim.
 - PDVs com a mesma rede aparecem uma vez **por loja** (cada loja tem endereço e telefone próprios).
 
-## Validade
+## Validade (confirmado pelo fundador)
 
-- Preço do PDV: validade de hoje até **no máximo 30 dias**. Se o PDV não informar, assume 30 dias.
-- **⚠️ confirmar:** preço de usuário (NF/encarte) não tem validade informada. Assumimos que ele
-  continua aparecendo na busca por **30 dias** após o envio e depois sai. Constante
-  `dias_vigencia_preco_usuario()` no banco.
-- O Admin pode informar uma validade ao aprovar um encarte (se o encarte trouxer).
+Todo preço tem validade, e a busca só mostra preços dentro dela.
 
-## Cota de operações do PDV
+| Fonte | Validade |
+|---|---|
+| PDV (manual ou planilha) | de hoje até no máximo 30 dias; se não informar, 30 dias |
+| Nota Fiscal | **1 dia**: data do envio + 1 |
+| Encarte de usuário | **a data impressa no encarte**. O usuário pode digitar ao enviar a foto; o Admin confirma ou informa ao aprovar (por item ou para o encarte todo). Sem validade, o Admin não consegue aprovar. |
 
-- 50 grátis por mês (mês no fuso de São Paulo). Só **criar item** e **aumentar preço** contam.
-  Diminuir preço, excluir e editar só OBS/validade são sempre grátis.
+## Cota de operações do PDV (confirmado pelo fundador)
+
+- **Cada loja tem 50 operações grátis por mês** (mês no fuso de São Paulo). Só **criar item** e
+  **aumentar preço** contam. Diminuir preço, excluir e editar só OBS/validade são sempre grátis.
+- **Pacote de +50 operações (R$ 10) vale 30 dias a partir do pagamento** e é comprado para uma loja
+  específica. O consumo usa primeiro as grátis do mês, depois o pacote que vence antes. Cada operação
+  registra de onde saiu (`operacoes_log.pagamento_id`).
 - Um produto é identificado pelo **nome normalizado** dentro da loja ("Arroz 5kg" = "ARROZ  5KG").
   Mudar o nome de um produto equivale a excluir o antigo (grátis) e criar um novo (conta 1).
-- **Modo rede:** a alteração vale para todas as lojas ativas e conta **1** operação. Para decidir se é
-  aumento, compara com o **maior** preço atual entre as lojas.
-- **⚠️ confirmar — modo varejo:** interpretamos "a cota é contada por loja" como: cada loja editada
-  consome **uma operação da mesma cota do PDV** (editar o mesmo preço em 3 lojas = 3 operações). A
-  alternativa seria cada loja ter sua própria cota de 50 — é uma mudança pequena em `cota_status()`.
-- **⚠️ confirmar:** o pacote de +50 operações (R$ 10) vale **só no mês em que foi comprado**.
+- **⚠️ confirmar — modo rede:** a rede inteira funciona como uma loja só: **uma cota de 50** (e pacotes
+  comprados para a rede), e cada alteração replicada para todas as lojas conta **1**. Para decidir se é
+  aumento, compara com o **maior** preço atual entre as lojas. Se preferir que a rede tenha 50 × número
+  de lojas, é uma mudança pequena em `cota_status()`.
+- Trocar o PDV entre modo rede e varejo no meio do mês começa a contar na carteira do novo modo.
 - Importação de planilha é **tudo ou nada**: o app primeiro chama `pdv_salvar_precos(..., p_simular := true)`,
-  que devolve quantas operações a importação vai custar e quantos pacotes faltam. Se não couber,
-  o app mostra o Pix antes; se tentar gravar sem saldo, o banco recusa (`cota_excedida`).
+  que devolve quantas operações a importação vai custar, o saldo da loja e quantos pacotes faltam. Se
+  não couber, o app mostra o Pix antes; se tentar gravar sem saldo, o banco recusa (`cota_excedida`).
 
 ## Nota Fiscal (V1 manual)
 
 - Uma chamada `enviar_nota_fiscal` grava todos os itens da nota de uma vez (depois da tela de
-  confirmação única). Limite técnico de 500 itens por nota, só para evitar abuso.
+  confirmação única), com validade de 1 dia. Limite técnico de 500 itens por nota, só para evitar abuso.
 - Chave de acesso é opcional; se vier, precisa ter 44 dígitos e **não pode repetir** (mesma nota enviada
   duas vezes é recusada). O app também valida o dígito verificador (`ChaveAcessoNfe` no `core`) e já
   sabe extrair a chave da URL do QR Code da Sefaz-RJ, para quando a leitura do QR for implementada.

@@ -20,3 +20,19 @@ class ObsTest {
         assertEquals("Preço oficial", Obs.exibir(Fonte.PDV_EXCEL, "   "))
     }
 }
+
+class ValidadeTest {
+    private val hoje = java.time.LocalDate.parse("2026-09-22")
+
+    @Test fun `NF vale 1 dia`() =
+        assertEquals(java.time.LocalDate.parse("2026-09-23"), Validade.daNotaFiscal(hoje))
+
+    @Test fun `PDV no maximo 30 dias`() {
+        assertEquals(null, Validade.validar(hoje.plusDays(30), hoje))
+        assertEquals(Validade.ErroValidade.MAIOR_QUE_30_DIAS, Validade.validar(hoje.plusDays(31), hoje))
+        assertEquals(Validade.ErroValidade.NO_PASSADO, Validade.validar(hoje.minusDays(1), hoje))
+    }
+
+    @Test fun `todo preco da demonstracao tem validade`() =
+        kotlin.test.assertTrue(DadosDemo.cotacoes(hoje = hoje).all { it.validade != null })
+}

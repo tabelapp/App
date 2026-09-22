@@ -2,14 +2,19 @@ package br.com.tabelapp.core
 
 import java.time.LocalDate
 
-/** Validade do preço do PDV: de hoje até no máximo 30 dias (briefing, seção 5). */
+/**
+ * Todo preço tem validade:
+ *  - PDV: de hoje até no máximo 30 dias (padrão: 30).
+ *  - Nota Fiscal: 1 dia (data do envio + 1).
+ *  - Encarte de usuário: a data impressa no encarte.
+ */
 object Validade {
     const val MAXIMO_DIAS = 30L
-
-    /** Preço de usuário (NF/encarte) sem validade explícita fica visível por este período. */
-    const val VIGENCIA_PRECO_USUARIO_DIAS = 30L
+    const val NF_DIAS = 1L
 
     fun padrao(hoje: LocalDate): LocalDate = hoje.plusDays(MAXIMO_DIAS)
+
+    fun daNotaFiscal(dataEnvio: LocalDate): LocalDate = dataEnvio.plusDays(NF_DIAS)
 
     fun validar(validade: LocalDate, hoje: LocalDate): ErroValidade? = when {
         validade.isBefore(hoje) -> ErroValidade.NO_PASSADO

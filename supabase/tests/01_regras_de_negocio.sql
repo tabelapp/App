@@ -111,6 +111,9 @@ begin
       {"produto": "Leite Integral 1L", "preco_centavos": 549},
       {"produto": "Manteiga 200g", "preco_centavos": 1299}]');
   assert (v ->> 'itens')::int = 3;
+  -- Preço de NF vale 1 dia.
+  assert (select bool_and(validade = public.hoje() + 1) from public.cotacoes
+          where lote_id = (v ->> 'lote_id')::uuid);
   assert (select count(*) from public.cotacoes
           where lote_id = (v ->> 'lote_id')::uuid and fonte = 'usuario_nf'
             and chave_acesso_nf = '33260911111111000191650010000099991000099990') = 3;
@@ -133,11 +136,14 @@ select pg_temp.espera_erro(
   'itens_invalidos');
 
 \echo '== Encarte de usuário vai para a fila; CPF não aprova'
-insert into public.encartes_pendentes (id, enviado_por, foto_path, pdv_nome, pdv_endereco)
+insert into public.encartes_pendentes (id, enviado_por, foto_path, pdv_nome, pdv_endereco, validade)
 values ('e0000000-0000-4000-a000-000000000001', auth.uid(),
-        'a0000000-0000-4000-a000-00000000000a/encarte1.jpg', 'Sacolão Cascatinha', 'Cascatinha'),
+        'a0000000-0000-4000-a000-00000000000a/encarte1.jpg', 'Sacolão Cascatinha', 'Cascatinha',
+        public.hoje() + 3),
        ('e0000000-0000-4000-a000-000000000002', auth.uid(),
-        'a0000000-0000-4000-a000-00000000000a/encarte2.jpg', 'Loja Duvidosa', null);
+        'a0000000-0000-4000-a000-00000000000a/encarte2.jpg', 'Loja Duvidosa', null, null),
+       ('e0000000-0000-4000-a000-000000000003', auth.uid(),
+        'a0000000-0000-4000-a000-00000000000a/encarte3.jpg', 'Feira do Bingen', null, null);
 select pg_temp.espera_erro(
   $q$insert into public.encartes_pendentes (enviado_por, foto_path, pdv_nome, status)
      values (auth.uid(), 'x.jpg', 'X', 'aprovado')$q$, 'row-level security');
@@ -167,7 +173,9 @@ declare
   v jsonb;
   itens jsonb;
 begin
-  assert (select restantes from public.cota_status(pdv)) = 50;
+  -- Cada loja tem sua própria cota de 50 grátis.
+  assert (select restantes from public.cota_status(pdv, loja1)) = 50;
+  assert (select restantes from public.cota_status(pdv, loja2)) = 50;
 
   -- Criar item: conta 1.
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Arroz 5kg", "preco_centavos": 2500}]');
@@ -187,36 +195,44 @@ begin
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Arroz 5kg", "preco_centavos": 2600}]');
   assert (v ->> 'aumentados')::int = 1 and (v ->> 'operacoes')::int = 1, v::text;
 
-  -- Modo varejo: a outra loja é independente e também consome a cota.
+  -- Modo varejo: a outra loja tem tabela e cota independentes.
   v := public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Arroz 5kg", "preco_centavos": 2000}]');
   assert (v ->> 'criados')::int = 1, v::text;
   assert (select preco_centavos from public.cotacoes where loja_id = loja1) = 2600;
-  assert (select restantes from public.cota_status(pdv)) = 47;
+  assert (select restantes from public.cota_status(pdv, loja1)) = 48;
+  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
 
   -- Excluir: grátis.
   perform public.pdv_excluir_item((select id from public.cotacoes where loja_id = loja2));
   assert (select count(*) from public.cotacoes where loja_id = loja2) = 0;
-  assert (select restantes from public.cota_status(pdv)) = 47;
+  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
 
-  -- Planilha com 60 itens novos: simulação mostra que precisa de 1 pacote.
+  -- Planilha com 60 itens novos na loja 1: simulação mostra que precisa de 1 pacote.
   select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
     into itens from generate_series(1, 60) g;
   v := public.pdv_salvar_precos(pdv, loja1, itens, 'pdv_excel', true);
   assert (v ->> 'simulacao')::boolean and not (v ->> 'cabe_na_cota')::boolean
-     and (v ->> 'operacoes')::int = 60 and (v ->> 'pacotes_necessarios')::int = 1, v::text;
+     and (v ->> 'operacoes')::int = 60 and (v ->> 'restantes')::int = 48
+     and (v ->> 'pacotes_necessarios')::int = 1, v::text;
   assert (select count(*) from public.cotacoes where loja_id = loja1) = 1, 'simulação não grava';
+
+  -- A mesma planilha na loja 2 (que tem 49) também não cabe; loja sem cota não é aceita.
+  v := public.pdv_salvar_precos(pdv, loja2, itens, 'pdv_excel', true);
+  assert (v ->> 'restantes')::int = 49, v::text;
 end $$;
 
 select pg_temp.espera_erro(
   $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
        (select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
         from generate_series(1, 60) g), 'pdv_excel')$q$, 'cota_excedida');
+select pg_temp.espera_erro(
+  $q$select * from public.cota_status('10000000-0000-4000-b000-000000000001')$q$, 'loja_invalida');
 
 -- Validações de linha (validade máx. 30 dias, duplicado, preço).
 select pg_temp.espera_erro(
   format($q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
     '20000000-0000-4000-b000-000000000001',
-    '[{"produto": "Feijão", "preco_centavos": 800, "validade": "%s"}]')$q$, current_date + 31),
+    '[{"produto": "Feijão", "preco_centavos": 800, "validade": "%s"}]')$q$, public.hoje() + 31),
   'validade_maior_que_30_dias');
 select pg_temp.espera_erro(
   $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
@@ -230,52 +246,87 @@ select pg_temp.espera_erro(
 
 -- PDV não pode se dar pacote de graça.
 select pg_temp.espera_erro(
-  $q$insert into public.pagamentos (usuario_id, pdv_id, tipo, quantidade, valor_centavos, competencia, status)
-     values (auth.uid(), '10000000-0000-4000-b000-000000000001', 'pacote_operacoes', 50, 1000,
-             public.competencia_atual(), 'pago')$q$, 'permission denied');
+  $q$insert into public.pagamentos (usuario_id, pdv_id, loja_id, tipo, quantidade, valor_centavos, status)
+     values (auth.uid(), '10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
+             'pacote_operacoes', 50, 1000, 'pago')$q$, 'permission denied');
 
-\echo '== Pix pago (+50 operações) libera a importação'
+\echo '== Pix pago (+50 operações para a loja 1, válido 30 dias) libera a importação'
 reset role;
 set role service_role;
-insert into public.pagamentos (id, usuario_id, pdv_id, tipo, quantidade, valor_centavos, competencia)
+insert into public.pagamentos (id, usuario_id, pdv_id, loja_id, tipo, quantidade, valor_centavos)
 values ('f0000000-0000-4000-a000-000000000001', 'b0000000-0000-4000-a000-00000000000b',
-        '10000000-0000-4000-b000-000000000001', 'pacote_operacoes', 50, 1000, public.competencia_atual());
+        '10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
+        'pacote_operacoes', 50, 1000);
 select public.confirmar_pagamento('f0000000-0000-4000-a000-000000000001', 'mp-123');
 select public.confirmar_pagamento('f0000000-0000-4000-a000-000000000001', 'mp-123'); -- idempotente
 reset role;
+
+do $$ begin
+  assert (select valido_ate::date - pago_em::date from public.pagamentos
+          where id = 'f0000000-0000-4000-a000-000000000001') = 30, 'pacote vale 30 dias';
+end $$;
 
 set role authenticated;
 set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 do $$
 declare
   pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  r record;
   v jsonb;
 begin
-  assert (select compradas from public.cota_status(pdv)) = 50;
-  v := public.pdv_salvar_precos(pdv, '20000000-0000-4000-b000-000000000001',
+  select * into r from public.cota_status(pdv, loja1);
+  assert r.saldo_pacotes = 50 and r.restantes = 98 and r.pacote_vence_em > now() + interval '29 days', r::text;
+  -- O pacote é da loja 1: não ajuda a loja 2.
+  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
+
+  v := public.pdv_salvar_precos(pdv, loja1,
         (select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
          from generate_series(1, 60) g), 'pdv_excel');
-  assert (v ->> 'operacoes')::int = 60 and (v ->> 'restantes')::int = 37, v::text;
+  assert (v ->> 'operacoes')::int = 60 and (v ->> 'restantes')::int = 38, v::text;
+
+  -- Gastou as 48 grátis primeiro e depois 12 do pacote.
+  select * into r from public.cota_status(pdv, loja1);
+  assert r.gratis_usadas = 50 and r.saldo_pacotes = 38 and r.restantes = 38, r::text;
+  assert (select count(*) from public.operacoes_log
+          where pagamento_id = 'f0000000-0000-4000-a000-000000000001') = 12;
 end $$;
 
-\echo '== Modo rede: replica para todas as lojas e conta uma vez'
+\echo '== Pacote vencido (mais de 30 dias) não vale mais'
+reset role;
+update public.pagamentos set valido_ate = now() - interval '1 minute'
+ where id = 'f0000000-0000-4000-a000-000000000001';
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$ begin
+  assert (select restantes from public.cota_status('10000000-0000-4000-b000-000000000001',
+                                                   '20000000-0000-4000-b000-000000000001')) = 0;
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
+     '20000000-0000-4000-b000-000000000001', '[{"produto": "Novo", "preco_centavos": 100}]')$q$,
+  'cota_excedida');
+
+\echo '== Modo rede: a rede tem uma cota só, cada alteração replicada conta uma vez'
 update public.pdvs set modo_rede = true where id = '10000000-0000-4000-b000-000000000001';
 do $$
 declare
   pdv constant uuid := '10000000-0000-4000-b000-000000000001';
   v jsonb;
 begin
+  assert (select restantes from public.cota_status(pdv)) = 50;
   v := public.pdv_salvar_precos(pdv, null, '[{"produto": "Cerveja Lata", "preco_centavos": 350, "obs": "Gelada"}]');
   assert (v ->> 'operacoes')::int = 1, v::text;
   assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id
           where l.pdv_id = pdv and c.produto = 'Cerveja Lata') = 2;
-  assert (select restantes from public.cota_status(pdv)) = 36;
+  assert (select restantes from public.cota_status(pdv)) = 49;
 
   -- Excluir em modo rede some de todas as lojas.
   perform public.pdv_excluir_item((select c.id from public.cotacoes c
                                    where c.produto = 'Cerveja Lata' limit 1));
   assert (select count(*) from public.cotacoes where produto = 'Cerveja Lata') = 0;
-  assert (select restantes from public.cota_status(pdv)) = 36;
+  assert (select restantes from public.cota_status(pdv)) = 49;
 end $$;
 
 \echo '== Outro usuário não usa a cota/tabela do PDV alheio'
@@ -290,7 +341,7 @@ select pg_temp.espera_erro(
   'sem_permissao');
 do $$ begin
   assert (select count(*) from public.operacoes_log) = 0, 'log de operações é privado';
-  assert (select count(*) from public.encartes_pendentes) = 2, 'CPF vê só os próprios encartes';
+  assert (select count(*) from public.encartes_pendentes) = 3, 'CPF vê só os próprios encartes';
 end $$;
 
 \echo '== Admin: fila de encartes'
@@ -298,13 +349,36 @@ set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 do $$
 declare n int;
 begin
-  assert (select count(*) from public.encartes_pendentes where status = 'pendente') = 2;
+  assert (select count(*) from public.encartes_pendentes where status = 'pendente') = 3;
+  -- Sem validade informada no item, usa a do encarte (digitada pelo usuário no envio);
+  -- item com validade própria mantém a dele.
   n := public.aprovar_encarte('e0000000-0000-4000-a000-000000000001',
-        '[{"produto": "Uva Thompson kg", "preco_centavos": 1499},
-          {"produto": "Manga Palmer kg", "preco_centavos": 699}]', current_date + 5);
+        format('[{"produto": "Uva Thompson kg", "preco_centavos": 1499},
+                 {"produto": "Manga Palmer kg", "preco_centavos": 699, "validade": "%s"}]',
+               public.hoje() + 1)::jsonb);
   assert n = 2;
+  assert (select validade from public.cotacoes where produto = 'Uva Thompson kg') = public.hoje() + 3;
+  assert (select validade from public.cotacoes where produto = 'Manga Palmer kg') = public.hoje() + 1;
   assert (select count(*) from public.buscar_cotacoes('uva thompson')
           where fonte = 'usuario_encarte' and pdv_nome = 'Sacolão Cascatinha') = 1;
+  -- Admin informa a validade impressa no encarte na hora de aprovar.
+  n := public.aprovar_encarte('e0000000-0000-4000-a000-000000000003',
+        '[{"produto": "Morango bandeja", "preco_centavos": 800}]', public.hoje() + 6);
+  assert (select validade from public.cotacoes where produto = 'Morango bandeja') = public.hoje() + 6;
+  begin
+    perform public.aprovar_encarte('e0000000-0000-4000-a000-000000000002',
+      '[{"produto": "X", "preco_centavos": 100}]');
+    raise exception 'devia exigir validade';
+  exception when others then
+    assert sqlerrm = 'validade_obrigatoria', sqlerrm;
+  end;
+  begin
+    perform public.aprovar_encarte('e0000000-0000-4000-a000-000000000002',
+      '[{"produto": "X", "preco_centavos": 100}]', public.hoje() - 1);
+    raise exception 'devia recusar validade vencida';
+  exception when others then
+    assert sqlerrm = 'validade_passada', sqlerrm;
+  end;
   perform public.rejeitar_encarte('e0000000-0000-4000-a000-000000000002', 'Foto ilegível');
   -- Some da lista de pendências assim que decidido.
   assert (select count(*) from public.encartes_pendentes where status = 'pendente') = 0;

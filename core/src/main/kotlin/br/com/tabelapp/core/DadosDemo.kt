@@ -50,13 +50,13 @@ object DadosDemo {
     fun cotacoes(agora: Instant = Instant.now(), hoje: LocalDate = LocalDate.now()): List<Cotacao> {
         var seq = 0
         fun c(
-            loja: Loja, produto: String, centavos: Long, validadeDias: Long?, obs: String?,
+            loja: Loja, produto: String, centavos: Long, validadeDias: Long, obs: String?,
             fonte: Fonte, minutosAtras: Long,
         ) = Cotacao(
             id = "demo-${++seq}",
             produto = produto,
             precoCentavos = centavos,
-            validade = validadeDias?.let { hoje.plusDays(it) },
+            validade = hoje.plusDays(validadeDias),
             obs = obs,
             fonte = fonte,
             lojaId = loja.lojaId,
@@ -95,10 +95,11 @@ object DadosDemo {
             c(itaipava, "Café Torrado e Moído 500g", 2150, 30, null, manual, 400),
             c(itaipava, "Cerveja Pilsen Lata 350ml", 459, 30, null, manual, 400),
             c(itaipava, "Açúcar Refinado 1kg", 529, 30, null, manual, 400),
-            c(altoDaSerra, "Arroz Branco Tipo 1 5kg", 2349, null, null, Fonte.USUARIO_NF, 120),
-            c(altoDaSerra, "Feijão Preto 1kg", 759, null, null, Fonte.USUARIO_NF, 120),
-            c(sacolaoCorreas, "Banana Prata kg", 599, null, null, Fonte.USUARIO_ENCARTE, 300),
-            c(sacolaoCorreas, "Tomate kg", 799, null, null, Fonte.USUARIO_ENCARTE, 300),
+            // NF vale 1 dia; encarte vale até a data impressa nele.
+            c(altoDaSerra, "Arroz Branco Tipo 1 5kg", 2349, Validade.NF_DIAS, null, Fonte.USUARIO_NF, 120),
+            c(altoDaSerra, "Feijão Preto 1kg", 759, Validade.NF_DIAS, null, Fonte.USUARIO_NF, 120),
+            c(sacolaoCorreas, "Banana Prata kg", 599, 4, null, Fonte.USUARIO_ENCARTE, 300),
+            c(sacolaoCorreas, "Tomate kg", 799, 4, null, Fonte.USUARIO_ENCARTE, 300),
         )
     }
 

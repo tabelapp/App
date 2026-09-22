@@ -15,10 +15,13 @@ language sql immutable as $$ select 50 $$;
 create function public.validade_maxima_dias() returns integer
 language sql immutable as $$ select 30 $$;
 
--- Preço enviado por usuário comum (NF/encarte) sem validade explícita
--- continua aparecendo na busca por este número de dias.
-create function public.dias_vigencia_preco_usuario() returns integer
+-- Pacote de +50 operações vale 30 dias a partir do pagamento.
+create function public.validade_pacote_dias() returns integer
 language sql immutable as $$ select 30 $$;
+
+-- Preço vindo de Nota Fiscal vale 1 dia (data do envio + 1).
+create function public.validade_nf_dias() returns integer
+language sql immutable as $$ select 1 $$;
 
 -- Helpers de permissão ---------------------------------------------------------
 create function public.is_admin()
@@ -46,14 +49,78 @@ as $$
 $$;
 
 -- =============================================================================
--- Cota de operações do PDV
+-- Cota de operações
+--
+-- Cada LOJA tem 50 operações grátis por mês (modo varejo). Em modo rede, a
+-- rede inteira funciona como uma loja só: uma cota de 50, e cada alteração
+-- replicada conta uma vez. Essa "carteira" é identificada por (pdv, loja_id),
+-- com loja_id = null no modo rede.
+--
+-- Pacotes pagos (+50 por R$10) valem 30 dias a partir do pagamento e são da
+-- mesma carteira (loja ou rede). O consumo usa primeiro as grátis do mês,
+-- depois o pacote que vence antes.
 -- =============================================================================
-create function public.cota_status(p_pdv_id uuid)
+
+-- Resolve a carteira: modo rede -> null; varejo -> a loja (precisa ser do PDV e ativa).
+create function public._carteira_cota(p_pdv public.pdvs, p_loja_id uuid)
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if p_pdv.modo_rede then
+    return null;
+  end if;
+  if p_loja_id is null or not exists (
+    select 1 from public.lojas where id = p_loja_id and pdv_id = p_pdv.id and ativa
+  ) then
+    raise exception 'loja_invalida';
+  end if;
+  return p_loja_id;
+end;
+$$;
+
+-- Operações grátis já usadas no mês pela carteira.
+create function public._gratis_usadas(p_pdv_id uuid, p_carteira uuid)
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select count(*)::integer from public.operacoes_log o
+  where o.pdv_id = p_pdv_id and o.loja_id is not distinct from p_carteira
+    and o.conta_na_cota and o.pagamento_id is null
+    and o.competencia = public.competencia_atual()
+$$;
+
+-- Pacotes pagos ainda válidos da carteira, com o saldo de cada um.
+create function public._pacotes_ativos(p_pdv_id uuid, p_carteira uuid)
+returns table (pagamento_id uuid, valido_ate timestamptz, saldo integer)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id, p.valido_ate,
+         p.quantidade - (select count(*)::integer from public.operacoes_log o where o.pagamento_id = p.id)
+  from public.pagamentos p
+  where p.pdv_id = p_pdv_id and p.loja_id is not distinct from p_carteira
+    and p.tipo = 'pacote_operacoes' and p.status = 'pago' and p.valido_ate > now()
+    and p.quantidade > (select count(*) from public.operacoes_log o where o.pagamento_id = p.id)
+  order by p.valido_ate, p.id
+$$;
+
+-- p_loja_id é ignorado em modo rede e obrigatório em modo varejo.
+create function public.cota_status(p_pdv_id uuid, p_loja_id uuid default null)
 returns table (
-  competencia       date,
+  loja_id           uuid,
   gratis            integer,
-  compradas         integer,
-  usadas            integer,
+  gratis_usadas     integer,
+  saldo_pacotes     integer,
+  pacote_vence_em   timestamptz,
   restantes         integer
 )
 language plpgsql
@@ -61,31 +128,26 @@ stable
 security definer
 set search_path = ''
 as $$
+declare
+  v_pdv       public.pdvs%rowtype;
+  v_carteira  uuid;
+  v_usadas    integer;
 begin
-  if not (public.eh_dono_pdv(p_pdv_id) or public.is_admin()) then
+  select * into v_pdv from public.pdvs where id = p_pdv_id;
+  if not found or not (v_pdv.dono_id = auth.uid() or public.is_admin()) then
     raise exception 'sem_permissao';
   end if;
+  v_carteira := public._carteira_cota(v_pdv, p_loja_id);
+  v_usadas := public._gratis_usadas(p_pdv_id, v_carteira);
 
   return query
-  with
-    c_comp as (select public.competencia_atual() as c),
-    c_compradas as (
-      select coalesce(sum(p.quantidade), 0)::integer as n
-      from public.pagamentos p, c_comp
-      where p.pdv_id = p_pdv_id and p.tipo = 'pacote_operacoes'
-        and p.status = 'pago' and p.competencia = c_comp.c
-    ),
-    c_usadas as (
-      select count(*)::integer as n
-      from public.operacoes_log o, c_comp
-      where o.pdv_id = p_pdv_id and o.conta_na_cota and o.competencia = c_comp.c
-    )
-  select c_comp.c,
+  select v_carteira,
          public.cota_gratis_mensal(),
-         c_compradas.n,
-         c_usadas.n,
-         greatest(public.cota_gratis_mensal() + c_compradas.n - c_usadas.n, 0)
-  from c_comp, c_compradas, c_usadas;
+         v_usadas,
+         coalesce(sum(a.saldo), 0)::integer,
+         min(a.valido_ate),
+         greatest(public.cota_gratis_mensal() - v_usadas, 0) + coalesce(sum(a.saldo), 0)::integer
+  from public._pacotes_ativos(p_pdv_id, v_carteira) a;
 end;
 $$;
 
@@ -102,7 +164,7 @@ $$;
 --   * mesmo preço (só OBS/validade mudou) -> editar_dados (grátis)
 --   * excluir                 -> excluir_item    (grátis, ver pdv_excluir_item)
 -- Modo rede: o item é replicado para todas as lojas ativas e conta UMA vez.
--- Modo varejo: aplica só na loja informada; cada loja consome a cota do PDV.
+-- Modo varejo: aplica só na loja informada e usa a cota daquela loja.
 --
 -- p_simular = true não grava nada: devolve o resumo e se cabe na cota — usado
 -- pelo app para mostrar a tela de pagamento ANTES de concluir a importação.
@@ -128,6 +190,10 @@ declare
   v_faltam       integer;
   v_lote         uuid := gen_random_uuid();
   v_invalidos    jsonb;
+  v_carteira     uuid;
+  v_gratis       integer;
+  v_pacote       uuid;
+  v_op           record;
 begin
   if auth.uid() is null then
     raise exception 'nao_autenticado';
@@ -158,6 +224,7 @@ begin
   if v_lojas is null then
     raise exception 'loja_invalida';
   end if;
+  v_carteira := public._carteira_cota(v_pdv, p_loja_id);
 
   -- Itens de entrada, já normalizados.
   -- Tabelas temporárias de trabalho (somem no fim da transação).
@@ -227,7 +294,7 @@ begin
   into v_resumo
   from _classif;
 
-  select restantes into v_restantes from public.cota_status(p_pdv_id);
+  select c.restantes into v_restantes from public.cota_status(p_pdv_id, p_loja_id) c;
   v_faltam := greatest(v_resumo.operacoes - v_restantes, 0);
 
   if p_simular or v_faltam > 0 then
@@ -268,13 +335,25 @@ begin
     enviado_por    = excluded.enviado_por,
     lote_id        = excluded.lote_id;
 
-  insert into public.operacoes_log (pdv_id, loja_id, produto, tipo)
-  select p_pdv_id,
-         case when v_pdv.modo_rede then null else v_lojas[1] end,
-         i.produto,
-         c.tipo
-  from _itens i
-  join _classif c using (norm);
+  -- Registra as operações, tirando primeiro das grátis do mês e depois do pacote
+  -- que vence antes. O saldo já foi conferido acima, então sempre há de onde tirar.
+  v_gratis := greatest(public.cota_gratis_mensal() - public._gratis_usadas(p_pdv_id, v_carteira), 0);
+  for v_op in
+    select i.produto, c.tipo, c.tipo in ('criar_item', 'aumentar_preco') as conta
+    from _itens i join _classif c using (norm)
+    order by i.ord
+  loop
+    v_pacote := null;
+    if v_op.conta then
+      if v_gratis > 0 then
+        v_gratis := v_gratis - 1;
+      else
+        select a.pagamento_id into v_pacote from public._pacotes_ativos(p_pdv_id, v_carteira) a limit 1;
+      end if;
+    end if;
+    insert into public.operacoes_log (pdv_id, loja_id, produto, tipo, pagamento_id)
+    values (p_pdv_id, v_carteira, v_op.produto, v_op.tipo, v_pacote);
+  end loop;
 
   return jsonb_build_object(
     'simulacao', false,
@@ -400,11 +479,7 @@ as $$
   cross join termo
   cross join palavras
   where (l.id is null or l.ativa)
-    and (
-      c.validade >= public.hoje()
-      or (c.validade is null
-          and c.created_at >= now() - make_interval(days => public.dias_vigencia_preco_usuario()))
-    )
+    and c.validade >= public.hoje()
     and (
       termo.t is null
       or not exists (
@@ -421,6 +496,7 @@ $$;
 -- =============================================================================
 -- Usuário comum: Nota Fiscal (manual no V1)
 -- Uma NF -> vários produtos, enviados de uma vez após a tela de confirmação.
+-- Preço de NF vale 1 dia (data do envio + 1).
 -- CPF do comprador NUNCA é pedido nem armazenado.
 -- =============================================================================
 create function public.enviar_nota_fiscal(
@@ -470,13 +546,14 @@ begin
   end if;
 
   insert into public.cotacoes
-    (loja_id, pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos,
+    (loja_id, pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade,
      fonte, chave_acesso_nf, enviado_por, lote_id)
   select p_loja_id,
          case when p_loja_id is null then btrim(p_pdv_nome) end,
          case when p_loja_id is null then nullif(btrim(p_pdv_endereco), '') end,
          btrim(e ->> 'produto'),
          (e ->> 'preco_centavos')::integer,
+         public.hoje() + public.validade_nf_dias(),
          'usuario_nf',
          v_chave,
          auth.uid(),
@@ -494,7 +571,7 @@ $$;
 create function public.aprovar_encarte(
   p_encarte_id  uuid,
   p_itens       jsonb,          -- [{produto, preco_centavos, validade?}] montado pelo Admin
-  p_validade    date default null
+  p_validade    date default null  -- validade impressa no encarte (vale para itens sem validade própria)
 )
 returns integer
 language plpgsql
@@ -519,6 +596,20 @@ begin
   if p_itens is null or jsonb_typeof(p_itens) <> 'array' or jsonb_array_length(p_itens) = 0 then
     raise exception 'itens_vazios';
   end if;
+  -- Cada preço usa a validade informada no encarte: a do item, a informada pelo
+  -- Admin na aprovação ou a que o usuário digitou ao enviar, nessa ordem.
+  if exists (
+    select 1 from jsonb_array_elements(p_itens) e
+    where coalesce((e ->> 'validade')::date, p_validade, v_enc.validade) is null
+  ) then
+    raise exception 'validade_obrigatoria';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_itens) e
+    where coalesce((e ->> 'validade')::date, p_validade, v_enc.validade) < public.hoje()
+  ) then
+    raise exception 'validade_passada';
+  end if;
 
   insert into public.cotacoes
     (loja_id, pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade,
@@ -528,7 +619,7 @@ begin
          case when v_enc.loja_id is null then v_enc.pdv_endereco end,
          btrim(e ->> 'produto'),
          (e ->> 'preco_centavos')::integer,
-         coalesce((e ->> 'validade')::date, p_validade),
+         coalesce((e ->> 'validade')::date, p_validade, v_enc.validade),
          'usuario_encarte',
          v_enc.enviado_por,
          v_enc.id,
@@ -642,6 +733,8 @@ declare
 begin
   update public.pagamentos
      set status = 'pago', pago_em = now(),
+         valido_ate = case when tipo = 'pacote_operacoes'
+                           then now() + make_interval(days => public.validade_pacote_dias()) end,
          provedor_pagamento_id = coalesce(p_provedor_pagamento_id, provedor_pagamento_id)
    where id = p_pagamento_id and status = 'pendente'
   returning * into v_pag;
@@ -657,6 +750,6 @@ begin
                          then 'ativa'::public.status_promocao else status end
      where id = v_pag.promocao_id;
   end if;
-  -- pacote_operacoes: nada a fazer, cota_status() já soma pagamentos pagos do mês.
+  -- pacote_operacoes: nada a fazer, cota_status() já soma os pacotes válidos.
 end;
 $$;

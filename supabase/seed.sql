@@ -70,14 +70,15 @@ from (values
 on conflict do nothing;
 
 -- Preços enviados por usuários comuns em PDVs NÃO cadastrados.
-insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, fonte,
+-- NF vale 1 dia; encarte vale até a data impressa nele.
+insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte,
                              chave_acesso_nf, created_at)
 values
   ('Mercadinho Alto da Serra', 'Rua Teresa, 1500 - Alto da Serra', 'Arroz Branco Tipo 1 5kg', 2349,
-   'usuario_nf', '33260911111111000191650010000012341000012346', now() - interval '2 hours'),
+   public.hoje() + 1, 'usuario_nf', '33260911111111000191650010000012341000012346', now() - interval '2 hours'),
   ('Mercadinho Alto da Serra', 'Rua Teresa, 1500 - Alto da Serra', 'Feijão Preto 1kg', 759,
-   'usuario_nf', '33260911111111000191650010000012341000012346', now() - interval '2 hours'),
+   public.hoje() + 1, 'usuario_nf', '33260911111111000191650010000012341000012346', now() - interval '2 hours'),
   ('Sacolão Corrêas', 'Estrada União e Indústria, 3000 - Corrêas', 'Banana Prata kg', 599,
-   'usuario_encarte', null, now() - interval '5 hours'),
+   public.hoje() + 4, 'usuario_encarte', null, now() - interval '5 hours'),
   ('Sacolão Corrêas', 'Estrada União e Indústria, 3000 - Corrêas', 'Tomate kg', 799,
-   'usuario_encarte', null, now() - interval '5 hours');
+   public.hoje() + 4, 'usuario_encarte', null, now() - interval '5 hours');

@@ -1,14 +1,15 @@
 package br.com.tabelapp.core
 
 /**
- * Cota de operações do PDV (briefing, seção 5).
+ * Cota de operações (briefing, seção 5).
  *
- *  - 50 operações grátis por mês.
+ *  - Cada LOJA tem 50 operações grátis por mês.
+ *  - Modo rede: a rede inteira é uma cota só de 50; uma edição replicada
+ *    para todas as lojas conta 1.
  *  - Só CRIAR item ou AUMENTAR preço conta. Diminuir preço, excluir e editar
  *    só OBS/validade são sempre grátis.
- *  - R$10 via Pix = +50 operações (valem no mês da compra).
- *  - Modo rede: uma edição replicada para todas as lojas conta 1.
- *    Modo varejo: cada loja editada conta separadamente.
+ *  - R$10 via Pix = +50 operações para aquela loja (ou rede), válidas por
+ *    30 dias a partir do pagamento. Gasta primeiro as grátis do mês.
  *
  * O banco (função `pdv_salvar_precos`) é quem manda; esta classe serve para o
  * app mostrar o custo ANTES de enviar (ex.: prévia da importação da planilha).
@@ -17,6 +18,7 @@ object RegrasCota {
     const val GRATIS_POR_MES = 50
     const val OPERACOES_POR_PACOTE = 50
     const val PRECO_PACOTE_CENTAVOS = 1000L
+    const val VALIDADE_PACOTE_DIAS = 30L
 }
 
 enum class TipoOperacao(val contaNaCota: Boolean) {
@@ -41,9 +43,15 @@ enum class TipoOperacao(val contaNaCota: Boolean) {
     }
 }
 
-data class SaldoCota(val usadas: Int, val compradas: Int = 0) {
-    val limite: Int get() = RegrasCota.GRATIS_POR_MES + compradas
-    val restantes: Int get() = (limite - usadas).coerceAtLeast(0)
+/**
+ * Saldo de UMA loja (ou da rede, no modo rede). Espelha `cota_status()` do banco.
+ *
+ * @param gratisUsadas operações grátis já usadas no mês.
+ * @param saldoPacotes operações ainda disponíveis nos pacotes pagos dentro da validade.
+ */
+data class SaldoCota(val gratisUsadas: Int, val saldoPacotes: Int = 0) {
+    val gratisRestantes: Int get() = (RegrasCota.GRATIS_POR_MES - gratisUsadas).coerceAtLeast(0)
+    val restantes: Int get() = gratisRestantes + saldoPacotes
 
     fun simular(operacoes: Int): SimulacaoCota {
         val faltam = (operacoes - restantes).coerceAtLeast(0)
@@ -96,10 +104,9 @@ object CalculoCota {
         )
     }
 
-    /** Quantas operações uma mesma alteração custa conforme o modo do PDV. */
-    fun custoPorModo(alteracaoContaNaCota: Boolean, modoRede: Boolean, lojasAfetadas: Int): Int = when {
-        !alteracaoContaNaCota -> 0
-        modoRede -> 1
-        else -> lojasAfetadas
-    }
+    /**
+     * Quantas operações uma mesma alteração custa em cada cota.
+     * Modo rede: 1 da cota da rede. Modo varejo: 1 da cota de cada loja editada.
+     */
+    fun custoPorCota(alteracaoContaNaCota: Boolean): Int = if (alteracaoContaNaCota) 1 else 0
 }

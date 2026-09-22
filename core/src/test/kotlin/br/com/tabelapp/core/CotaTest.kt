@@ -19,7 +19,7 @@ class CotaTest {
     }
 
     @Test fun `saldo e pacotes`() {
-        val saldo = SaldoCota(usadas = 38)
+        val saldo = SaldoCota(gratisUsadas = 38)
         assertEquals(12, saldo.restantes)
         assertTrue(saldo.simular(12).cabeNaCota)
 
@@ -29,8 +29,10 @@ class CotaTest {
         assertEquals(1000, s.valorCentavos)
 
         assertEquals(2, saldo.simular(63).pacotesNecessarios) // faltam 51 -> 2 pacotes
-        assertEquals(62, SaldoCota(usadas = 38, compradas = 50).restantes)
-        assertEquals(0, SaldoCota(usadas = 80).restantes)
+        // Pacote ativo soma ao que sobrou das grátis; grátis esgotadas não ficam negativas.
+        assertEquals(62, SaldoCota(gratisUsadas = 38, saldoPacotes = 50).restantes)
+        assertEquals(12, SaldoCota(gratisUsadas = 50, saldoPacotes = 12).restantes)
+        assertEquals(0, SaldoCota(gratisUsadas = 50).restantes)
     }
 
     @Test fun `resumo de importacao compara com precos atuais`() {
@@ -43,9 +45,8 @@ class CotaTest {
         assertEquals(2, r.operacoes)
     }
 
-    @Test fun `modo rede conta uma vez, varejo conta por loja`() {
-        assertEquals(1, CalculoCota.custoPorModo(true, modoRede = true, lojasAfetadas = 3))
-        assertEquals(3, CalculoCota.custoPorModo(true, modoRede = false, lojasAfetadas = 3))
-        assertEquals(0, CalculoCota.custoPorModo(false, modoRede = false, lojasAfetadas = 3))
+    @Test fun `cada alteracao que conta custa 1 da cota da loja ou da rede`() {
+        assertEquals(1, CalculoCota.custoPorCota(true))
+        assertEquals(0, CalculoCota.custoPorCota(false))
     }
 }
