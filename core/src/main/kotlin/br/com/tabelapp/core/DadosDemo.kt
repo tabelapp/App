@@ -13,32 +13,33 @@ object DadosDemo {
     private data class Loja(
         val lojaId: String?, val pdvId: String?, val pdvNome: String, val lojaNome: String?,
         val endereco: String, val telefone: String?, val site: String?, val local: PontoGeo?,
+        val cnpj: String? = null,
     )
 
     private val serraCentro = Loja(
         "20000000-0000-4000-a000-000000000001", "10000000-0000-4000-a000-000000000001",
         "Supermercado Serra Imperial", "Loja Centro", "Rua do Imperador, 500, Centro, Petrópolis - RJ",
-        "(24) 2222-0001", "https://exemplo.invalid/serra", PontoGeo(-22.5058, -43.1790),
+        "(24) 2222-0001", "https://exemplo.invalid/serra", PontoGeo(-22.5058, -43.1790), cnpj = "11111111000191",
     )
     private val serraValparaiso = Loja(
         "20000000-0000-4000-a000-000000000002", "10000000-0000-4000-a000-000000000001",
         "Supermercado Serra Imperial", "Loja Valparaíso", "Rua Coronel Veiga, 1200, Valparaíso, Petrópolis - RJ",
-        "(24) 2222-0002", "https://exemplo.invalid/serra", PontoGeo(-22.5160, -43.1730),
+        "(24) 2222-0002", "https://exemplo.invalid/serra", PontoGeo(-22.5160, -43.1730), cnpj = "11111111000191",
     )
     private val quitandinha = Loja(
         "20000000-0000-4000-a000-000000000003", "10000000-0000-4000-a000-000000000002",
         "Mercado Quitandinha", null, "Avenida Joaquim Rolla, 300, Quitandinha, Petrópolis - RJ",
-        "(24) 2222-0003", null, PontoGeo(-22.5275, -43.2105),
+        "(24) 2222-0003", null, PontoGeo(-22.5275, -43.2105), cnpj = "22222222000191",
     )
     private val bingen = Loja(
         "20000000-0000-4000-a000-000000000004", "10000000-0000-4000-a000-000000000003",
         "Hortifruti Bingen", null, "Rua Bingen, 800, Bingen, Petrópolis - RJ",
-        "(24) 2222-0004", null, PontoGeo(-22.5165, -43.1960),
+        "(24) 2222-0004", null, PontoGeo(-22.5165, -43.1960), cnpj = "33333333000191",
     )
     private val itaipava = Loja(
         "20000000-0000-4000-a000-000000000005", "10000000-0000-4000-a000-000000000004",
         "Empório Itaipava", null, "Estrada União e Indústria, 11000, Itaipava, Petrópolis - RJ",
-        "(24) 2222-0005", null, PontoGeo(-22.3865, -43.1335),
+        "(24) 2222-0005", null, PontoGeo(-22.3865, -43.1335), cnpj = "44444444000191",
     )
     private val altoDaSerra = Loja(
         null, null, "Mercadinho Alto da Serra", null, "Rua Teresa, 1500 - Alto da Serra", null, null, null,
@@ -103,9 +104,25 @@ object DadosDemo {
         )
     }
 
-    /** Mesma semântica de `buscar_cotacoes()`: sem termo = mais recentes; com termo = mais barato primeiro. */
-    fun buscar(termo: String?, agora: Instant = Instant.now(), hoje: LocalDate = LocalDate.now()): List<Cotacao> {
-        val todas = cotacoes(agora, hoje)
+    /** Lojas de demonstração de um CNPJ (mesma ideia de `lojas_do_cnpj()` no banco). */
+    fun lojasDoCnpj(cnpj: String): List<LojaResumo> {
+        val digitos = cnpj.filter { it.isDigit() }
+        return listOf(serraCentro, serraValparaiso, quitandinha, bingen, itaipava)
+            .filter { it.cnpj == digitos }
+            .map { LojaResumo(it.lojaId!!, it.pdvNome, it.lojaNome, it.endereco, it.telefone, it.pdvId, it.local) }
+    }
+
+    /**
+     * Mesma semântica de `buscar_cotacoes()`: sem termo = mais recentes; com termo = mais barato primeiro.
+     * @param extras preços enviados durante a demonstração (ex.: notas fiscais).
+     */
+    fun buscar(
+        termo: String?,
+        agora: Instant = Instant.now(),
+        hoje: LocalDate = LocalDate.now(),
+        extras: List<Cotacao> = emptyList(),
+    ): List<Cotacao> {
+        val todas = cotacoes(agora, hoje) + extras.filter { !it.validade!!.isBefore(hoje) }
         return if (termo.isNullOrBlank()) {
             todas.sortedByDescending { it.criadoEm }
         } else {

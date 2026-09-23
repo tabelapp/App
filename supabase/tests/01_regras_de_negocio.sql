@@ -125,6 +125,29 @@ end $$;
 select pg_temp.espera_erro(
   $q$select public.enviar_nota_fiscal('33260911111111000191650010000099991000099990', null,
      'Padaria Koeler', null, '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'nf_ja_enviada');
+\echo '== NF pelo QR Code: CNPJ da chave encontra a loja cadastrada'
+do $$
+declare v jsonb;
+begin
+  -- 22222222000191 = Mercado Quitandinha (seed), uma loja.
+  assert (select count(*) from public.lojas_do_cnpj('22.222.222/0001-91')) = 1;
+  assert (select pdv_nome from public.lojas_do_cnpj('22222222000191')) = 'Mercado Quitandinha';
+  -- Rede com duas lojas: o app pergunta em qual foi a compra.
+  assert (select count(*) from public.lojas_do_cnpj('11111111000191')) = 2;
+  assert (select count(*) from public.lojas_do_cnpj('99999999000191')) = 0;
+
+  v := public.enviar_nota_fiscal('33260922222222000191650010000077771000077770',
+         '20000000-0000-4000-a000-000000000003', null, null,
+         '[{"produto": "Café 500g", "preco_centavos": 1799}]');
+  assert (v ->> 'itens')::int = 1;
+  assert (select count(*) from public.buscar_cotacoes('cafe 500g')
+          where fonte = 'usuario_nf' and pdv_nome = 'Mercado Quitandinha' and telefone is not null) = 1;
+end $$;
+-- Chave de um CNPJ, loja de outro: recusado.
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal('33260922222222000191650010000088881000088880',
+     '20000000-0000-4000-a000-000000000004', null, null,
+     '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'loja_nao_confere');
 select pg_temp.espera_erro(
   $q$select public.enviar_nota_fiscal('123', null, 'X', null,
      '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'chave_acesso_invalida');

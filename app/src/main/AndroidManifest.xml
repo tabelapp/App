@@ -15,6 +15,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Tabelapp">
 
+        <!-- Pede ao Google Play para já baixar o leitor de QR Code na instalação do app. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

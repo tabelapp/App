@@ -82,5 +82,7 @@ dependencies {
     implementation(libs.supabase.compose.auth)
     implementation(libs.ktor.client.okhttp)
 
+    implementation(libs.play.services.code.scanner)
+
     testImplementation(libs.junit)
 }

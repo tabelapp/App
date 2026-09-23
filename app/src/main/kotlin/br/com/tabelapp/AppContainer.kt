@@ -4,11 +4,15 @@ import android.content.Context
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.Localizacao
+import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.Preferencias
 import br.com.tabelapp.dados.demo.DemoAuthRepositorio
+import br.com.tabelapp.dados.demo.DemoBanco
 import br.com.tabelapp.dados.demo.DemoCotacoesRepositorio
+import br.com.tabelapp.dados.demo.DemoNotaFiscalRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseAuthRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseCotacoesRepositorio
+import br.com.tabelapp.dados.supabase.SupabaseNotaFiscalRepositorio
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.compose.auth.ComposeAuth
 import io.github.jan.supabase.compose.auth.googleNativeLogin
@@ -36,11 +40,14 @@ class AppContainer(contexto: Context) {
 
     val auth: AuthRepositorio
     val cotacoes: CotacoesRepositorio
+    val notasFiscais: NotaFiscalRepositorio
 
     init {
         if (modoDemo) {
+            val banco = DemoBanco()
             auth = DemoAuthRepositorio()
-            cotacoes = DemoCotacoesRepositorio()
+            cotacoes = DemoCotacoesRepositorio(banco)
+            notasFiscais = DemoNotaFiscalRepositorio(banco)
         } else {
             val googleConfigurado = BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
             val supabase = createSupabaseClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY) {
@@ -53,6 +60,7 @@ class AppContainer(contexto: Context) {
             }
             auth = SupabaseAuthRepositorio(supabase, escopo, googleConfigurado)
             cotacoes = SupabaseCotacoesRepositorio(supabase)
+            notasFiscais = SupabaseNotaFiscalRepositorio(supabase)
         }
     }
 }

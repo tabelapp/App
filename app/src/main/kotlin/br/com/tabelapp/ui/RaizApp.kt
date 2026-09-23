@@ -10,13 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.dados.EstadoSessao
-import br.com.tabelapp.ui.busca.TelaBusca
 import br.com.tabelapp.ui.login.TelaCompletarCadastro
 import br.com.tabelapp.ui.login.TelaLogin
+import br.com.tabelapp.ui.principal.TelaPrincipal
 
 /**
  * Navegação de alto nível, guiada pelo estado da sessão:
- * carregando -> login -> (completar cadastro) -> busca de preços.
+ * carregando -> login -> (completar cadastro) -> abas (busca, enviar NF).
  */
 @Composable
 fun RaizApp(container: AppContainer) {
@@ -31,7 +31,7 @@ fun RaizApp(container: AppContainer) {
             if (!e.usuario.cadastroCompleto) {
                 TelaCompletarCadastro(container, e.usuario)
             } else {
-                TelaBusca(container, e.usuario)
+                TelaPrincipal(container, e.usuario)
             }
     }
 }

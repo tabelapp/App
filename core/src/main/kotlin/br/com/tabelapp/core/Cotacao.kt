@@ -50,3 +50,16 @@ data class Cotacao(
     val chaveLocal: String
         get() = lojaId ?: ("livre:" + Texto.normalizar(pdvNome) + "|" + Texto.normalizar(endereco.orEmpty()))
 }
+
+/** Uma loja cadastrada, como aparece na hora de escolher onde foi a compra. */
+data class LojaResumo(
+    val lojaId: String,
+    val pdvNome: String,
+    val lojaNome: String?,
+    val endereco: String,
+    val telefone: String? = null,
+    val pdvId: String? = null,
+    val local: PontoGeo? = null,
+) {
+    val titulo: String get() = listOfNotNull(pdvNome, lojaNome).joinToString(" — ")
+}

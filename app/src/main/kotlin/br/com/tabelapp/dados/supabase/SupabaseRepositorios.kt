@@ -4,11 +4,14 @@ import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.EstadoSessao
+import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import io.github.jan.supabase.SupabaseClient
@@ -34,6 +37,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -222,5 +227,44 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
                 put("p_limite", 100)
             },
         ).decodeList<CotacaoDto>().map { it.paraCotacao() }
+    }
+}
+
+@Serializable
+private data class LojaDoCnpjDto(
+    @SerialName("loja_id") val lojaId: String,
+    @SerialName("pdv_nome") val pdvNome: String,
+    @SerialName("loja_nome") val lojaNome: String? = null,
+    val endereco: String,
+)
+
+@Serializable
+private data class RespostaEnvioNf(val itens: Int)
+
+class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : NotaFiscalRepositorio {
+    override suspend fun lojasDoCnpj(cnpj: String): List<LojaResumo> = traduzindoErros {
+        supabase.postgrest.rpc("lojas_do_cnpj", buildJsonObject { put("p_cnpj", cnpj) })
+            .decodeList<LojaDoCnpjDto>()
+            .map { LojaResumo(it.lojaId, it.pdvNome, it.lojaNome, it.endereco) }
+    }
+
+    override suspend fun enviar(rascunho: RascunhoNf): Int = traduzindoErros {
+        supabase.postgrest.rpc(
+            "enviar_nota_fiscal",
+            buildJsonObject {
+                put("p_chave_acesso", rascunho.chaveAcesso.filter { it.isDigit() }.ifEmpty { null })
+                put("p_loja_id", rascunho.lojaId)
+                put("p_pdv_nome", rascunho.pdvNome.trim().ifEmpty { null })
+                put("p_pdv_endereco", rascunho.pdvEndereco.trim().ifEmpty { null })
+                put("p_itens", buildJsonArray {
+                    rascunho.itensParaEnvio().forEach { item ->
+                        addJsonObject {
+                            put("produto", item.produto)
+                            put("preco_centavos", item.precoCentavos)
+                        }
+                    }
+                })
+            },
+        ).decodeAs<RespostaEnvioNf>().itens
     }
 }

@@ -15,6 +15,7 @@ object ErrosServidor {
         "loja_invalida" to "Loja não encontrada ou inativa.",
         "chave_acesso_invalida" to "A chave de acesso precisa ter 44 números.",
         "nf_ja_enviada" to "Esta nota fiscal já foi enviada.",
+        "loja_nao_confere" to "O CNPJ da nota não é o desta loja. Confira o estabelecimento.",
         "pdv_obrigatorio" to "Informe o nome do estabelecimento.",
         "item_nao_encontrado" to "Produto não encontrado.",
         "encarte_nao_encontrado" to "Encarte não encontrado.",

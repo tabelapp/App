@@ -55,13 +55,32 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
   que devolve quantas operações a importação vai custar, o saldo da loja e quantos pacotes faltam. Se
   não couber, o app mostra o Pix antes; se tentar gravar sem saldo, o banco recusa (`cota_excedida`).
 
-## Nota Fiscal (V1 manual)
+## Nota Fiscal pelo QR Code
+
+1. O usuário lê o QR Code do cupom com o **leitor do Google Play Services** (tela pronta do Google,
+   não precisa pedir permissão de câmera). Sem câmera, dá para digitar a chave ou colar o link.
+2. A chave dentro do QR é validada (44 dígitos + dígito verificador) e precisa ser do RJ.
+3. O app abre o link da Sefaz-RJ **dentro do próprio celular** (WebView, na conexão do usuário — o portal
+   bloqueia servidores, briefing seção 8) e lê os produtos da página (`LeitorNfce` no `core`). A página
+   fica visível: se a Sefaz pedir verificação, o usuário resolve ali. Após 90 s sem conseguir ler, cai no
+   preenchimento manual com a chave já preenchida.
+4. O CNPJ do emitente vem na própria chave. Se for de um PDV cadastrado, a nota é ligada à loja (se a
+   rede tiver várias lojas, o usuário escolhe qual). O banco recusa ligar a chave a uma loja de outro
+   CNPJ (`loja_nao_confere`).
+5. O usuário confere/corrige os produtos, vê **uma tela de confirmação** com todos e envia de uma vez.
+   O preço enviado é o **valor unitário** de cada item; linhas repetidas (mesmo produto e preço) viram uma.
+
+- **⚠️ testar com nota real:** o leitor da página foi escrito a partir do layout padrão do portal
+  NFC-e (tabela `#tabResult`), sem acesso ao portal do RJ neste ambiente de desenvolvimento. Se a
+  leitura automática falhar com uma nota de verdade, o app cai no preenchimento manual — e basta
+  salvar o HTML da página para ajustar `LeitorNfce`.
+
+## Nota Fiscal — regras gerais
 
 - Uma chamada `enviar_nota_fiscal` grava todos os itens da nota de uma vez (depois da tela de
   confirmação única), com validade de 1 dia. Limite técnico de 500 itens por nota, só para evitar abuso.
 - Chave de acesso é opcional; se vier, precisa ter 44 dígitos e **não pode repetir** (mesma nota enviada
-  duas vezes é recusada). O app também valida o dígito verificador (`ChaveAcessoNfe` no `core`) e já
-  sabe extrair a chave da URL do QR Code da Sefaz-RJ, para quando a leitura do QR for implementada.
+  duas vezes é recusada). O app também valida o dígito verificador (`ChaveAcessoNfe` no `core`).
 - CPF do comprador não é pedido nem guardado em lugar nenhum.
 
 ## Encartes, Admin e promoções

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -94,6 +95,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
     }
 
     Scaffold(
+        // A barra de baixo (abas) já cuida da borda inferior da tela.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -228,7 +231,6 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
             HorizontalDivider()
             // Próximas etapas do MVP — aparecem desabilitadas para mostrar o que vem por aí.
             DropdownMenuItem(text = { Text("Lista de compras (em breve)") }, onClick = {}, enabled = false)
-            DropdownMenuItem(text = { Text("Enviar nota fiscal (em breve)") }, onClick = {}, enabled = false)
             DropdownMenuItem(text = { Text("Enviar encarte (em breve)") }, onClick = {}, enabled = false)
             if (usuario.tipo == TipoConta.CNPJ) {
                 DropdownMenuItem(text = { Text("Área do PDV (em breve)") }, onClick = {}, enabled = false)

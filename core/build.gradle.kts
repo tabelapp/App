@@ -18,6 +18,8 @@ kotlin {
 }
 
 dependencies {
+    // Lê o HTML da página de consulta da NFC-e (Sefaz).
+    implementation(libs.jsoup)
     testImplementation(kotlin("test"))
     testImplementation(libs.junit)
 }
