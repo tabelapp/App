@@ -55,7 +55,8 @@ Cada push no GitHub também gera um APK de debug (aba *Actions* → último run 
    supabase link --project-ref <id-do-projeto>
    supabase db push
    ```
-   Ou cole os arquivos de `supabase/migrations/` **em ordem** no *SQL Editor* do painel.
+   Ou, mais simples: abra `supabase/instalar_tudo.sql` (todas as migrações num arquivo só), copie
+   tudo, cole no *SQL Editor* do painel e clique em *Run* — só em projeto novo/vazio.
 3. (Opcional) Para ter dados de teste, rode `supabase/seed.sql` no *SQL Editor*. **Não use em produção.**
 4. Crie o arquivo `local.properties` na raiz do projeto (ele não vai para o Git):
    ```properties

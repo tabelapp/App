@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/testar-banco.sh
+      - name: instalar_tudo.sql em dia com as migrações
+        run: scripts/juntar-migracoes.sh --conferir
 
   android:
     name: App Android (testes + APK de debug)
