@@ -209,64 +209,18 @@ select pg_temp.espera_erro(
   $q$select public.aprovar_encarte('e0000000-0000-4000-a000-000000000001',
      '[{"produto": "Uva kg", "preco_centavos": 999}]')$q$, 'sem_permissao');
 
-\echo '== Publicar encarte (RPC): lido no celular, confirmado pelo usuário, direto na busca'
+\echo '== Envio de encarte suspenso: usuário não publica encarte'
 set request.jwt.claim.sub = 'd0000000-0000-4000-a000-00000000000d';
 do $$
-declare n integer; v uuid;
 begin
   -- Busca de lojas cadastradas por nome/bairro, sem acento.
   assert (select count(*) from public.buscar_lojas('quitandinha')) = 1;
   assert (select count(*) from public.buscar_lojas('serra imperial')) = 2;
   assert (select count(*) from public.buscar_lojas('x')) = 0, 'termo curto demais';
-
-  n := public.publicar_encarte(array[auth.uid() || '/a.jpg', auth.uid() || '/b.jpg'],
-         '20000000-0000-4000-a000-000000000004', null, null, public.hoje() + 5,
-         '[{"produto": "Tomate kg", "preco_centavos": 599},
-           {"produto": "Banana Prata kg", "preco_centavos": 449},
-           {"produto": "TOMATE  KG", "preco_centavos": 699}]');
-  assert n = 2, 'produto repetido entra uma vez só (vale o primeiro)';
-  select id into v from public.encartes_pendentes where enviado_por = auth.uid();
-  assert (select cardinality(fotos) = 2 and status = 'aprovado' and validade = public.hoje() + 5
-          from public.encartes_pendentes where id = v), 'encarte registrado já publicado';
-  assert (select count(*) from public.cotacoes
-          where encarte_id = v and fonte = 'usuario_encarte' and validade = public.hoje() + 5
-            and loja_id = '20000000-0000-4000-a000-000000000004') = 2;
-  assert (select preco_centavos from public.cotacoes where encarte_id = v and produto = 'Tomate kg') = 599;
-  -- Já aparece na busca.
-  assert (select count(*) from public.buscar_cotacoes('banana prata') where fonte = 'usuario_encarte') >= 1;
-
-  -- Estabelecimento não cadastrado (nome livre).
-  n := public.publicar_encarte(array[auth.uid() || '/c.jpg'], null, 'Feira da Praça', 'Centro',
-         public.hoje(), '[{"produto": "Alface", "preco_centavos": 250}]');
-  assert n = 1;
-  -- "Meus encartes": só os do próprio usuário, com o nome da loja resolvido e quantos preços publicou.
-  assert (select count(*) from public.meus_encartes()) = 2;
-  assert (select pdv_nome from public.meus_encartes() where itens = 2) = 'Hortifruti Bingen';
 end $$;
 select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array['outro-usuario/x.jpg'], null, 'X', null, public.hoje(),
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'foto_invalida');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[]::text[], null, 'X', null, public.hoje(),
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'foto_obrigatoria');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, '  ', null, public.hoje(),
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'pdv_obrigatorio');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, null,
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'validade_obrigatoria');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, public.hoje() - 1,
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'validade_passada');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, public.hoje() + 31,
-     '[{"produto": "Uva", "preco_centavos": 1}]')$q$, 'validade_longa');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, public.hoje(), '[]')$q$,
-  'itens_vazios');
-select pg_temp.espera_erro(
-  $q$select public.publicar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, public.hoje(),
-     '[{"produto": "Uva", "preco_centavos": 0}]')$q$, 'itens_invalidos');
+  $q$select public.publicar_encarte(array[auth.uid() || '/a.jpg'], null, 'X', null, public.hoje(),
+     '[{"produto": "Uva", "preco_centavos": 100}]')$q$, 'permission denied');
 select pg_temp.espera_erro(
   $q$select public.enviar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null)$q$, 'does not exist');
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';

@@ -62,7 +62,7 @@ fun TelaCompletarCadastro(container: AppContainer, usuario: Usuario) {
             SeletorTipoConta(tipo, aoEscolher = { tipo = it })
             Text(
                 if (tipo == TipoConta.CPF) {
-                    "Pesquise preços, monte sua lista de compras e compartilhe preços de notas fiscais e encartes."
+                    "Pesquise preços, monte sua lista de compras e compartilhe preços das suas notas fiscais."
                 } else {
                     "Cadastre suas lojas, mantenha sua tabela de preços e crie promoções."
                 },

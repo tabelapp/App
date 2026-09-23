@@ -60,6 +60,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.ui.tema.coresBarraTopo
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.dados.TipoConta
@@ -105,11 +106,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                         Text("Quem pesquisa economiza", style = MaterialTheme.typography.labelMedium)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                colors = coresBarraTopo(),
                 actions = {
                     MenuUsuario(usuario, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
                 },

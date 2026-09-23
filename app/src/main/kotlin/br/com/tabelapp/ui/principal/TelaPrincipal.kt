@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -22,16 +21,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.busca.TelaBusca
-import br.com.tabelapp.ui.encarte.TelaEnviarEncarte
 import br.com.tabelapp.ui.nf.TelaEnviarNf
 
 private enum class Aba(val rotulo: String, val icone: ImageVector) {
     BUSCAR("Buscar", Icons.Default.Search),
     ENVIAR_NF("Enviar NF", Icons.Default.ReceiptLong),
-    ENVIAR_ENCARTE("Encarte", Icons.Default.PhotoCamera),
 }
 
-/** Abas do usuário logado. As próximas (lista de compras, encarte...) entram aqui. */
+/** Abas do usuário logado. As próximas (lista de compras...) entram aqui. */
 @Composable
 fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
     var aba by rememberSaveable { mutableStateOf(Aba.BUSCAR) }
@@ -55,7 +52,6 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
             when (aba) {
                 Aba.BUSCAR -> TelaBusca(container, usuario)
                 Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { aba = Aba.BUSCAR })
-                Aba.ENVIAR_ENCARTE -> TelaEnviarEncarte(container, usuario)
             }
         }
     }

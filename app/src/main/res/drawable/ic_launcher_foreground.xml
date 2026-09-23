@@ -1,17 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícone provisório: etiqueta de preço branca com um "R$" estilizado. -->
+<!-- Ícone do app: a lupa com o cifrão da logomarca (fundo amarelo no ic_launcher). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Centralizado na área visível do ícone (72 dp no meio dos 108). -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.05"
+        android:scaleY="1.05"
+        android:translateX="2"
+        android:translateY="4">
+    <!-- cabo da lupa -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M36,34 L62,34 L78,54 L62,74 L36,74 Q32,74 32,70 L32,38 Q32,34 36,34 Z" />
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M61,59 L72,70" />
+    <!-- aro da lupa -->
     <path
-        android:fillColor="#1B7F3B"
-        android:pathData="M64,54 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="6"
+        android:pathData="M31,46 A17,17 0 1,1 65,46 A17,17 0 1,1 31,46 Z" />
+    <!-- cifrão -->
     <path
-        android:fillColor="#F2B705"
-        android:pathData="M40,46 L56,46 L56,50 L40,50 Z M40,54 L52,54 L52,58 L40,58 Z M40,62 L56,62 L56,66 L40,66 Z" />
+        android:strokeColor="#C00000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M48,34.5 L48,57.5" />
+    <path
+        android:strokeColor="#C00000"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M52.8,37.8 A5.5,5.5 0 1,0 48,46 A5.5,5.5 0 1,1 43.2,54.2" />
+    </group>
 </vector>

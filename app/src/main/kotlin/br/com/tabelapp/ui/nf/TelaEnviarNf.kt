@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.coresBarraTopo
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Validade
@@ -69,15 +71,11 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
         topBar = {
             TopAppBar(
                 title = { Text("Enviar nota fiscal", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                colors = coresBarraTopo(),
                 actions = {
                     if (estado.etapa != EtapaNf.INICIO && estado.etapa != EtapaNf.ENVIADO) {
                         TextButton(onClick = vm::novaNota) {
-                            Text("Recomeçar", color = MaterialTheme.colorScheme.onPrimary)
+                            Text("Recomeçar", color = VermelhoTabelapp)
                         }
                     }
                 },

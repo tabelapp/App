@@ -1,5 +1,8 @@
 package br.com.tabelapp.ui.login
 
+import br.com.tabelapp.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -98,6 +101,11 @@ fun TelaLogin(container: AppContainer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Image(
+                painter = painterResource(R.drawable.logo_lupa),
+                contentDescription = null,
+                modifier = Modifier.size(96.dp),
+            )
             Text(
                 "Tabelapp",
                 style = MaterialTheme.typography.displaySmall,

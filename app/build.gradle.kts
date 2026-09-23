@@ -95,7 +95,6 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
 
     implementation(libs.play.services.code.scanner)
-    implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)
 }

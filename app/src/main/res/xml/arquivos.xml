@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- Fotos de encarte tiradas pela câmera ficam no cache do app até serem enviadas. -->
-    <cache-path name="fotos" path="fotos/" />
-</paths>

@@ -3,20 +3,15 @@ package br.com.tabelapp
 import android.content.Context
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
-import br.com.tabelapp.dados.EncarteRepositorio
-import br.com.tabelapp.dados.Imagens
-import br.com.tabelapp.dados.LeitorTexto
 import br.com.tabelapp.dados.Localizacao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.Preferencias
 import br.com.tabelapp.dados.demo.DemoAuthRepositorio
 import br.com.tabelapp.dados.demo.DemoBanco
 import br.com.tabelapp.dados.demo.DemoCotacoesRepositorio
-import br.com.tabelapp.dados.demo.DemoEncarteRepositorio
 import br.com.tabelapp.dados.demo.DemoNotaFiscalRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseAuthRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseCotacoesRepositorio
-import br.com.tabelapp.dados.supabase.SupabaseEncarteRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseNotaFiscalRepositorio
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.compose.auth.ComposeAuth
@@ -42,13 +37,10 @@ class AppContainer(contexto: Context) {
 
     val preferencias = Preferencias(contexto)
     val localizacao = Localizacao(contexto)
-    val imagens = Imagens(contexto)
-    val leitorTexto = LeitorTexto(imagens)
 
     val auth: AuthRepositorio
     val cotacoes: CotacoesRepositorio
     val notasFiscais: NotaFiscalRepositorio
-    val encartes: EncarteRepositorio
 
     init {
         if (modoDemo) {
@@ -56,7 +48,6 @@ class AppContainer(contexto: Context) {
             auth = DemoAuthRepositorio()
             cotacoes = DemoCotacoesRepositorio(banco)
             notasFiscais = DemoNotaFiscalRepositorio(banco)
-            encartes = DemoEncarteRepositorio(banco)
         } else {
             val googleConfigurado = BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
             val supabase = createSupabaseClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY) {
@@ -70,7 +61,6 @@ class AppContainer(contexto: Context) {
             auth = SupabaseAuthRepositorio(supabase, escopo, googleConfigurado)
             cotacoes = SupabaseCotacoesRepositorio(supabase)
             notasFiscais = SupabaseNotaFiscalRepositorio(supabase)
-            encartes = SupabaseEncarteRepositorio(supabase)
         }
     }
 }

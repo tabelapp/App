@@ -84,6 +84,10 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 
 ## Encartes, Admin e promoções
 
+- **⏸️ Envio de encarte pelo usuário: SUSPENSO** (decisão do fundador — vulnerável a preço errado
+  ou inventado). A aba saiu do app, a função `publicar_encarte` não pode mais ser chamada pelo app/API
+  (migração `20260924000900`) e o leitor (`LeitorEncarte`, no `core`, com testes) ficou guardado. O
+  app anterior com a aba está no histórico do Git (commit `e9fc8a4`). Como funcionava:
 - Encarte de usuário comum (**decisão do fundador: sem fila do Admin, sem digitação**):
   1. O usuário tira ou escolhe **até 5 fotos** (câmera ou galeria).
   2. O app **lê o texto das fotos no próprio celular** com o OCR do Google (ML Kit, modelo embutido no

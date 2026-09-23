@@ -2,17 +2,13 @@ package br.com.tabelapp.dados.supabase
 
 import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Cotacao
-import br.com.tabelapp.core.EncarteEnviado
-import br.com.tabelapp.core.StatusEncarte
 import br.com.tabelapp.core.ErrosServidor
-import br.com.tabelapp.core.ItemEncarte
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
-import br.com.tabelapp.dados.EncarteRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
@@ -29,8 +25,6 @@ import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
-import io.github.jan.supabase.storage.storage
-import java.util.UUID
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -278,72 +272,3 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
     }
 }
 
-@Serializable
-private data class EncarteDto(
-    val id: String,
-    @SerialName("pdv_nome") val pdvNome: String? = null,
-    val status: String,
-    val validade: String? = null,
-    @SerialName("motivo_rejeicao") val motivoRejeicao: String? = null,
-    @SerialName("created_at") val createdAt: String,
-    val itens: Int = 0,
-)
-
-class SupabaseEncarteRepositorio(private val supabase: SupabaseClient) : EncarteRepositorio {
-
-    override suspend fun buscarLojas(termo: String): List<LojaResumo> = traduzindoErros {
-        supabase.postgrest.rpc("buscar_lojas", buildJsonObject { put("p_termo", termo) })
-            .decodeList<LojaDoCnpjDto>()
-            .map { LojaResumo(it.lojaId, it.pdvNome, it.lojaNome, it.endereco) }
-    }
-
-    override suspend fun publicar(
-        fotos: List<ByteArray>, lojaId: String?, pdvNome: String, pdvEndereco: String,
-        validade: LocalDate, itens: List<ItemEncarte>,
-    ): Int = traduzindoErros {
-        val uid = supabase.auth.currentUserOrNull()?.id ?: throw ErroAmigavel(ErrosServidor.traduzir("nao_autenticado"))
-        // Cada foto vai para encartes/<id-do-usuário>/<aleatório>.jpg (a regra do bucket exige a pasta do usuário).
-        val caminhos = fotos.map { bytes ->
-            val caminho = "$uid/${UUID.randomUUID()}.jpg"
-            supabase.storage.from("encartes").upload(caminho, bytes) { upsert = false }
-            caminho
-        }
-        supabase.postgrest.rpc(
-            "publicar_encarte",
-            buildJsonObject {
-                put("p_fotos", buildJsonArray { caminhos.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } })
-                put("p_loja_id", lojaId)
-                put("p_pdv_nome", pdvNome.trim().ifEmpty { null })
-                put("p_pdv_endereco", pdvEndereco.trim().ifEmpty { null })
-                put("p_validade", validade.toString())
-                put(
-                    "p_itens",
-                    buildJsonArray {
-                        itens.forEach { item ->
-                            addJsonObject {
-                                put("produto", item.produto)
-                                put("preco_centavos", item.precoCentavos)
-                            }
-                        }
-                    },
-                )
-            },
-        ).decodeAs<Int>()
-    }
-
-    override suspend fun meusEncartes(): List<EncarteEnviado> = traduzindoErros {
-        supabase.postgrest.rpc("meus_encartes", buildJsonObject { put("p_limite", 20) })
-            .decodeList<EncarteDto>()
-            .map { d ->
-                EncarteEnviado(
-                    id = d.id,
-                    pdvNome = d.pdvNome ?: "Estabelecimento",
-                    status = StatusEncarte.doCodigo(d.status),
-                    validade = d.validade?.let(LocalDate::parse),
-                    enviadoEm = OffsetDateTime.parse(d.createdAt).toInstant(),
-                    motivoRejeicao = d.motivoRejeicao,
-                    itens = d.itens,
-                )
-            }
-    }
-}
