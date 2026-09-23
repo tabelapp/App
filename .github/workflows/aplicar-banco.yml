@@ -1,9 +1,13 @@
 name: Aplicar banco no Supabase
 
-# Rodado manualmente (aba Actions → "Aplicar banco no Supabase" → Run workflow).
+# Roda quando as migrações mudam (ou manualmente / "Re-run" na aba Actions).
 # Aplica só as migrações que ainda não foram aplicadas (o Supabase CLI guarda o histórico),
-# então pode rodar quantas vezes quiser.
+# então pode rodar quantas vezes quiser. Sem o secret SUPABASE_DB_URL, não faz nada.
 on:
+  push:
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/aplicar-banco.yml"
   workflow_dispatch:
 
 jobs:
@@ -17,18 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Conferir secret
-        run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::Cadastre o secret SUPABASE_DB_URL (Settings → Secrets and variables → Actions)."
-            exit 1
-          fi
+        if: env.SUPABASE_DB_URL == ''
+        run: echo "::warning::Sem o secret SUPABASE_DB_URL — nada a aplicar."
       - uses: supabase/setup-cli@v1
+        if: env.SUPABASE_DB_URL != ''
         with:
           version: latest
       - name: Migrações pendentes
+        if: env.SUPABASE_DB_URL != ''
         run: supabase migration list --db-url "$SUPABASE_DB_URL"
       - name: Aplicar migrações
+        if: env.SUPABASE_DB_URL != ''
         run: supabase db push --db-url "$SUPABASE_DB_URL" --include-all --yes
       - name: Testar conexão e migrações pela API
-        if: env.SUPABASE_URL != ''
+        if: env.SUPABASE_DB_URL != '' && env.SUPABASE_URL != ''
         run: scripts/testar-conexao-supabase.sh
