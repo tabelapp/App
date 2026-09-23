@@ -34,7 +34,7 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 | Fonte | Validade |
 |---|---|
 | PDV (manual ou planilha) | de hoje até no máximo 30 dias; se não informar, 30 dias |
-| Nota Fiscal | **1 dia**: data do envio + 1. Na busca, o campo validade mostra **"Preço praticado hoje"**. |
+| Nota Fiscal | O preço é o **praticado na data da nota** (vale até a meia-noite daquele dia). Na busca, o campo validade mostra **"Preço praticado dia dd/mm/aaaa"** (a data da NF) e o preço **fica visível por 7 dias** a partir dela. Só são aceitas notas dos últimos 7 dias; a data precisa bater com o mês/ano de emissão da chave. |
 | Encarte de usuário | **a data impressa no encarte**. O usuário pode digitar ao enviar a foto; o Admin confirma ou informa ao aprovar (por item ou para o encarte todo). Sem validade, o Admin não consegue aprovar. |
 
 ## Cota de operações do PDV (confirmado pelo fundador)
@@ -78,7 +78,7 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 ## Nota Fiscal — regras gerais
 
 - Uma chamada `enviar_nota_fiscal` grava todos os itens da nota de uma vez (depois da tela de
-  confirmação única), com validade de 1 dia. Limite técnico de 500 itens por nota, só para evitar abuso.
+  confirmação única), com a data da compra (lida da Sefaz ou informada pelo usuário; padrão hoje). Limite técnico de 500 itens por nota, só para evitar abuso.
 - Chave de acesso é opcional; se vier, precisa ter 44 dígitos e **não pode repetir** (mesma nota enviada
   duas vezes é recusada). O app também valida o dígito verificador (`ChaveAcessoNfe` no `core`).
 - CPF do comprador não é pedido nem guardado em lugar nenhum.

@@ -3,6 +3,9 @@ package br.com.tabelapp.core
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import kotlin.math.roundToLong
 
 /** Um produto da nota: nome e preço unitário (o que vai para a busca). */
@@ -19,6 +22,8 @@ data class NotaLida(
     val emitenteCnpj: String?,
     val emitenteEndereco: String?,
     val itens: List<ItemNota>,
+    /** Data de emissão da nota (= data da compra), se a página mostrar. */
+    val dataEmissao: LocalDate? = null,
 )
 
 /**
@@ -49,8 +54,20 @@ object LeitorNfce {
             emitenteCnpj = lerCnpj(doc),
             emitenteEndereco = lerEndereco(doc),
             itens = itens,
+            dataEmissao = lerDataEmissao(doc),
         )
     }
+
+    private val emissaoRegex = Regex("""Emiss[aã]o:?\s*(\d{2}/\d{2}/\d{4})""", RegexOption.IGNORE_CASE)
+
+    private fun lerDataEmissao(doc: Document): LocalDate? =
+        emissaoRegex.find(doc.text())?.groupValues?.get(1)?.let {
+            try {
+                LocalDate.parse(it, DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            } catch (e: DateTimeParseException) {
+                null
+            }
+        }
 
     private fun lerItens(doc: Document): List<ItemNota> {
         val linhas = doc.select("#tabResult tr").ifEmpty { doc.select("tr[id^=Item]") }
@@ -117,10 +134,20 @@ data class RascunhoNf(
     val pdvNome: String = "",
     val pdvEndereco: String = "",
     val itens: List<ItemNota> = emptyList(),
+    /** Data da compra (emissão da NF). */
+    val dataNf: LocalDate = LocalDate.now(),
 ) {
-    fun erros(): List<String> = buildList {
-        if (chaveAcesso.isNotBlank() && ChaveAcessoNfe.deTexto(chaveAcesso) == null) {
+    fun erros(hoje: LocalDate = LocalDate.now()): List<String> = buildList {
+        val chave = ChaveAcessoNfe.deTexto(chaveAcesso)
+        if (chaveAcesso.isNotBlank() && chave == null) {
             add("Chave de acesso inválida: confira os 44 números.")
+        }
+        if (dataNf.isAfter(hoje)) add("A data da compra não pode ser no futuro.")
+        if (dataNf.isBefore(hoje.minusDays(Validade.NF_DIAS))) {
+            add("Só aceitamos notas dos últimos ${Validade.NF_DIAS} dias.")
+        }
+        if (chave != null && chave.anoMes != dataNf.format(DateTimeFormatter.ofPattern("yyMM"))) {
+            add("A data da compra não confere com a nota (mês/ano de emissão).")
         }
         if (lojaId == null && pdvNome.isBlank()) add("Informe o nome do estabelecimento.")
         if (itens.isEmpty()) add("Adicione pelo menos um produto.")

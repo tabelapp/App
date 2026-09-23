@@ -43,6 +43,8 @@ data class Cotacao(
     val site: String? = null,
     val local: PontoGeo? = null,
     val criadoEm: Instant,
+    /** Data da compra (emissão da NF). Só existe em preço de Nota Fiscal. */
+    val dataNf: LocalDate? = null,
 ) {
     val pdvCadastrado: Boolean get() = lojaId != null
 

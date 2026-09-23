@@ -24,8 +24,8 @@ class ObsTest {
 class ValidadeTest {
     private val hoje = java.time.LocalDate.parse("2026-09-22")
 
-    @Test fun `NF vale 1 dia`() =
-        assertEquals(java.time.LocalDate.parse("2026-09-23"), Validade.daNotaFiscal(hoje))
+    @Test fun `NF fica 7 dias na busca a partir da data da nota`() =
+        assertEquals(java.time.LocalDate.parse("2026-09-29"), Validade.daNotaFiscal(hoje))
 
     @Test fun `PDV no maximo 30 dias`() {
         assertEquals(null, Validade.validar(hoje.plusDays(30), hoje))
@@ -34,7 +34,9 @@ class ValidadeTest {
     }
 
     @Test fun `campo validade na busca`() {
-        assertEquals("Preço praticado hoje", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(1)))
+        assertEquals("Preço praticado dia 22/09/2026", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(7), hoje))
+        // Sem data da NF (dado antigo): deduz pela validade.
+        assertEquals("Preço praticado dia 22/09/2026", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(7)))
         assertEquals("Válido até 25/09/2026", Validade.exibir(Fonte.USUARIO_ENCARTE, hoje.plusDays(3)))
         assertEquals("Válido até 22/10/2026", Validade.exibir(Fonte.PDV_MANUAL, hoje.plusDays(30)))
         assertEquals("Validade não informada", Validade.exibir(Fonte.PDV_EXCEL, null))

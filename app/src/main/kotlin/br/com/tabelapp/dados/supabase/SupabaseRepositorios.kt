@@ -193,6 +193,7 @@ private data class CotacaoDto(
     val latitude: Double? = null,
     val longitude: Double? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("data_nf") val dataNf: String? = null,
 ) {
     fun paraCotacao() = Cotacao(
         id = id,
@@ -210,6 +211,7 @@ private data class CotacaoDto(
         site = site,
         local = if (latitude != null && longitude != null) PontoGeo(latitude, longitude) else null,
         criadoEm = lerInstante(createdAt),
+        dataNf = dataNf?.let(LocalDate::parse),
     )
 
     private fun lerInstante(texto: String): Instant =
@@ -256,6 +258,7 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
                 put("p_loja_id", rascunho.lojaId)
                 put("p_pdv_nome", rascunho.pdvNome.trim().ifEmpty { null })
                 put("p_pdv_endereco", rascunho.pdvEndereco.trim().ifEmpty { null })
+                put("p_data_nf", rascunho.dataNf.toString())
                 put("p_itens", buildJsonArray {
                     rascunho.itensParaEnvio().forEach { item ->
                         addJsonObject {

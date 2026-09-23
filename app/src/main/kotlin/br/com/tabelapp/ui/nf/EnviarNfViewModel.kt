@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 enum class EtapaNf { INICIO, LENDO_SEFAZ, FORMULARIO, CONFIRMACAO, ENVIADO }
 
@@ -32,6 +33,8 @@ data class EstadoNf(
     val pdvNome: String = "",
     val pdvEndereco: String = "",
     val itens: List<ItemForm> = listOf(ItemForm()),
+    /** Data da compra (emissão da NF). Vem da Sefaz quando a leitura funciona; padrão: hoje. */
+    val dataNf: LocalDate = LocalDate.now(),
     /** Mensagem informativa no topo do formulário (ex.: "lemos 12 produtos na Sefaz"). */
     val aviso: String? = null,
     val erros: List<String> = emptyList(),
@@ -44,6 +47,7 @@ data class EstadoNf(
         lojaId = lojaId,
         pdvNome = pdvNome,
         pdvEndereco = pdvEndereco,
+        dataNf = dataNf,
         itens = itens
             .filter { it.produto.isNotBlank() || it.preco.isNotBlank() }
             .map { ItemNota(it.produto.trim(), Dinheiro.parse(it.preco) ?: 0) },
@@ -107,6 +111,7 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
                 itens = nota.itens.map { ItemForm(it.produto, Dinheiro.formatar(it.precoCentavos).removePrefix("R$ ")) },
                 pdvNome = e.pdvNome.ifBlank { nota.emitenteNome.orEmpty() },
                 pdvEndereco = e.pdvEndereco.ifBlank { nota.emitenteEndereco.orEmpty() },
+                dataNf = nota.dataEmissao ?: e.dataNf,
                 aviso = "Lemos ${nota.itens.size} produto(s) na Sefaz. Confira antes de enviar.",
             )
         }
@@ -125,6 +130,8 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
         _estado.update { it.copy(chave = chave) }
         ChaveAcessoNfe.deTexto(chave)?.let { consultarLojas(it.cnpjEmitente) }
     }
+
+    fun alterarDataNf(data: LocalDate) = _estado.update { it.copy(dataNf = data) }
 
     fun escolherLoja(lojaId: String) = _estado.update { it.copy(lojaId = lojaId) }
     fun alterarPdvNome(nome: String) = _estado.update { it.copy(pdvNome = nome) }

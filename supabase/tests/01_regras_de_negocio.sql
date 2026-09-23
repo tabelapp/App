@@ -30,6 +30,14 @@ end;
 $$;
 grant execute on function pg_temp.espera_erro(text, text) to anon, authenticated, service_role;
 
+-- Chave de acesso de teste emitida no mês de p_data (AAMM precisa bater com a data da NF).
+create function pg_temp.chave(p_cnpj text, p_numero int, p_data date default null) returns text
+language sql as $$
+  select '33' || to_char(coalesce(p_data, public.hoje()), 'YYMM') || p_cnpj || '65001'
+         || lpad(p_numero::text, 9, '0') || '1' || '00000000' || '0'
+$$;
+grant execute on function pg_temp.chave(text, int, date) to anon, authenticated, service_role;
+
 -- Usuários de teste
 insert into auth.users (id, email, raw_user_meta_data) values
   ('a0000000-0000-4000-a000-00000000000a', 'ana@teste.invalid',   '{"nome": "Ana", "tipo": "cpf"}'),
@@ -105,26 +113,53 @@ do $$
 declare v jsonb;
 begin
   v := public.enviar_nota_fiscal(
-    '3326 0911 1111 1100 0191 6500 1000 0099 9910 0009 9990',
+    pg_temp.chave('11111111000191', 9999),
     null, 'Padaria Koeler', 'Avenida Koeler, 10 - Centro',
     '[{"produto": "Pão Francês kg", "preco_centavos": 1690},
       {"produto": "Leite Integral 1L", "preco_centavos": 549},
       {"produto": "Manteiga 200g", "preco_centavos": 1299}]');
   assert (v ->> 'itens')::int = 3;
-  -- Preço de NF vale 1 dia.
-  assert (select bool_and(validade = public.hoje() + 1) from public.cotacoes
+  -- Sem data informada, a NF é de hoje; o preço fica na busca por 7 dias.
+  assert (select bool_and(data_nf = public.hoje() and validade = public.hoje() + 7) from public.cotacoes
           where lote_id = (v ->> 'lote_id')::uuid);
+  assert (select bool_and(data_nf = public.hoje()) from public.buscar_cotacoes('manteiga 200g')
+          where fonte = 'usuario_nf');
   assert (select count(*) from public.cotacoes
           where lote_id = (v ->> 'lote_id')::uuid and fonte = 'usuario_nf'
-            and chave_acesso_nf = '33260911111111000191650010000099991000099990') = 3;
+            and chave_acesso_nf = pg_temp.chave('11111111000191', 9999)) = 3;
   -- NF sem chave também é aceita (chave é opcional).
   v := public.enviar_nota_fiscal(null, '20000000-0000-4000-a000-000000000003', null, null,
     '[{"produto": "Detergente 500ml", "preco_centavos": 259}]');
   assert (v ->> 'itens')::int = 1;
 end $$;
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal('33260911111111000191650010000099991000099990', null,
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 9999), null,
      'Padaria Koeler', null, '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'nf_ja_enviada');
+
+\echo '== NF: data da compra (validade = data da NF + 7 dias)'
+do $$
+declare v jsonb;
+begin
+  -- NF de 7 dias atrás ainda entra e fica visível até hoje.
+  v := public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7001, public.hoje() - 7), null,
+         'Padaria Koeler', null, '[{"produto": "Sonho recheado", "preco_centavos": 650}]', public.hoje() - 7);
+  assert (select validade from public.cotacoes where produto = 'Sonho recheado') = public.hoje();
+  assert (select count(*) from public.buscar_cotacoes('sonho recheado')) = 1;
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(null, null, 'X', null,
+     '[{"produto": "Pão", "preco_centavos": 100}]', public.hoje() - 8)$q$, 'nf_antiga');
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(null, null, 'X', null,
+     '[{"produto": "Pão", "preco_centavos": 100}]', public.hoje() + 1)$q$, 'data_nf_futura');
+-- Chave emitida em outro mês que não o da data informada.
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7002, public.hoje() - 40), null, 'X', null,
+     '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'data_nao_confere');
+-- Preço de NF sempre tem data_nf; os demais nunca.
+do $$ begin
+  assert not exists (select 1 from public.cotacoes where (fonte = 'usuario_nf') <> (data_nf is not null));
+end $$;
 \echo '== NF pelo QR Code: CNPJ da chave encontra a loja cadastrada'
 do $$
 declare v jsonb;
@@ -136,7 +171,7 @@ begin
   assert (select count(*) from public.lojas_do_cnpj('11111111000191')) = 2;
   assert (select count(*) from public.lojas_do_cnpj('99999999000191')) = 0;
 
-  v := public.enviar_nota_fiscal('33260922222222000191650010000077771000077770',
+  v := public.enviar_nota_fiscal(pg_temp.chave('22222222000191', 7777),
          '20000000-0000-4000-a000-000000000003', null, null,
          '[{"produto": "Café 500g", "preco_centavos": 1799}]');
   assert (v ->> 'itens')::int = 1;
@@ -145,7 +180,7 @@ begin
 end $$;
 -- Chave de um CNPJ, loja de outro: recusado.
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal('33260922222222000191650010000088881000088880',
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('22222222000191', 8888),
      '20000000-0000-4000-a000-000000000004', null, null,
      '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'loja_nao_confere');
 select pg_temp.espera_erro(

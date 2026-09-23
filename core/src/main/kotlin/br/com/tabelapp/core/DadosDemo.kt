@@ -69,6 +69,7 @@ object DadosDemo {
             site = loja.site,
             local = loja.local,
             criadoEm = agora.minus(Duration.ofMinutes(minutosAtras)),
+            dataNf = if (fonte == Fonte.USUARIO_NF) hoje else null,
         )
 
         val excel = Fonte.PDV_EXCEL
@@ -96,7 +97,7 @@ object DadosDemo {
             c(itaipava, "Café Torrado e Moído 500g", 2150, 30, null, manual, 400),
             c(itaipava, "Cerveja Pilsen Lata 350ml", 459, 30, null, manual, 400),
             c(itaipava, "Açúcar Refinado 1kg", 529, 30, null, manual, 400),
-            // NF vale 1 dia; encarte vale até a data impressa nele.
+            // NF de hoje (visível por 7 dias); encarte vale até a data impressa nele.
             c(altoDaSerra, "Arroz Branco Tipo 1 5kg", 2349, Validade.NF_DIAS, null, Fonte.USUARIO_NF, 120),
             c(altoDaSerra, "Feijão Preto 1kg", 759, Validade.NF_DIAS, null, Fonte.USUARIO_NF, 120),
             c(sacolaoCorreas, "Banana Prata kg", 599, 4, null, Fonte.USUARIO_ENCARTE, 300),

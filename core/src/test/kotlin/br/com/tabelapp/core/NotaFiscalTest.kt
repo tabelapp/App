@@ -15,6 +15,7 @@ class NotaFiscalTest {
         assertEquals("MERCADINHO ALTO DA SERRA LTDA", nota.emitenteNome)
         assertEquals("11111111000191", nota.emitenteCnpj)
         assertEquals("RUA TERESA, 1500, ALTO DA SERRA, PETROPOLIS, RJ", nota.emitenteEndereco)
+        assertEquals(java.time.LocalDate.parse("2026-09-22"), nota.dataEmissao)
         assertEquals(
             listOf(
                 ItemNota("ARROZ BRANCO TIPO 1 5KG", 2349, 2.0, "UN"),
@@ -34,8 +35,10 @@ class NotaFiscalTest {
     @Test fun `rascunho valida e junta linhas repetidas`() {
         val base43 = "3326091111111100019165001000001234100001234"
         val chave = base43 + ChaveAcessoNfe.calcularDv(base43)
+        val hoje = java.time.LocalDate.parse("2026-09-23")
         val ok = RascunhoNf(
-            chaveAcesso = chave,
+            chaveAcesso = chave, // emitida em 09/2026
+            dataNf = hoje.minusDays(1),
             pdvNome = "Mercadinho",
             itens = listOf(
                 ItemNota("Leite 1L", 569),
@@ -43,13 +46,27 @@ class NotaFiscalTest {
                 ItemNota("Pão", 1690),
             ),
         )
-        assertTrue(ok.erros().isEmpty())
+        assertTrue(ok.erros(hoje).isEmpty())
         assertEquals(listOf(ItemNota("Leite 1L", 569, 2.0), ItemNota("Pão", 1690)), ok.itensParaEnvio())
 
-        val ruim = RascunhoNf(chaveAcesso = "123", itens = listOf(ItemNota("", 0)))
-        assertEquals(4, ruim.erros().size)
+        val ruim = RascunhoNf(chaveAcesso = "123", itens = listOf(ItemNota("", 0)), dataNf = hoje)
+        assertEquals(4, ruim.erros(hoje).size)
         // Loja cadastrada dispensa nome digitado; chave é opcional.
-        assertTrue(RascunhoNf(lojaId = "x", itens = listOf(ItemNota("Pão", 100))).erros().isEmpty())
+        assertTrue(RascunhoNf(lojaId = "x", itens = listOf(ItemNota("Pão", 100)), dataNf = hoje).erros(hoje).isEmpty())
+    }
+
+    @Test fun `data da compra - ultimos 7 dias e mesmo mes da chave`() {
+        val hoje = java.time.LocalDate.parse("2026-10-02")
+        val base = RascunhoNf(pdvNome = "X", itens = listOf(ItemNota("Pão", 100)))
+        assertTrue(base.copy(dataNf = hoje.minusDays(7)).erros(hoje).isEmpty())
+        assertEquals(1, base.copy(dataNf = hoje.minusDays(8)).erros(hoje).size)
+        assertEquals(1, base.copy(dataNf = hoje.plusDays(1)).erros(hoje).size)
+
+        // Chave emitida em setembro, data informada em outubro: não confere.
+        val base43 = "3326091111111100019165001000001234100001234"
+        val chaveSetembro = base43 + ChaveAcessoNfe.calcularDv(base43)
+        assertTrue(base.copy(chaveAcesso = chaveSetembro, dataNf = hoje.minusDays(3)).erros(hoje).isEmpty())
+        assertEquals(1, base.copy(chaveAcesso = chaveSetembro, dataNf = hoje).erros(hoje).size)
     }
 }
 
@@ -64,10 +81,13 @@ class DemoNfTest {
         val hoje = java.time.LocalDate.parse("2026-09-22")
         val agora = java.time.Instant.parse("2026-09-22T12:00:00Z")
         val extra = DadosDemo.cotacoes(agora, hoje).first().copy(
-            id = "nf-1", produto = "Manteiga 200g", fonte = Fonte.USUARIO_NF, validade = hoje.plusDays(1), criadoEm = agora,
+            id = "nf-1", produto = "Manteiga 200g", fonte = Fonte.USUARIO_NF,
+            validade = Validade.daNotaFiscal(hoje), dataNf = hoje, criadoEm = agora,
         )
         assertEquals("nf-1", DadosDemo.buscar(null, agora, hoje, listOf(extra)).first().id)
-        assertEquals(1, DadosDemo.buscar("manteiga", agora, hoje, listOf(extra)).size)
-        assertTrue(DadosDemo.buscar("manteiga", agora, hoje.plusDays(2), listOf(extra)).isEmpty())
+        // Continua na busca no dia seguinte e até 7 dias depois da nota.
+        assertEquals(1, DadosDemo.buscar("manteiga", agora, hoje.plusDays(1), listOf(extra)).size)
+        assertEquals(1, DadosDemo.buscar("manteiga", agora, hoje.plusDays(7), listOf(extra)).size)
+        assertTrue(DadosDemo.buscar("manteiga", agora, hoje.plusDays(8), listOf(extra)).isEmpty())
     }
 }

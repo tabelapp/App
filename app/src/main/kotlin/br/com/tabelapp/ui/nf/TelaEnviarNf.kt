@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +60,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.Validade
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import br.com.tabelapp.dados.Usuario
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
@@ -217,6 +225,8 @@ private fun EtapaFormulario(estado: EstadoNf, vm: EnviarNfViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
 
+        CampoDataCompra(estado.dataNf, aoEscolher = vm::alterarDataNf)
+
         Text("Onde foi a compra", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (estado.lojas.isNotEmpty()) {
             Text(
@@ -308,6 +318,7 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
                 ChaveAcessoNfe.deTexto(rascunho.chaveAcesso)?.let {
                     Text("Chave: ${it.formatada()}", style = MaterialTheme.typography.bodySmall)
                 }
+                Text("Data da compra: ${Validade.formatar(rascunho.dataNf)}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -324,7 +335,8 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         }
 
         Text(
-            "Os preços aparecem na busca com a marcação \"NF\" e a indicação \"Preço praticado hoje\".",
+            "Na busca, os preços aparecem com a marcação \"NF\" e \"Preço praticado dia " +
+                "${Validade.formatar(rascunho.dataNf)}\", e ficam visíveis por ${Validade.NF_DIAS} dias.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -365,5 +377,35 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, aoVerNaBusca: 
             Text("Ver na busca")
         }
         OutlinedButton(onClick = vm::novaNota, modifier = Modifier.fillMaxWidth()) { Text("Enviar outra nota") }
+    }
+}
+
+/** Data da compra (= data da NF). Abre um calendário ao tocar. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CampoDataCompra(data: LocalDate, aoEscolher: (LocalDate) -> Unit) {
+    var aberto by remember { mutableStateOf(false) }
+    OutlinedButton(onClick = { aberto = true }, modifier = Modifier.fillMaxWidth()) {
+        Text("Data da compra: ${Validade.formatar(data)}")
+    }
+    if (aberto) {
+        // O DatePicker trabalha com meia-noite UTC do dia escolhido.
+        val estado = rememberDatePickerState(
+            initialSelectedDateMillis = data.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { aberto = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estado.selectedDateMillis?.let {
+                        aoEscolher(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
+                    }
+                    aberto = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { aberto = false }) { Text("Cancelar") } },
+        ) {
+            DatePicker(state = estado)
+        }
     }
 }
