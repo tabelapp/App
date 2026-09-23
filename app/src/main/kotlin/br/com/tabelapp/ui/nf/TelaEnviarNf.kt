@@ -324,7 +324,7 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         }
 
         Text(
-            "Os preços aparecem na busca com a marcação \"NF\" e valem por 1 dia.",
+            "Os preços aparecem na busca com a marcação \"NF\" e a indicação \"Preço praticado hoje\".",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

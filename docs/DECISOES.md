@@ -34,7 +34,7 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 | Fonte | Validade |
 |---|---|
 | PDV (manual ou planilha) | de hoje até no máximo 30 dias; se não informar, 30 dias |
-| Nota Fiscal | **1 dia**: data do envio + 1 |
+| Nota Fiscal | **1 dia**: data do envio + 1. Na busca, o campo validade mostra **"Preço praticado hoje"**. |
 | Encarte de usuário | **a data impressa no encarte**. O usuário pode digitar ao enviar a foto; o Admin confirma ou informa ao aprovar (por item ou para o encarte todo). Sem validade, o Admin não consegue aprovar. |
 
 ## Cota de operações do PDV (confirmado pelo fundador)

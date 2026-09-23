@@ -23,9 +23,7 @@ import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Obs
 import br.com.tabelapp.core.PontoGeo
-import java.time.format.DateTimeFormatter
-
-private val formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+import br.com.tabelapp.core.Validade
 
 /**
  * Uma linha do resultado: produto, preço, PDV, endereço, validade, OBS e contato
@@ -94,7 +92,7 @@ fun CartaoCotacao(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    cotacao.validade?.let { "Válido até ${it.format(formatoData)}" } ?: "Validade não informada",
+                    Validade.exibir(cotacao),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Surface(color = cores.tertiaryContainer, shape = MaterialTheme.shapes.small) {

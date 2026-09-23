@@ -33,6 +33,13 @@ class ValidadeTest {
         assertEquals(Validade.ErroValidade.NO_PASSADO, Validade.validar(hoje.minusDays(1), hoje))
     }
 
+    @Test fun `campo validade na busca`() {
+        assertEquals("Preço praticado hoje", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(1)))
+        assertEquals("Válido até 25/09/2026", Validade.exibir(Fonte.USUARIO_ENCARTE, hoje.plusDays(3)))
+        assertEquals("Válido até 22/10/2026", Validade.exibir(Fonte.PDV_MANUAL, hoje.plusDays(30)))
+        assertEquals("Validade não informada", Validade.exibir(Fonte.PDV_EXCEL, null))
+    }
+
     @Test fun `todo preco da demonstracao tem validade`() =
         kotlin.test.assertTrue(DadosDemo.cotacoes(hoje = hoje).all { it.validade != null })
 }
