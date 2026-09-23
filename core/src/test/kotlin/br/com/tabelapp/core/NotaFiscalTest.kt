@@ -91,3 +91,21 @@ class DemoNfTest {
         assertTrue(DadosDemo.buscar("manteiga", agora, hoje.plusDays(8), listOf(extra)).isEmpty())
     }
 }
+
+class AnonimizarTest {
+    @Test fun `mascara CPF e remove scripts, mantendo o que o leitor usa`() {
+        val html = """
+            <html><head><script>var x = 1;</script><style>.a{}</style></head><body>
+            <div id="infos"><strong>CPF: </strong>123.456.789-09</div>
+            <div>Consumidor CPF 12345678909</div>
+            <table id="tabResult"><tr><td><span class="txtTit">PAO</span>
+            <span class="RvlUnit"><strong>Vl. Unit.:</strong> 1,50</span></td></tr></table>
+            </body></html>
+        """.trimIndent()
+        val limpo = LeitorNfce.anonimizar(html)
+        kotlin.test.assertFalse(limpo.contains("123.456.789-09"))
+        kotlin.test.assertFalse(limpo.contains("12345678909"))
+        kotlin.test.assertFalse(limpo.contains("var x"))
+        assertEquals(150L, LeitorNfce.ler(limpo)?.itens?.single()?.precoCentavos)
+    }
+}

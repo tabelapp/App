@@ -45,10 +45,13 @@ fun LeitorSefaz(
     aoLer: (NotaLida) -> Unit,
     aoDesistir: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Recebe o HTML atual a cada leitura (para o diagnóstico, se a leitura falhar). */
+    aoCapturarHtml: (String) -> Unit = {},
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val aoLerAtual by rememberUpdatedState(aoLer)
     val aoDesistirAtual by rememberUpdatedState(aoDesistir)
+    val aoCapturarHtmlAtual by rememberUpdatedState(aoCapturarHtml)
 
     AndroidView(
         factory = { contexto ->
@@ -70,6 +73,7 @@ fun LeitorSefaz(
         while (System.currentTimeMillis() - inicio < DESISTIR_APOS_MS) {
             delay(INTERVALO_MS)
             val html = webView?.let { htmlDaPagina(it) } ?: continue
+            aoCapturarHtmlAtual(html)
             val nota = withContext(Dispatchers.Default) { runCatching { LeitorNfce.ler(html) }.getOrNull() }
             if (nota != null) {
                 aoLerAtual(nota)

@@ -197,10 +197,12 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             url = estado.urlSefaz!!,
             aoLer = vm::notaLidaNaSefaz,
             aoDesistir = vm::leituraSefazFalhou,
+            aoCapturarHtml = vm::htmlCapturado,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
-        TextButton(onClick = vm::preencherManualmente, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("Prefiro digitar os produtos")
+        Row(Modifier.align(Alignment.CenterHorizontally)) {
+            TextButton(onClick = vm::preencherManualmente) { Text("Prefiro digitar os produtos") }
+            if (estado.temPaginaSefaz) BotaoEnviarParaAnalise(vm)
         }
     }
 }
@@ -215,6 +217,13 @@ private fun EtapaFormulario(estado: EstadoNf, vm: EnviarNfViewModel) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Text(it, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
+        }
+        if (estado.leituraFalhou && estado.temPaginaSefaz) {
+            Text(
+                "Ajude a melhorar o Tabelapp: envie a página da Sefaz para analisarmos por que a leitura falhou.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            BotaoEnviarParaAnalise(vm)
         }
 
         OutlinedTextField(
@@ -408,4 +417,23 @@ private fun CampoDataCompra(data: LocalDate, aoEscolher: (LocalDate) -> Unit) {
             DatePicker(state = estado)
         }
     }
+}
+
+/**
+ * Compartilha a página da Sefaz (sem scripts, CPF mascarado) pelo menu do Android
+ * (e-mail, WhatsApp, Drive...), para ajustar o leitor quando a leitura automática falha.
+ */
+@Composable
+private fun BotaoEnviarParaAnalise(vm: EnviarNfViewModel) {
+    val contexto = LocalContext.current
+    TextButton(onClick = {
+        vm.paginaParaAnalise()?.let { pagina ->
+            val envio = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Tabelapp - página da Sefaz para análise")
+                putExtra(android.content.Intent.EXTRA_TEXT, pagina.take(400_000))
+            }
+            contexto.startActivity(android.content.Intent.createChooser(envio, "Enviar página para análise"))
+        }
+    }) { Text("Enviar página para análise") }
 }

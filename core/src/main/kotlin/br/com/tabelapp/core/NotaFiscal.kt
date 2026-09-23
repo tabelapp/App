@@ -58,6 +58,22 @@ object LeitorNfce {
         )
     }
 
+    private val cpfFormatado = Regex("""\d{3}\.\d{3}\.\d{3}-\d{2}""")
+    private val cpfRotulado = Regex("""(CPF[^0-9]{0,20})\d{11}""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Versão da página própria para mandar para análise (quando a leitura automática
+     * falha): sem scripts/estilos e com qualquer CPF mascarado — a página da Sefaz
+     * mostra o CPF do consumidor quando ele foi informado na compra.
+     */
+    fun anonimizar(html: String): String {
+        val doc = Jsoup.parse(html)
+        doc.select("script, style, noscript, iframe, img, svg").remove()
+        return doc.outerHtml()
+            .replace(cpfFormatado, "***.***.***-**")
+            .replace(cpfRotulado) { it.groupValues[1] + "***********" }
+    }
+
     private val emissaoRegex = Regex("""Emiss[aã]o:?\s*(\d{2}/\d{2}/\d{4})""", RegexOption.IGNORE_CASE)
 
     private fun lerDataEmissao(doc: Document): LocalDate? =

@@ -41,6 +41,9 @@ data class EstadoNf(
     val erroInicio: String? = null,
     val enviando: Boolean = false,
     val itensEnviados: Int = 0,
+    /** Já temos a página da Sefaz carregada (dá para mandar para análise se a leitura falhar). */
+    val temPaginaSefaz: Boolean = false,
+    val leituraFalhou: Boolean = false,
 ) {
     fun rascunho() = RascunhoNf(
         chaveAcesso = chave,
@@ -67,6 +70,15 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
     val estado: StateFlow<EstadoNf> = _estado.asStateFlow()
 
     private var cnpjConsultado: String? = null
+    private var htmlSefaz: String? = null
+
+    fun htmlCapturado(html: String) {
+        htmlSefaz = html
+        if (!_estado.value.temPaginaSefaz) _estado.update { it.copy(temPaginaSefaz = true) }
+    }
+
+    /** Página da Sefaz sem scripts e com CPF mascarado, para o usuário mandar para análise. */
+    fun paginaParaAnalise(): String? = htmlSefaz?.let { runCatching { br.com.tabelapp.core.LeitorNfce.anonimizar(it) }.getOrNull() }
 
     /** Conteúdo lido do QR Code — ou chave/link digitado ou colado pelo usuário. */
     fun qrLido(conteudo: String) {
@@ -86,6 +98,7 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
         }
         val url = texto.takeIf { it.startsWith("http", ignoreCase = true) }
         cnpjConsultado = null
+        htmlSefaz = null
         _estado.value = EstadoNf(
             etapa = if (url != null) EtapaNf.LENDO_SEFAZ else EtapaNf.FORMULARIO,
             urlSefaz = url,
@@ -121,6 +134,7 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
         _estado.update {
             it.copy(
                 etapa = EtapaNf.FORMULARIO,
+                leituraFalhou = true,
                 aviso = "Não consegui ler os produtos na Sefaz. A chave já está preenchida — digite os produtos abaixo.",
             )
         }
@@ -177,6 +191,7 @@ class EnviarNfViewModel(private val repositorio: NotaFiscalRepositorio) : ViewMo
 
     fun novaNota() {
         cnpjConsultado = null
+        htmlSefaz = null
         _estado.value = EstadoNf()
     }
 
