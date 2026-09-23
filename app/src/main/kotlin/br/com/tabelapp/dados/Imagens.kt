@@ -11,21 +11,26 @@ import kotlin.math.max
 
 /**
  * Prepara a foto do encarte para envio: reduz para no máximo 1600 px no lado maior
- * e grava em JPEG 80% (fica legível para o Admin e leve para o 4G, ~200–500 KB).
+ * e grava em JPEG 80% (legível para conferência e leve para o 4G, ~200–500 KB).
  */
 class Imagens(private val contexto: Context) {
 
     fun jpegReduzido(uri: Uri, ladoMaximo: Int = 1600, qualidade: Int = 80): ByteArray? = runCatching {
-        val bitmap = decodificar(uri, ladoMaximo) ?: return null
-        val escala = ladoMaximo.toFloat() / max(bitmap.width, bitmap.height)
-        val final = if (escala < 1f) {
-            Bitmap.createScaledBitmap(bitmap, (bitmap.width * escala).toInt(), (bitmap.height * escala).toInt(), true)
-        } else {
-            bitmap
-        }
+        val final = bitmap(uri, ladoMaximo) ?: return null
         ByteArrayOutputStream().use { saida ->
             final.compress(Bitmap.CompressFormat.JPEG, qualidade, saida)
             saida.toByteArray()
+        }
+    }.getOrNull()
+
+    /** A foto com no máximo [ladoMaximo] px no lado maior (para a leitura do texto, em resolução maior). */
+    fun bitmap(uri: Uri, ladoMaximo: Int): Bitmap? = runCatching {
+        val bitmap = decodificar(uri, ladoMaximo) ?: return null
+        val escala = ladoMaximo.toFloat() / max(bitmap.width, bitmap.height)
+        if (escala < 1f) {
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * escala).toInt(), (bitmap.height * escala).toInt(), true)
+        } else {
+            bitmap
         }
     }.getOrNull()
 

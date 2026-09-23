@@ -8,6 +8,7 @@ import br.com.tabelapp.core.EncarteEnviado
 import br.com.tabelapp.core.StatusEncarte
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.ItemEncarte
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
@@ -89,25 +90,50 @@ class DemoBanco {
     val encartes = mutableListOf<EncarteEnviado>()
 }
 
-/** Demonstração: o encarte fica "aguardando aprovação" (não há Admin no modo demo). */
+/** Demonstração: os preços lidos do encarte entram na busca (em memória). */
 class DemoEncarteRepositorio(private val banco: DemoBanco) : EncarteRepositorio {
+    private fun lojas() = listOf("11111111000191", "22222222000191", "33333333000191", "44444444000191")
+        .flatMap { DadosDemo.lojasDoCnpj(it) }
+
     override suspend fun buscarLojas(termo: String): List<LojaResumo> {
         if (Texto.normalizar(termo).length < 2) return emptyList()
-        return listOf("11111111000191", "22222222000191", "33333333000191", "44444444000191")
-            .flatMap { DadosDemo.lojasDoCnpj(it) }
-            .filter { Texto.casaBusca(it.titulo + " " + it.endereco, termo) }
+        return lojas().filter { Texto.casaBusca(it.titulo + " " + it.endereco, termo) }
     }
 
-    override suspend fun enviar(
+    override suspend fun publicar(
         fotos: List<ByteArray>, lojaId: String?, pdvNome: String, pdvEndereco: String,
-        validade: LocalDate?, comentario: String,
-    ) {
+        validade: LocalDate, itens: List<ItemEncarte>,
+    ): Int {
         delay(600)
-        val nome = lojaId?.let { id ->
-            listOf("11111111000191", "22222222000191", "33333333000191", "44444444000191")
-                .flatMap { DadosDemo.lojasDoCnpj(it) }.firstOrNull { it.lojaId == id }?.titulo
-        } ?: pdvNome.trim()
-        banco.encartes.add(0, EncarteEnviado("enc-" + UUID.randomUUID(), nome, StatusEncarte.PENDENTE, validade, Instant.now()))
+        val loja = lojaId?.let { id -> lojas().firstOrNull { it.lojaId == id } }
+        val agora = Instant.now()
+        val unicos = itens.distinctBy { Texto.normalizar(it.produto) }
+        banco.enviados += unicos.map { item ->
+            Cotacao(
+                id = "enc-" + UUID.randomUUID(),
+                produto = item.produto,
+                precoCentavos = item.precoCentavos,
+                validade = validade,
+                obs = null,
+                fonte = Fonte.USUARIO_ENCARTE,
+                lojaId = loja?.lojaId,
+                pdvId = loja?.pdvId,
+                pdvNome = loja?.pdvNome ?: pdvNome.trim(),
+                lojaNome = loja?.lojaNome,
+                endereco = loja?.endereco ?: pdvEndereco.trim().ifEmpty { null },
+                telefone = loja?.telefone,
+                local = loja?.local,
+                criadoEm = agora,
+            )
+        }
+        banco.encartes.add(
+            0,
+            EncarteEnviado(
+                "enc-" + UUID.randomUUID(), loja?.titulo ?: pdvNome.trim(), StatusEncarte.APROVADO,
+                validade, agora, itens = unicos.size,
+            ),
+        )
+        return unicos.size
     }
 
     override suspend fun meusEncartes(): List<EncarteEnviado> = banco.encartes.toList()

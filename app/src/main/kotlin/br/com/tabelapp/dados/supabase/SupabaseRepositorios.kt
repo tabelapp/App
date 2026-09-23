@@ -5,6 +5,7 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.EncarteEnviado
 import br.com.tabelapp.core.StatusEncarte
 import br.com.tabelapp.core.ErrosServidor
+import br.com.tabelapp.core.ItemEncarte
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.PontoGeo
@@ -285,6 +286,7 @@ private data class EncarteDto(
     val validade: String? = null,
     @SerialName("motivo_rejeicao") val motivoRejeicao: String? = null,
     @SerialName("created_at") val createdAt: String,
+    val itens: Int = 0,
 )
 
 class SupabaseEncarteRepositorio(private val supabase: SupabaseClient) : EncarteRepositorio {
@@ -295,10 +297,10 @@ class SupabaseEncarteRepositorio(private val supabase: SupabaseClient) : Encarte
             .map { LojaResumo(it.lojaId, it.pdvNome, it.lojaNome, it.endereco) }
     }
 
-    override suspend fun enviar(
+    override suspend fun publicar(
         fotos: List<ByteArray>, lojaId: String?, pdvNome: String, pdvEndereco: String,
-        validade: LocalDate?, comentario: String,
-    ) = traduzindoErros {
+        validade: LocalDate, itens: List<ItemEncarte>,
+    ): Int = traduzindoErros {
         val uid = supabase.auth.currentUserOrNull()?.id ?: throw ErroAmigavel(ErrosServidor.traduzir("nao_autenticado"))
         // Cada foto vai para encartes/<id-do-usuário>/<aleatório>.jpg (a regra do bucket exige a pasta do usuário).
         val caminhos = fotos.map { bytes ->
@@ -307,17 +309,26 @@ class SupabaseEncarteRepositorio(private val supabase: SupabaseClient) : Encarte
             caminho
         }
         supabase.postgrest.rpc(
-            "enviar_encarte",
+            "publicar_encarte",
             buildJsonObject {
                 put("p_fotos", buildJsonArray { caminhos.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } })
                 put("p_loja_id", lojaId)
                 put("p_pdv_nome", pdvNome.trim().ifEmpty { null })
                 put("p_pdv_endereco", pdvEndereco.trim().ifEmpty { null })
-                put("p_validade", validade?.toString())
-                put("p_comentario", comentario.trim().ifEmpty { null })
+                put("p_validade", validade.toString())
+                put(
+                    "p_itens",
+                    buildJsonArray {
+                        itens.forEach { item ->
+                            addJsonObject {
+                                put("produto", item.produto)
+                                put("preco_centavos", item.precoCentavos)
+                            }
+                        }
+                    },
+                )
             },
-        )
-        Unit
+        ).decodeAs<Int>()
     }
 
     override suspend fun meusEncartes(): List<EncarteEnviado> = traduzindoErros {
@@ -331,6 +342,7 @@ class SupabaseEncarteRepositorio(private val supabase: SupabaseClient) : Encarte
                     validade = d.validade?.let(LocalDate::parse),
                     enviadoEm = OffsetDateTime.parse(d.createdAt).toInstant(),
                     motivoRejeicao = d.motivoRejeicao,
+                    itens = d.itens,
                 )
             }
     }

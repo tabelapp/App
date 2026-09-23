@@ -5,6 +5,7 @@ import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.EncarteRepositorio
 import br.com.tabelapp.dados.Imagens
+import br.com.tabelapp.dados.LeitorTexto
 import br.com.tabelapp.dados.Localizacao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.Preferencias
@@ -42,6 +43,7 @@ class AppContainer(contexto: Context) {
     val preferencias = Preferencias(contexto)
     val localizacao = Localizacao(contexto)
     val imagens = Imagens(contexto)
+    val leitorTexto = LeitorTexto(imagens)
 
     val auth: AuthRepositorio
     val cotacoes: CotacoesRepositorio

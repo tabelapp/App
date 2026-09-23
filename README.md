@@ -11,14 +11,14 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Parte | Situação |
 |---|---|
 | Banco de dados (todas as tabelas da seção 7) | ✅ pronto e testado |
-| Regras no banco: cota de 50 operações por loja, pacotes de 30 dias, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, fila do Admin, promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
+| Regras no banco: cota de 50 operações por loja, pacotes de 30 dias, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, encarte publicado direto, promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
 | Login por e-mail e Google, cadastro CPF/CNPJ | ✅ no app |
 | Tela de busca: últimos preços, busca, 5 ordenações, destaque do mais barato, regra do OBS, PDV clicável, pop-up de aviso | ✅ no app |
 | Modo demonstração (roda sem servidor, com dados fictícios de Petrópolis) | ✅ |
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
 | Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
 | Envio de NF pelo QR Code: lê produtos, preços e data na Sefaz no próprio celular; tela única de resumo e confirmação, sem digitação | ✅ no app |
-| Envio de encarte: até 5 fotos (câmera ou galeria), estabelecimento (busca os cadastrados), validade opcional; vai para a fila do Admin; lista "Meus encartes" com o status | ✅ no app |
+| Envio de encarte: até 5 fotos, o app lê produtos, preços e validade (OCR no celular), o usuário confere (só desmarca, não digita) e os preços vão direto para a busca; "Meus encartes" | ✅ no app |
 | Área do PDV, promoções, Pix | ⏳ banco pronto, falta a tela e a integração Mercado Pago |
 | Painel Admin | ⏳ banco pronto, falta a tela |
 
@@ -90,8 +90,8 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 ## Próximos passos sugeridos
 
 1. Testar o login e a busca com um projeto Supabase real.
-2. ✅ QR Code testado com notas reais. Testar o envio de encarte com o app ligado ao Supabase.
-3. Painel Admin (fila de encartes).
+2. ✅ QR Code testado com notas reais. Testar a leitura de encartes reais (OCR) e ajustar o `LeitorEncarte`.
+3. Painel Admin (moderação: remover preços errados, usuários abusivos).
 4. Área do PDV: cadastro de lojas, tabela de preços, importação de planilha com prévia da cota.
 5. Lista de compras + mapa (precisa de chave da API de mapas).
 6. Pix via Mercado Pago (Edge Function + webhook chamando `confirmar_pagamento`).

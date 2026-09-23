@@ -35,7 +35,7 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 |---|---|
 | PDV (manual ou planilha) | de hoje até no máximo 30 dias; se não informar, 30 dias |
 | Nota Fiscal | O preço é o **praticado na data da nota** (vale até a meia-noite daquele dia). Na busca, o campo validade mostra **"Preço praticado dia dd/mm/aaaa"** (a data da NF) e o preço **fica visível por 7 dias** a partir dela. Só são aceitas notas dos últimos 7 dias; a data precisa bater com o mês/ano de emissão da chave. |
-| Encarte de usuário | **a data impressa no encarte**. O usuário pode digitar ao enviar a foto; o Admin confirma ou informa ao aprovar (por item ou para o encarte todo). Sem validade, o Admin não consegue aprovar. |
+| Encarte de usuário | **a data impressa no encarte** (até 30 dias). O app tenta ler a data nas fotos ("válido até 30/09", "ofertas de 20 a 26/09"); se não achar, o usuário escolhe no calendário. Sem validade, não publica. |
 
 ## Cota de operações do PDV (confirmado pelo fundador)
 
@@ -84,13 +84,26 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 
 ## Encartes, Admin e promoções
 
-- Encarte de usuário comum: **até 5 fotos** (câmera ou galeria), reduzidas no celular para no máximo
-  1600 px / JPEG 80% (~200–500 KB cada), vão para o bucket privado `encartes/<id-do-usuário>/…`
-  (limite de 5 MB, só imagem). O usuário diz de qual estabelecimento é (busca os cadastrados, ou nome
-  livre + endereço) e, se o encarte mostrar, até quando valem as ofertas — senão o Admin informa.
-  Entra na fila (`encartes_pendentes`) pela função `enviar_encarte` (máx. 10 envios por usuário por dia).
-  Só o Admin vê a fila e aprova (montando a lista de produtos/preços) ou rejeita. O usuário acompanha
-  em "Meus encartes" (aguardando / aprovado / não aprovado com o motivo).
+- Encarte de usuário comum (**decisão do fundador: sem fila do Admin, sem digitação**):
+  1. O usuário tira ou escolhe **até 5 fotos** (câmera ou galeria).
+  2. O app **lê o texto das fotos no próprio celular** com o OCR do Google (ML Kit, modelo embutido no
+     app: gratuito, sem internet, nada vai para terceiros). O `LeitorEncarte` do `core` usa a
+     **posição** de cada linha para ligar cada preço ao nome do produto (nome acima ou à esquerda,
+     nome em duas linhas, centavos em fonte menor "4," + "99", "De R$ 6,99 Por R$ 4,99" vale o
+     "por", preço "kg"), e procura a validade impressa.
+  3. **Uma tela de resumo** com os produtos e preços lidos: o usuário **só pode desmarcar** o que foi
+     lido errado — não digita produto nem preço. Informa o estabelecimento (busca os cadastrados, ou
+     nome livre + endereço) e confere a validade (lida do encarte ou escolhida no calendário).
+  4. Ao confirmar, as fotos (reduzidas para 1600 px / JPEG 80%) vão para o bucket privado
+     `encartes/<id-do-usuário>/…` (guardadas para conferência) e a função `publicar_encarte` grava os
+     preços **direto na busca** (fonte `usuario_encarte`), validade = data do encarte (hoje até 30
+     dias). Máx. 200 produtos por encarte e 10 encartes por usuário por dia; produto repetido entra uma vez.
+  5. "Meus encartes" mostra o que o usuário publicou e quantos preços cada um gerou.
+  - ⚠️ OCR de encarte erra (layout livre, letras decorativas). A confirmação do usuário é a trava; se
+    a qualidade não bastar, o próximo passo é ler as fotos com IA de visão (mais precisa, mas tem custo
+    por foto e precisa de uma chave de API guardada numa Edge Function do Supabase).
+  - As funções de fila do Admin (`aprovar_encarte` / `rejeitar_encarte`) continuam no banco, mas o
+    app não manda mais encartes para a fila.
 - Encarte do próprio PDV usado como arte de banner: publicação imediata, não passa pela fila.
 - Admin é definido **direto no banco** (ninguém consegue se promover pelo app).
 - Promoção: segmentação por raio (a partir de uma loja) e/ou palavras-chave do termo buscado.

@@ -29,6 +29,7 @@ object ErrosServidor {
         "encarte_ja_revisado" to "Este encarte já foi revisado.",
         "validade_obrigatoria" to "Informe a validade impressa no encarte.",
         "validade_passada" to "A validade informada já passou.",
+        "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
     )
 
     const val GENERICA = "Algo deu errado. Tente de novo em instantes."

@@ -26,10 +26,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -40,10 +43,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -65,6 +70,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.EncarteEnviado
 import br.com.tabelapp.core.RascunhoEncarte
 import br.com.tabelapp.core.StatusEncarte
@@ -75,12 +81,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** Aba "Encarte": fotos do encarte + estabelecimento + validade -> fila de aprovação do Admin. */
+/**
+ * Aba "Encarte": fotos do encarte -> leitura automática (OCR no celular) ->
+ * resumo com os produtos e preços lidos -> o usuário confirma -> direto na busca.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaEnviarEncarte(container: AppContainer, usuario: Usuario) {
     val vm: EnviarEncarteViewModel = viewModel(key = "encarte-${usuario.id}") {
-        EnviarEncarteViewModel(container.encartes, container.imagens)
+        EnviarEncarteViewModel(container.encartes, container.imagens, container.leitorTexto)
     }
     val estado by vm.estado.collectAsStateWithLifecycle()
 
@@ -97,13 +106,17 @@ fun TelaEnviarEncarte(container: AppContainer, usuario: Usuario) {
         },
     ) { margens ->
         Box(Modifier.padding(margens).fillMaxSize()) {
-            if (estado.enviado) EncarteEnviadoOk(vm) else FormularioEncarte(estado, vm)
+            when (estado.etapa) {
+                EtapaEncarte.FOTOS -> EtapaFotos(estado, vm)
+                EtapaEncarte.CONFIRMACAO -> EtapaConfirmacao(estado, vm)
+                EtapaEncarte.PUBLICADO -> EncartePublicado(estado, vm)
+            }
         }
     }
 }
 
 @Composable
-private fun FormularioEncarte(estado: EstadoEncarte, vm: EnviarEncarteViewModel) {
+private fun EtapaFotos(estado: EstadoEncarte, vm: EnviarEncarteViewModel) {
     val contexto = LocalContext.current
     var uriFoto by rememberSaveable { mutableStateOf<Uri?>(null) }
 
@@ -122,21 +135,25 @@ private fun FormularioEncarte(estado: EstadoEncarte, vm: EnviarEncarteViewModel)
         tirarFoto.launch(uri)
     }
 
-    val podeAdicionar = estado.fotos.size < RascunhoEncarte.MAX_FOTOS && !estado.processandoFotos
+    val podeAdicionar = estado.fotos.size < RascunhoEncarte.MAX_FOTOS && !estado.lendoFotos
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            "Viu um encarte ou cartaz de ofertas? Fotografe e compartilhe. Depois de conferido pela " +
-                "nossa equipe, os preços aparecem na busca.",
+            "Viu um encarte ou cartaz de ofertas? Fotografe: o app lê os produtos e preços, você confere " +
+                "e eles já aparecem na busca.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "Dica: fotografe de perto, com boa luz e o encarte reto — uma página ou um trecho por foto.",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // 1. Fotos
-        Text("1. Fotos do encarte (até ${RascunhoEncarte.MAX_FOTOS})", fontWeight = FontWeight.Bold)
-        if (estado.fotos.isNotEmpty() || estado.processandoFotos) {
+        Text("Fotos do encarte (até ${RascunhoEncarte.MAX_FOTOS})", fontWeight = FontWeight.Bold)
+        if (estado.fotos.isNotEmpty() || estado.lendoFotos) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 estado.fotos.forEachIndexed { i, foto ->
                     Box {
@@ -150,13 +167,13 @@ private fun FormularioEncarte(estado: EstadoEncarte, vm: EnviarEncarteViewModel)
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                             modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
                         ) {
-                            IconButton(onClick = { vm.removerFoto(i) }) {
+                            IconButton(onClick = { vm.removerFoto(i) }, enabled = !estado.lendoFotos) {
                                 Icon(Icons.Default.Close, contentDescription = "Remover foto", Modifier.size(16.dp))
                             }
                         }
                     }
                 }
-                if (estado.processandoFotos) {
+                if (estado.lendoFotos) {
                     Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
             }
@@ -180,8 +197,75 @@ private fun FormularioEncarte(estado: EstadoEncarte, vm: EnviarEncarteViewModel)
             }
         }
 
-        // 2. Estabelecimento
-        Text("2. De qual estabelecimento é?", fontWeight = FontWeight.Bold)
+        estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
+
+        Button(
+            onClick = { vm.lerEncarte() },
+            enabled = estado.fotos.isNotEmpty() && !estado.lendoFotos,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) {
+            if (estado.lendoFotos) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Lendo as fotos…")
+            } else {
+                Icon(Icons.Default.DocumentScanner, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Ler encarte")
+            }
+        }
+
+        if (estado.meusEncartes.isNotEmpty()) {
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            MeusEncartes(estado.meusEncartes)
+        }
+    }
+}
+
+/** Resumo do que foi lido. O usuário não digita produto nem preço: só desmarca o que estiver errado. */
+@Composable
+private fun EtapaConfirmacao(estado: EstadoEncarte, vm: EnviarEncarteViewModel) {
+    if (estado.itens.isEmpty()) {
+        NadaLido(vm)
+        return
+    }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Confira o que foi lido", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(
+            "${estado.itens.size} produto(s) encontrado(s). Desmarque o que estiver errado — só os marcados " +
+                "vão para a busca.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(vertical = 4.dp)) {
+                estado.itens.forEachIndexed { i, item ->
+                    val marcado = i !in estado.desmarcados
+                    Row(
+                        Modifier.fillMaxWidth().clickable { vm.alternarItem(i) }.padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = marcado, onCheckedChange = { vm.alternarItem(i) })
+                        Text(
+                            item.produto,
+                            modifier = Modifier.weight(1f),
+                            textDecoration = if (marcado) null else TextDecoration.LineThrough,
+                            color = if (marcado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        )
+                        Text(
+                            Dinheiro.formatar(item.precoCentavos),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 8.dp, end = 12.dp),
+                            color = if (marcado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                }
+            }
+        }
+
+        Text("De qual estabelecimento é?", fontWeight = FontWeight.Bold)
         OutlinedTextField(
             value = estado.busca, onValueChange = vm::alterarBusca,
             label = { Text("Nome do estabelecimento") },
@@ -219,55 +303,71 @@ private fun FormularioEncarte(estado: EstadoEncarte, vm: EnviarEncarteViewModel)
             )
         }
 
-        // 3. Validade
-        Text("3. Até quando valem as ofertas?", fontWeight = FontWeight.Bold)
-        CampoValidade(estado.validade, aoEscolher = vm::alterarValidade)
-
-        OutlinedTextField(
-            value = estado.comentario, onValueChange = vm::alterarComentario,
-            label = { Text("Comentário (opcional)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Text("Até quando valem as ofertas?", fontWeight = FontWeight.Bold)
+        CampoValidade(estado.validade, estado.validadeLida, aoEscolher = vm::alterarValidade)
 
         estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
 
+        val n = estado.selecionados.size
         Button(
-            onClick = vm::enviar,
-            enabled = !estado.enviando && !estado.processandoFotos,
+            onClick = vm::publicar,
+            enabled = !estado.enviando && n > 0,
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
             if (estado.enviando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            else Text("Enviar para aprovação")
+            else Text(if (n == 1) "Confirmar e publicar 1 preço" else "Confirmar e publicar $n preços")
         }
-
-        if (estado.meusEncartes.isNotEmpty()) {
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            MeusEncartes(estado.meusEncartes)
+        OutlinedButton(onClick = vm::voltarAsFotos, enabled = !estado.enviando, modifier = Modifier.fillMaxWidth()) {
+            Text("Voltar às fotos")
         }
     }
 }
 
-/** Validade opcional: o usuário informa a data impressa no encarte, se houver. */
+@Composable
+private fun NadaLido(vm: EnviarEncarteViewModel) {
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Não encontrei produtos com preço nestas fotos.", fontWeight = FontWeight.Bold)
+                Text(
+                    "Tente fotografar mais de perto, com boa luz e o encarte reto — de preferência um " +
+                        "trecho do encarte por foto, com o nome e o preço dos produtos bem legíveis.",
+                )
+            }
+        }
+        Button(onClick = vm::voltarAsFotos, modifier = Modifier.fillMaxWidth()) { Text("Voltar às fotos") }
+    }
+}
+
+/** Validade: a lida do encarte (se achou) ou a que o usuário escolher no calendário. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CampoValidade(data: LocalDate?, aoEscolher: (LocalDate?) -> Unit) {
+private fun CampoValidade(data: LocalDate?, lida: Boolean, aoEscolher: (LocalDate) -> Unit) {
     var aberto by remember { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedButton(onClick = { aberto = true }, modifier = Modifier.weight(1f)) {
-            Text(data?.let { "Válido até ${Validade.formatar(it)}" } ?: "Informar a data do encarte")
-        }
-        if (data != null) TextButton(onClick = { aoEscolher(null) }) { Text("Limpar") }
+    OutlinedButton(onClick = { aberto = true }, modifier = Modifier.fillMaxWidth()) {
+        Text(data?.let { "Válido até ${Validade.formatar(it)}" } ?: "Informar a data impressa no encarte")
     }
     Text(
-        if (data == null) "Se o encarte não mostrar a data, deixe em branco: nossa equipe confere."
-        else "Os preços saem da busca depois dessa data.",
+        when {
+            data == null -> "Não achei a data no encarte. Toque acima e escolha a data impressa nele."
+            lida -> "Data lida do encarte. Se estiver errada, toque para corrigir."
+            else -> "Os preços saem da busca depois dessa data."
+        },
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (data == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (aberto) {
+        val hoje = LocalDate.now()
+        val limite = hoje.plusDays(Validade.MAXIMO_DIAS)
         // O DatePicker trabalha com meia-noite UTC do dia escolhido.
         val estado = rememberDatePickerState(
-            initialSelectedDateMillis = (data ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            initialSelectedDateMillis = (data ?: hoje).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val dia = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                    return !dia.isBefore(hoje) && !dia.isAfter(limite)
+                }
+            },
         )
         DatePickerDialog(
             onDismissRequest = { aberto = false },
@@ -297,14 +397,19 @@ private fun MeusEncartes(encartes: List<EncarteEnviado>) {
         }
         Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
             Text(e.pdvNome, fontWeight = FontWeight.SemiBold)
-            Text(e.status.rotulo, color = cor, style = MaterialTheme.typography.bodySmall)
+            val detalhes = listOfNotNull(
+                e.status.rotulo,
+                e.itens.takeIf { it > 0 }?.let { if (it == 1) "1 preço" else "$it preços" },
+                e.validade?.let { "válido até ${Validade.formatar(it)}" },
+            )
+            Text(detalhes.joinToString(" · "), color = cor, style = MaterialTheme.typography.bodySmall)
             e.motivoRejeicao?.let { Text("Motivo: $it", style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
 
 @Composable
-private fun EncarteEnviadoOk(vm: EnviarEncarteViewModel) {
+private fun EncartePublicado(estado: EstadoEncarte, vm: EnviarEncarteViewModel) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -314,10 +419,12 @@ private fun EncarteEnviadoOk(vm: EnviarEncarteViewModel) {
             Icons.Default.CheckCircle, contentDescription = null,
             tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(80.dp),
         )
-        Text("Encarte enviado!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
-            "Nossa equipe vai conferir as fotos. Assim que aprovado, os preços aparecem na busca " +
-                "com a marcação \"produto de encarte\".",
+            if (estado.publicados == 1) "1 preço publicado!" else "${estado.publicados} preços publicados!",
+            style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "Já aparecem na busca com a marcação \"produto de encarte\". Obrigado por ajudar quem pesquisa!",
             textAlign = TextAlign.Center,
         )
         Button(onClick = vm::novoEncarte, modifier = Modifier.fillMaxWidth()) { Text("Enviar outro encarte") }
