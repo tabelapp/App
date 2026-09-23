@@ -22,7 +22,8 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Envio de encarte pelo usuário | ⏸️ suspenso (decisão do fundador: a leitura automática deixava o envio vulnerável). Aba fora do app e função bloqueada no banco; código de leitura guardado no `core` |
 | Cadastro do PDV (conta CNPJ): consulta do CNPJ na Receita, foto do alvará conferida pelo app, análise do Admin | ✅ no app (aba "Meu negócio") |
 | Admin: fila de cadastros de PDV (ver alvará, aprovar, rejeitar com motivo) | ✅ no app (aba "Admin") |
-| Área do PDV: tabela de preços, planilha, promoções, Pix | ⏳ banco pronto, falta a tela e o provedor de Pix |
+| Área do PDV aprovado: tabela de preços (incluir, editar, excluir, validade, OBS) e saldo de operações | ✅ no app |
+| Área do PDV: planilha, várias lojas, promoções, Pix | ⏳ banco pronto, falta a tela e o provedor de Pix |
 
 ## Como o projeto está organizado
 
@@ -93,7 +94,7 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 
 1. Testar o login e a busca com um projeto Supabase real.
 2. ✅ QR Code testado com notas reais.
-3. Área do PDV: tabela de preços (manual), importação de planilha com prévia da cota, mais lojas.
+3. Área do PDV: importação de planilha com prévia da cota, cadastro de mais lojas, Pix dos pacotes.
 4. Admin: moderação (remover preços errados, suspender PDV).
 5. Lista de compras + mapa (precisa de chave da API de mapas).
 6. Pix via Mercado Pago (Edge Function + webhook chamando `confirmar_pagamento`).

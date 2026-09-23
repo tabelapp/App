@@ -323,7 +323,15 @@ begin
   end;
   perform public.pdv_salvar_precos(v, (select id from public.lojas where pdv_id = v),
     '[{"produto": "Pão francês kg", "preco_centavos": 1590}]');
+  -- Painel: lojas, tabela de preços e modo rede.
+  assert (select modo_rede from public.meus_pdvs() where id = v);
+  assert (select count(*) from public.minhas_lojas(v)) = 1;
+  assert (select preco_centavos from public.meus_precos(v) where produto = 'Pão francês kg') = 1590;
 end $$;
+select pg_temp.espera_erro(
+  $q$select * from public.meus_precos('10000000-0000-4000-a000-000000000001')$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select * from public.minhas_lojas('10000000-0000-4000-a000-000000000001')$q$, 'sem_permissao');
 -- Fraude descoberta depois: Admin suspende e os preços oficiais saem da busca.
 set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 do $$

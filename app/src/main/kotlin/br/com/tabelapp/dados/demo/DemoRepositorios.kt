@@ -9,10 +9,15 @@ import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.DadosDemo
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.PrecoPdv
+import br.com.tabelapp.core.RegrasCota
+import br.com.tabelapp.core.SaldoCota
 import br.com.tabelapp.core.StatusPdv
+import br.com.tabelapp.core.TipoOperacao
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.Validade
@@ -93,6 +98,8 @@ class DemoBanco {
     val enviados = mutableListOf<Cotacao>()
     val chavesEnviadas = mutableSetOf<String>()
     val pdvs = mutableListOf<DemoPdv>()
+    val precosPdv = mutableListOf<PrecoPdv>()
+    val operacoesUsadas = mutableMapOf<String, Int>()
 }
 
 /**
@@ -131,6 +138,52 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
             ),
             alvara = alvaraJpeg,
         )
+    }
+
+    override suspend fun lojas(pdvId: String): List<LojaPdv> {
+        val p = banco.pdvs.firstOrNull { it.meu.id == pdvId } ?: return emptyList()
+        return listOf(LojaPdv("loja-$pdvId", null, p.pendente.endereco ?: "Petrópolis", p.pendente.telefone))
+    }
+
+    override suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv> =
+        banco.precosPdv.filter { it.lojaId == lojaId }.sortedBy { Texto.normalizar(it.produto) }
+
+    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota =
+        SaldoCota(gratisUsadas = banco.operacoesUsadas[lojaId] ?: 0)
+
+    override suspend fun salvarPreco(
+        pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
+    ): Int {
+        delay(300)
+        val pdv = banco.pdvs.firstOrNull { it.meu.id == pdvId } ?: throw ErroAmigavel("Cadastro não encontrado.")
+        if (pdv.meu.status != StatusPdv.APROVADO) throw ErroAmigavel("Seu cadastro ainda não foi aprovado.")
+        val atual = banco.precosPdv.firstOrNull { it.lojaId == lojaId && Texto.normalizar(it.produto) == Texto.normalizar(produto) }
+        val conta = TipoOperacao.classificar(atual?.precoCentavos, precoCentavos).contaNaCota
+        val usadas = banco.operacoesUsadas[lojaId] ?: 0
+        if (conta && usadas >= RegrasCota.GRATIS_POR_MES) {
+            throw ErroAmigavel("As operações desta loja acabaram. Compre +50 operações por R\$ 10 via Pix (valem 30 dias).")
+        }
+        if (conta) banco.operacoesUsadas[lojaId] = usadas + 1
+        val item = PrecoPdv(
+            id = atual?.id ?: ("pp-" + UUID.randomUUID()), lojaId = lojaId, produto = produto.trim(),
+            precoCentavos = precoCentavos, validade = validade ?: Validade.padrao(LocalDate.now()),
+            obs = obs?.trim()?.ifEmpty { null },
+        )
+        banco.precosPdv.removeAll { it.id == item.id }
+        banco.precosPdv += item
+        // Aparece na busca da demonstração como preço oficial.
+        banco.enviados.removeAll { it.id == item.id }
+        banco.enviados += Cotacao(
+            id = item.id, produto = item.produto, precoCentavos = item.precoCentavos, validade = item.validade,
+            obs = item.obs, fonte = Fonte.PDV_MANUAL, lojaId = null, pdvId = null, pdvNome = pdv.meu.nomeFantasia,
+            endereco = pdv.pendente.endereco, telefone = pdv.pendente.telefone, criadoEm = Instant.now(),
+        )
+        return if (conta) 1 else 0
+    }
+
+    override suspend fun excluirPreco(precoId: String) {
+        banco.precosPdv.removeAll { it.id == precoId }
+        banco.enviados.removeAll { it.id == precoId }
     }
 
     override suspend fun pendentes(): List<PdvPendente> =

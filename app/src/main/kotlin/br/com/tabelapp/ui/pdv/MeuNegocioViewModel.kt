@@ -89,6 +89,18 @@ class MeuNegocioViewModel(
         }
     }
 
+    /** Só no modo demonstração: faz o papel do Admin para dar para ver a área do PDV. */
+    fun aprovarDemonstracao(pdv: MeuPdv) {
+        viewModelScope.launch {
+            try {
+                repositorio.aprovar(pdv.id)
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(erroCarregar = e.message) }
+            }
+            carregar()
+        }
+    }
+
     /** Novo pedido (ou correção de um rejeitado, já com o CNPJ e o nome preenchidos). */
     fun novoCadastro(base: MeuPdv? = null) = _estado.update {
         EstadoPdv(

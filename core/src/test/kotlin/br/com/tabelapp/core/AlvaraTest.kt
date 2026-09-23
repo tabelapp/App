@@ -37,3 +37,21 @@ class CadastroPdvTest {
         assertTrue(base.copy(cnpj = "123", nomeFantasia = " ").erros(temAlvara = true).size == 2)
     }
 }
+
+class RascunhoPrecoTest {
+    private val hoje = java.time.LocalDate.parse("2026-09-24")
+
+    @Test fun `item valido e erros de preenchimento`() {
+        assertTrue(RascunhoPreco("Arroz 5kg", "24,90").erros(hoje).isEmpty())
+        assertTrue(RascunhoPreco("Arroz 5kg", "24,90", hoje.plusDays(30), "Oferta").erros(hoje).isEmpty())
+        assertTrue(RascunhoPreco("", "0").erros(hoje).size == 2)
+        assertTrue(RascunhoPreco("Arroz", "1", hoje.plusDays(31)).erros(hoje).size == 1)
+        assertTrue(RascunhoPreco("Arroz", "1", hoje.minusDays(1)).erros(hoje).size == 1)
+        assertTrue(RascunhoPreco("Arroz", "1", obs = "x".repeat(141)).erros(hoje).size == 1)
+    }
+
+    @Test fun `editar comeca com os dados do item`() {
+        val r = RascunhoPreco.de(PrecoPdv("1", "l", "Arroz", 123456, hoje, null))
+        assertTrue(r.preco == "1.234,56" && r.precoCentavos == 123456L)
+    }
+}

@@ -84,7 +84,12 @@ fun TelaMeuNegocio(container: AppContainer, usuario: Usuario) {
             when (estado.etapa) {
                 EtapaPdv.CARREGANDO -> Carregando(estado.erroCarregar, vm::carregar)
                 EtapaPdv.FORMULARIO -> FormularioPdv(estado, vm)
-                EtapaPdv.SITUACAO -> Situacao(estado.pdvs, vm, modoDemo = container.modoDemo)
+                EtapaPdv.SITUACAO -> {
+                    // Cadastro aprovado: abre direto a área do PDV (tabela de preços).
+                    val aprovado = estado.pdvs.firstOrNull { it.status == StatusPdv.APROVADO }
+                    if (aprovado != null) PainelPdv(container, aprovado)
+                    else Situacao(estado.pdvs, vm, modoDemo = container.modoDemo)
+                }
             }
         }
     }
@@ -287,8 +292,11 @@ private fun Situacao(pdvs: List<MeuPdv>, vm: MeuNegocioViewModel, modoDemo: Bool
                                     "publicar seus preços. Volte aqui para acompanhar.",
                             )
                             if (modoDemo) {
+                                Button(onClick = { vm.aprovarDemonstracao(pdv) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Aprovar agora (só na demonstração)")
+                                }
                                 Text(
-                                    "Demonstração: saia e entre com um e-mail começando com \"admin\" para aprovar.",
+                                    "No app de verdade, quem aprova é o Admin, na aba \"Admin\".",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

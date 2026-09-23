@@ -6,9 +6,12 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.PrecoPdv
+import br.com.tabelapp.core.SaldoCota
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.StatusPdv
@@ -297,6 +300,26 @@ private data class MeuPdvDto(
     @SerialName("motivo_rejeicao") val motivoRejeicao: String? = null,
     @SerialName("cnpj_conferido_no_alvara") val cnpjConferidoNoAlvara: Boolean = false,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("modo_rede") val modoRede: Boolean = true,
+)
+
+@Serializable
+private data class LojaPdvDto(val id: String, val nome: String? = null, val endereco: String, val telefone: String? = null)
+
+@Serializable
+private data class PrecoPdvDto(
+    val id: String,
+    @SerialName("loja_id") val lojaId: String,
+    val produto: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    val validade: String,
+    val obs: String? = null,
+)
+
+@Serializable
+private data class CotaDto(
+    @SerialName("gratis_usadas") val gratisUsadas: Int,
+    @SerialName("saldo_pacotes") val saldoPacotes: Int = 0,
 )
 
 @Serializable
@@ -328,8 +351,55 @@ class SupabasePdvRepositorio(
                 id = d.id, cnpj = d.cnpj, razaoSocial = d.razaoSocial, nomeFantasia = d.nomeFantasia,
                 status = StatusPdv.doCodigo(d.status), motivoRejeicao = d.motivoRejeicao,
                 cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara, enviadoEm = instante(d.createdAt),
+                modoRede = d.modoRede,
             )
         }
+    }
+
+    override suspend fun lojas(pdvId: String): List<LojaPdv> = traduzindoErros {
+        supabase.postgrest.rpc("minhas_lojas", buildJsonObject { put("p_pdv_id", pdvId) })
+            .decodeList<LojaPdvDto>()
+            .map { LojaPdv(it.id, it.nome, it.endereco, it.telefone) }
+    }
+
+    override suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv> = traduzindoErros {
+        supabase.postgrest.rpc("meus_precos", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_loja_id", lojaId)
+        }).decodeList<PrecoPdvDto>().map {
+            PrecoPdv(it.id, it.lojaId, it.produto, it.precoCentavos, LocalDate.parse(it.validade), it.obs)
+        }
+    }
+
+    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota = traduzindoErros {
+        val c = supabase.postgrest.rpc("cota_status", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_loja_id", lojaId)
+        }).decodeList<CotaDto>().firstOrNull() ?: CotaDto(0, 0)
+        SaldoCota(gratisUsadas = c.gratisUsadas, saldoPacotes = c.saldoPacotes)
+    }
+
+    override suspend fun salvarPreco(
+        pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
+    ): Int = traduzindoErros {
+        val resposta = supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_loja_id", lojaId)
+            put("p_itens", buildJsonArray {
+                addJsonObject {
+                    put("produto", produto.trim())
+                    put("preco_centavos", precoCentavos)
+                    validade?.let { put("validade", it.toString()) }
+                    obs?.trim()?.ifEmpty { null }?.let { put("obs", it) }
+                }
+            })
+        }).decodeAs<JsonObject>()
+        (resposta["operacoes"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+    }
+
+    override suspend fun excluirPreco(precoId: String) = traduzindoErros {
+        supabase.postgrest.rpc("pdv_excluir_item", buildJsonObject { put("p_cotacao_id", precoId) })
+        Unit
     }
 
     override suspend fun cadastrar(
