@@ -43,3 +43,16 @@ jobs:
         with:
           name: tabelapp-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+  supabase:
+    name: Conexão com o Supabase (se configurado)
+    runs-on: ubuntu-latest
+    env:
+      # Cadastre em Settings → Secrets and variables → Actions. Sem eles, o passo é pulado.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testar conexão e migrações
+        if: env.SUPABASE_URL != ''
+        run: scripts/testar-conexao-supabase.sh

@@ -16,6 +16,10 @@ if [ -z "$URL" ] || [ -z "$CHAVE" ]; then
   exit 1
 fi
 
+# Chaves novas (sb_publishable_...) vão só no header apikey; as antigas (JWT "eyJ...") também no Authorization.
+AUTH=()
+case "$CHAVE" in eyJ*) AUTH=(-H "Authorization: Bearer $CHAVE") ;; esac
+
 echo "== 1. O projeto responde? ($URL)"
 codigo=$(curl -sS -m 20 -o /dev/null -w "%{http_code}" -H "apikey: $CHAVE" "$URL/auth/v1/health")
 case "$codigo" in
@@ -29,7 +33,7 @@ echo "== 2. As migrações do Tabelapp foram aplicadas?"
 # Sem login, o banco deve RECUSAR (permissão) — o que prova que a função existe.
 # Se a função não existir, o PostgREST responde PGRST202.
 resposta=$(curl -sS -m 20 -X POST "$URL/rest/v1/rpc/buscar_cotacoes" \
-  -H "apikey: $CHAVE" -H "Authorization: Bearer $CHAVE" -H "Content-Type: application/json" -d '{}')
+  -H "apikey: $CHAVE" "${AUTH[@]}" -H "Content-Type: application/json" -d '{}')
 if echo "$resposta" | grep -q '"PGRST202"'; then
   echo "❌ Funções do Tabelapp não encontradas: aplique supabase/migrations/ (README, passo 2)."
   exit 1
@@ -50,7 +54,7 @@ for chamada in \
 do
   IFS='|' read -r funcao corpo migracao <<< "$chamada"
   resposta=$(curl -sS -m 20 -X POST "$URL/rest/v1/rpc/$funcao" \
-    -H "apikey: $CHAVE" -H "Authorization: Bearer $CHAVE" -H "Content-Type: application/json" -d "$corpo")
+    -H "apikey: $CHAVE" "${AUTH[@]}" -H "Content-Type: application/json" -d "$corpo")
   if echo "$resposta" | grep -q '"PGRST202"'; then
     echo "❌ Falta aplicar $migracao (e as seguintes)."
     exit 1
