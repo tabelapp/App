@@ -17,7 +17,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Modo demonstração (roda sem servidor, com dados fictícios de Petrópolis) | ✅ |
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
 | Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
-| Envio de NF pelo QR Code (lê os produtos na Sefaz no próprio celular) ou manual, com confirmação única | ✅ no app |
+| Envio de NF pelo QR Code: lê produtos, preços e data na Sefaz no próprio celular; tela única de resumo e confirmação, sem digitação | ✅ no app |
 | Envio de encarte | ⏳ banco pronto, falta a tela |
 | Área do PDV, promoções, Pix | ⏳ banco pronto, falta a tela e a integração Mercado Pago |
 | Painel Admin | ⏳ banco pronto, falta a tela |

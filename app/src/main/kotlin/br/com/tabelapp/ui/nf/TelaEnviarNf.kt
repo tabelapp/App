@@ -15,24 +15,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,12 +39,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,9 +51,6 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Validade
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 import br.com.tabelapp.dados.Usuario
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
@@ -101,7 +88,7 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
             when (estado.etapa) {
                 EtapaNf.INICIO -> EtapaInicio(estado, vm)
                 EtapaNf.LENDO_SEFAZ -> EtapaLendoSefaz(estado, vm)
-                EtapaNf.FORMULARIO -> EtapaFormulario(estado, vm)
+                EtapaNf.FALHA -> EtapaFalha(estado, vm)
                 EtapaNf.CONFIRMACAO -> EtapaConfirmacao(estado, vm)
                 EtapaNf.ENVIADO -> EtapaEnviado(estado, vm, aoVerNaBusca)
             }
@@ -160,18 +147,18 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
-        Text("Sem câmera? Digite a chave de acesso (44 números) ou cole o link do QR Code:")
+        Text("O leitor não abriu? Cole o link do QR Code (ex.: lido por outro app de câmera):")
         OutlinedTextField(
             value = textoChave, onValueChange = { textoChave = it },
-            label = { Text("Chave de acesso ou link") },
+            label = { Text("Link do QR Code") },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedButton(
             onClick = { vm.qrLido(textoChave) },
             enabled = textoChave.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Continuar com a chave") }
-        TextButton(onClick = vm::preencherManualmente) { Text("Preencher tudo manualmente") }
+        ) { Text("Continuar com o link") }
     }
 }
 
@@ -200,108 +187,38 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             aoCapturarHtml = vm::htmlCapturado,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
-        Row(Modifier.align(Alignment.CenterHorizontally)) {
-            TextButton(onClick = vm::preencherManualmente) { Text("Prefiro digitar os produtos") }
-            if (estado.temPaginaSefaz) BotaoEnviarParaAnalise(vm)
+        TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text("Cancelar")
         }
     }
 }
 
 @Composable
-private fun EtapaFormulario(estado: EstadoNf, vm: EnviarNfViewModel) {
+private fun EtapaFalha(estado: EstadoNf, vm: EnviarNfViewModel) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        estado.aviso?.let {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                Text(it, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-        }
-        if (estado.leituraFalhou && estado.temPaginaSefaz) {
+        Text(
+            "Não consegui ler esta nota na Sefaz",
+            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+        )
+        Text(
+            "Pode ser instabilidade no site da Sefaz. Tente de novo em instantes. " +
+                "Só enviamos preços lidos direto da nota, por isso não dá para digitar os produtos.",
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = vm::tentarDeNovo, modifier = Modifier.fillMaxWidth()) { Text("Tentar de novo") }
+        OutlinedButton(onClick = vm::novaNota, modifier = Modifier.fillMaxWidth()) { Text("Ler outra nota") }
+        if (estado.temPaginaSefaz) {
             Text(
                 "Ajude a melhorar o Tabelapp: envie a página da Sefaz para analisarmos por que a leitura falhou.",
                 style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
             )
             BotaoEnviarParaAnalise(vm)
-        }
-
-        OutlinedTextField(
-            value = estado.chave, onValueChange = vm::alterarChave,
-            label = { Text("Chave de acesso (opcional)") },
-            supportingText = { Text("44 números impressos no cupom, perto do QR Code") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        CampoDataCompra(estado.dataNf, aoEscolher = vm::alterarDataNf)
-
-        Text("Onde foi a compra", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        if (estado.lojas.isNotEmpty()) {
-            Text(
-                if (estado.lojas.size == 1) "Estabelecimento cadastrado no Tabelapp:"
-                else "Este estabelecimento tem ${estado.lojas.size} lojas. Em qual foi a compra?",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            estado.lojas.forEach { loja ->
-                Row(
-                    Modifier.fillMaxWidth()
-                        .selectable(selected = estado.lojaId == loja.lojaId, onClick = { vm.escolherLoja(loja.lojaId) })
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(selected = estado.lojaId == loja.lojaId, onClick = { vm.escolherLoja(loja.lojaId) })
-                    Column {
-                        Text(loja.titulo, fontWeight = FontWeight.SemiBold)
-                        Text(loja.endereco, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        } else {
-            OutlinedTextField(
-                value = estado.pdvNome, onValueChange = vm::alterarPdvNome,
-                label = { Text("Nome do estabelecimento") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = estado.pdvEndereco, onValueChange = vm::alterarPdvEndereco,
-                label = { Text("Endereço") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        Text(
-            "Produtos (${estado.itens.count { it.produto.isNotBlank() }})",
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-        )
-        estado.itens.forEachIndexed { i, item ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = item.produto, onValueChange = { vm.alterarItem(i, item.copy(produto = it)) },
-                    label = { Text("Produto") }, singleLine = true,
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                    value = item.preco, onValueChange = { vm.alterarItem(i, item.copy(preco = it)) },
-                    label = { Text("R$") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.width(96.dp),
-                )
-                IconButton(onClick = { vm.removerItem(i) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remover produto")
-                }
-            }
-        }
-        OutlinedButton(onClick = vm::adicionarItem) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(4.dp))
-            Text("Adicionar produto")
-        }
-
-        estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-
-        Button(onClick = vm::revisar, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Text("Revisar e enviar")
         }
     }
 }
@@ -317,6 +234,29 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Confira antes de enviar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(
+            "Dados lidos da nota na Sefaz.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (estado.lojas.size > 1) {
+            Text("Este estabelecimento tem ${estado.lojas.size} lojas. Em qual foi a compra?")
+            estado.lojas.forEach { l ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .selectable(selected = estado.lojaId == l.lojaId, onClick = { vm.escolherLoja(l.lojaId) })
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = estado.lojaId == l.lojaId, onClick = { vm.escolherLoja(l.lojaId) })
+                    Column {
+                        Text(l.titulo, fontWeight = FontWeight.SemiBold)
+                        Text(l.endereco, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -353,16 +293,16 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         estado.erros.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Button(
-            onClick = vm::enviar, enabled = !estado.enviando,
+            onClick = vm::enviar, enabled = !estado.enviando && estado.erros.isEmpty(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
             if (estado.enviando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             else Text("Enviar nota")
         }
         OutlinedButton(
-            onClick = vm::voltarParaEdicao, enabled = !estado.enviando,
+            onClick = vm::novaNota, enabled = !estado.enviando,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Voltar e corrigir") }
+        ) { Text("Cancelar") }
     }
 }
 
@@ -386,36 +326,6 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, aoVerNaBusca: 
             Text("Ver na busca")
         }
         OutlinedButton(onClick = vm::novaNota, modifier = Modifier.fillMaxWidth()) { Text("Enviar outra nota") }
-    }
-}
-
-/** Data da compra (= data da NF). Abre um calendário ao tocar. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CampoDataCompra(data: LocalDate, aoEscolher: (LocalDate) -> Unit) {
-    var aberto by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { aberto = true }, modifier = Modifier.fillMaxWidth()) {
-        Text("Data da compra: ${Validade.formatar(data)}")
-    }
-    if (aberto) {
-        // O DatePicker trabalha com meia-noite UTC do dia escolhido.
-        val estado = rememberDatePickerState(
-            initialSelectedDateMillis = data.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { aberto = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    estado.selectedDateMillis?.let {
-                        aoEscolher(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-                    }
-                    aberto = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { aberto = false }) { Text("Cancelar") } },
-        ) {
-            DatePicker(state = estado)
-        }
     }
 }
 

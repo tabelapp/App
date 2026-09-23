@@ -55,25 +55,24 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
   que devolve quantas operações a importação vai custar, o saldo da loja e quantos pacotes faltam. Se
   não couber, o app mostra o Pix antes; se tentar gravar sem saldo, o banco recusa (`cota_excedida`).
 
-## Nota Fiscal pelo QR Code
+## Nota Fiscal pelo QR Code (sem digitação — decisão do fundador)
 
 1. O usuário lê o QR Code do cupom com o **leitor do Google Play Services** (tela pronta do Google,
-   não precisa pedir permissão de câmera). Sem câmera, dá para digitar a chave ou colar o link.
+   não precisa pedir permissão de câmera). Se o leitor não abrir, dá para colar o **link** do QR Code.
+   Só a chave de 44 dígitos não basta: a consulta na Sefaz precisa do link completo.
 2. A chave dentro do QR é validada (44 dígitos + dígito verificador) e precisa ser do RJ.
 3. O app abre o link da Sefaz-RJ **dentro do próprio celular** (WebView, na conexão do usuário — o portal
-   bloqueia servidores, briefing seção 8) e lê os produtos da página (`LeitorNfce` no `core`). A página
-   fica visível: se a Sefaz pedir verificação, o usuário resolve ali. Após 90 s sem conseguir ler, cai no
-   preenchimento manual com a chave já preenchida.
+   bloqueia servidores, briefing seção 8) e lê produtos, preços unitários, estabelecimento e data da
+   página (`LeitorNfce` no `core`). O portal redireciona para uma página em `http://`; o app libera
+   texto claro **só** para `*.fazenda.rj.gov.br` (`network_security_config.xml`).
 4. O CNPJ do emitente vem na própria chave. Se for de um PDV cadastrado, a nota é ligada à loja (se a
-   rede tiver várias lojas, o usuário escolhe qual). O banco recusa ligar a chave a uma loja de outro
-   CNPJ (`loja_nao_confere`).
-5. O usuário confere/corrige os produtos, vê **uma tela de confirmação** com todos e envia de uma vez.
-   O preço enviado é o **valor unitário** de cada item; linhas repetidas (mesmo produto e preço) viram uma.
-
-- **⚠️ testar com nota real:** o leitor da página foi escrito a partir do layout padrão do portal
-  NFC-e (tabela `#tabResult`), sem acesso ao portal do RJ neste ambiente de desenvolvimento. Se a
-  leitura automática falhar com uma nota de verdade, o app cai no preenchimento manual — e basta
-  salvar o HTML da página para ajustar `LeitorNfce`.
+   rede tiver várias lojas, o usuário escolhe qual — a única escolha da tela). O banco recusa ligar a
+   chave a uma loja de outro CNPJ (`loja_nao_confere`).
+5. **Uma única tela de resumo** com tudo o que foi lido; o usuário só confirma o envio.
+   **Não há como digitar produto, preço, estabelecimento ou data**: o que vai para a busca é
+   exatamente o que está na nota. Se a leitura falhar, a nota não é enviada (tentar de novo / ler outra),
+   e o usuário pode mandar a página para análise (sem scripts, CPF mascarado).
+   Linhas repetidas (mesmo produto e preço) viram uma.
 
 ## Nota Fiscal — regras gerais
 
