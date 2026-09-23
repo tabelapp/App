@@ -1,17 +1,24 @@
 package br.com.tabelapp.dados.supabase
 
 import androidx.compose.runtime.Composable
+import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaResumo
+import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
+import br.com.tabelapp.core.StatusPdv
+import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
+import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import io.github.jan.supabase.SupabaseClient
@@ -25,6 +32,7 @@ import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.storage.storage
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -37,6 +45,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -57,6 +68,9 @@ internal suspend fun <T> traduzindoErros(bloco: suspend () -> T): T =
     } catch (e: Exception) {
         throw ErroAmigavel(ErrosServidor.traduzir(e.message), e)
     }
+
+private fun instante(texto: String): Instant =
+    runCatching { OffsetDateTime.parse(texto).toInstant() }.getOrElse { Instant.parse(texto) }
 
 @Serializable
 private data class UsuarioDto(
@@ -272,3 +286,123 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
     }
 }
 
+
+@Serializable
+private data class MeuPdvDto(
+    val id: String,
+    val cnpj: String,
+    @SerialName("razao_social") val razaoSocial: String? = null,
+    @SerialName("nome_fantasia") val nomeFantasia: String,
+    val status: String,
+    @SerialName("motivo_rejeicao") val motivoRejeicao: String? = null,
+    @SerialName("cnpj_conferido_no_alvara") val cnpjConferidoNoAlvara: Boolean = false,
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+private data class PdvPendenteDto(
+    val id: String,
+    val cnpj: String,
+    @SerialName("razao_social") val razaoSocial: String? = null,
+    @SerialName("nome_fantasia") val nomeFantasia: String,
+    val endereco: String? = null,
+    val telefone: String? = null,
+    @SerialName("alvara_path") val alvaraPath: String? = null,
+    @SerialName("cnpj_conferido_no_alvara") val cnpjConferidoNoAlvara: Boolean = false,
+    @SerialName("dados_receita") val dadosReceita: JsonObject? = null,
+    @SerialName("dono_nome") val donoNome: String? = null,
+    @SerialName("dono_email") val donoEmail: String? = null,
+    @SerialName("created_at") val createdAt: String,
+)
+
+class SupabasePdvRepositorio(
+    private val supabase: SupabaseClient,
+    private val consulta: ConsultaCnpj,
+) : PdvRepositorio {
+
+    override suspend fun consultarCnpj(cnpj: String): DadosReceita? = consulta.consultar(cnpj)
+
+    override suspend fun meusPdvs(): List<MeuPdv> = traduzindoErros {
+        supabase.postgrest.rpc("meus_pdvs").decodeList<MeuPdvDto>().map { d ->
+            MeuPdv(
+                id = d.id, cnpj = d.cnpj, razaoSocial = d.razaoSocial, nomeFantasia = d.nomeFantasia,
+                status = StatusPdv.doCodigo(d.status), motivoRejeicao = d.motivoRejeicao,
+                cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara, enviadoEm = instante(d.createdAt),
+            )
+        }
+    }
+
+    override suspend fun cadastrar(
+        dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray, cnpjNoAlvara: Boolean,
+    ) = traduzindoErros {
+        val uid = supabase.auth.currentUserOrNull()?.id ?: throw ErroAmigavel(ErrosServidor.traduzir("nao_autenticado"))
+        // A regra do bucket exige a pasta do próprio usuário: alvaras/<id>/<aleatório>.jpg
+        val caminho = "$uid/${java.util.UUID.randomUUID()}.jpg"
+        supabase.storage.from("alvaras").upload(caminho, alvaraJpeg) { upsert = false }
+        supabase.postgrest.rpc(
+            "cadastrar_pdv",
+            buildJsonObject {
+                put("p_cnpj", dados.cnpj.filter { it.isDigit() })
+                put("p_nome_fantasia", dados.nomeFantasia.trim())
+                put("p_razao_social", dados.razaoSocial?.trim())
+                put("p_endereco", dados.endereco.trim())
+                put("p_bairro", dados.bairro.trim())
+                put("p_cidade", dados.cidade.trim())
+                put("p_uf", dados.uf.trim())
+                put("p_cep", dados.cep.trim())
+                put("p_telefone", dados.telefone.trim())
+                put("p_alvara_path", caminho)
+                put("p_cnpj_no_alvara", cnpjNoAlvara)
+                put("p_dados_receita", receita?.let { r ->
+                    buildJsonObject {
+                        put("razao_social", r.razaoSocial)
+                        put("nome_fantasia", r.nomeFantasia)
+                        put("situacao", r.situacao)
+                        put("endereco", r.endereco)
+                        put("bairro", r.bairro)
+                        put("cidade", r.cidade)
+                        put("uf", r.uf)
+                        put("cep", r.cep)
+                        put("telefone", r.telefone)
+                        put("atividade", r.atividade)
+                    }
+                } ?: JsonNull)
+            },
+        )
+        Unit
+    }
+
+    override suspend fun pendentes(): List<PdvPendente> = traduzindoErros {
+        supabase.postgrest.rpc("pdvs_pendentes").decodeList<PdvPendenteDto>().map { d ->
+            fun receita(campo: String) = (d.dadosReceita?.get(campo) as? JsonPrimitive)
+                ?.takeUnless { it is JsonNull }?.content
+            PdvPendente(
+                id = d.id, cnpj = d.cnpj, razaoSocial = d.razaoSocial, nomeFantasia = d.nomeFantasia,
+                endereco = d.endereco, telefone = d.telefone, alvaraPath = d.alvaraPath,
+                cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara,
+                situacaoReceita = receita("situacao"),
+                razaoSocialReceita = receita("razao_social"),
+                enderecoReceita = listOfNotNull(receita("endereco"), receita("bairro"), receita("cidade"), receita("uf"))
+                    .joinToString(", ").ifEmpty { null },
+                donoNome = d.donoNome, donoEmail = d.donoEmail, enviadoEm = instante(d.createdAt),
+            )
+        }
+    }
+
+    override suspend fun fotoAlvara(caminho: String): ByteArray = traduzindoErros {
+        supabase.storage.from("alvaras").downloadAuthenticated(caminho)
+    }
+
+    override suspend fun aprovar(pdvId: String) = traduzindoErros {
+        supabase.postgrest.rpc("aprovar_pdv", buildJsonObject { put("p_pdv_id", pdvId) })
+        Unit
+    }
+
+    override suspend fun rejeitar(pdvId: String, motivo: String) = traduzindoErros {
+        supabase.postgrest.rpc("rejeitar_pdv", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_motivo", motivo.trim())
+        })
+        Unit
+    }
+}

@@ -29,6 +29,16 @@ object ErrosServidor {
         "encarte_ja_revisado" to "Este encarte já foi revisado.",
         "validade_obrigatoria" to "Informe a validade impressa no encarte.",
         "validade_passada" to "A validade informada já passou.",
+        "conta_nao_cnpj" to "Só contas de estabelecimento (CNPJ) cadastram um PDV.",
+        "cnpj_invalido" to "CNPJ inválido: confira os 14 números.",
+        "nome_obrigatorio" to "Informe o nome do estabelecimento.",
+        "endereco_obrigatorio" to "Informe o endereço.",
+        "alvara_obrigatorio" to "Envie a foto do alvará.",
+        "cnpj_ja_cadastrado" to "Este CNPJ já está cadastrado no Tabelapp. Se a empresa é sua, fale com o suporte.",
+        "cnpj_em_analise" to "Já existe um cadastro deste CNPJ em análise. Se a empresa é sua, fale com o suporte.",
+        "pdv_nao_verificado" to "Seu cadastro ainda não foi aprovado.",
+        "pdv_nao_encontrado" to "Cadastro não encontrado (talvez já analisado).",
+        "motivo_obrigatorio" to "Informe o motivo.",
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
     )
 

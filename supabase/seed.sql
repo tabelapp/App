@@ -11,15 +11,15 @@ values ('00000000-0000-4000-a000-000000000001', 'demo-pdv@tabelapp.invalid',
         'authenticated', 'authenticated', '{"nome": "PDV Demonstração", "tipo": "cnpj"}')
 on conflict (id) do nothing;
 
-insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, site, modo_rede) values
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, site, modo_rede, status) values
   ('10000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000001',
-   '11111111000191', 'Supermercado Serra Imperial', 'https://exemplo.invalid/serra', true),
+   '11111111000191', 'Supermercado Serra Imperial', 'https://exemplo.invalid/serra', true, 'aprovado'),
   ('10000000-0000-4000-a000-000000000002', '00000000-0000-4000-a000-000000000001',
-   '22222222000191', 'Mercado Quitandinha', null, false),
+   '22222222000191', 'Mercado Quitandinha', null, false, 'aprovado'),
   ('10000000-0000-4000-a000-000000000003', '00000000-0000-4000-a000-000000000001',
-   '33333333000191', 'Hortifruti Bingen', null, true),
+   '33333333000191', 'Hortifruti Bingen', null, true, 'aprovado'),
   ('10000000-0000-4000-a000-000000000004', '00000000-0000-4000-a000-000000000001',
-   '44444444000191', 'Empório Itaipava', null, true)
+   '44444444000191', 'Empório Itaipava', null, true, 'aprovado')
 on conflict (id) do nothing;
 
 insert into public.lojas (id, pdv_id, nome, endereco, bairro, telefone, latitude, longitude) values

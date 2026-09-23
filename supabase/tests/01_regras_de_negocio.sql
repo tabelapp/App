@@ -43,7 +43,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('a0000000-0000-4000-a000-00000000000a', 'ana@teste.invalid',   '{"nome": "Ana", "tipo": "cpf"}'),
   ('b0000000-0000-4000-a000-00000000000b', 'bruno@teste.invalid', '{"nome": "Bruno", "tipo": "cnpj"}'),
   ('c0000000-0000-4000-a000-00000000000c', 'carla@teste.invalid', '{"nome": "Carla", "tipo": "admin"}'),
-  ('d0000000-0000-4000-a000-00000000000d', 'davi@teste.invalid',  '{"full_name": "Davi"}');
+  ('d0000000-0000-4000-a000-00000000000d', 'davi@teste.invalid',  '{"full_name": "Davi"}'),
+  ('e0000000-0000-4000-a000-00000000000e', 'edu@teste.invalid',   '{"nome": "Edu", "tipo": "cnpj"}');
 
 do $$ begin
   assert (select tipo from public.usuarios where id = 'a0000000-0000-4000-a000-00000000000a') = 'cpf';
@@ -225,11 +226,122 @@ select pg_temp.espera_erro(
   $q$select public.enviar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null)$q$, 'does not exist');
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 
-\echo '== PDV (CNPJ): cadastro, cota de operações'
+\echo '== Cadastro de PDV: CNPJ válido, alvará, fila do Admin'
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+-- Ninguém cria PDV direto na tabela (só pela função, que exige o alvará).
+select pg_temp.espera_erro(
+  $q$insert into public.pdvs (dono_id, cnpj, nome_fantasia) values (auth.uid(), '66666666000191', 'X')$q$,
+  'permission denied');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('66666666000192', 'X', null, 'Rua X', null, null, null, null, null,
+     auth.uid() || '/alvara.jpg')$q$, 'cnpj_invalido');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('66666666000191', 'X', null, 'Rua X', null, null, null, null, null,
+     'outra-pessoa/alvara.jpg')$q$, 'alvara_obrigatorio');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('11111111000191', 'Serra', null, 'Rua X', null, null, null, null, null,
+     auth.uid() || '/alvara.jpg')$q$, 'cnpj_ja_cadastrado');
+do $$
+declare v uuid;
+begin
+  v := public.cadastrar_pdv('66.666.666/0001-91', 'Padaria do Bruno', 'Bruno Pães LTDA', 'Rua do Imperador, 10',
+         'Centro', 'Petrópolis', 'rj', '25620-000', '(24) 2222-9999', auth.uid() || '/alvara.jpg', true,
+         '{"situacao": "ATIVA"}');
+  assert (select status = 'pendente' and cnpj_conferido_no_alvara from public.meus_pdvs() where id = v);
+  assert (select uf = 'RJ' and bairro = 'Centro' from public.lojas where pdv_id = v);
+  -- Pendente: não publica preço e não aparece para ligar NF.
+  begin
+    perform public.pdv_salvar_precos(v, (select id from public.lojas where pdv_id = v),
+      '[{"produto": "Pão francês kg", "preco_centavos": 1590}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%pdv_nao_verificado%', sqlerrm;
+  end;
+  assert (select count(*) from public.lojas_do_cnpj('66666666000191')) = 0;
+  -- Dados de verificação não são públicos.
+  begin
+    perform alvara_path from public.pdvs where id = v;
+    raise exception 'devia recusar';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- Outra pessoa não "toma" um CNPJ em análise.
+set request.jwt.claim.sub = 'e0000000-0000-4000-a000-00000000000e';
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('66666666000191', 'Golpe', null, 'Rua Y', null, null, null, null, null,
+     auth.uid() || '/alvara.jpg')$q$, 'cnpj_em_analise');
+select pg_temp.espera_erro($q$select * from public.pdvs_pendentes()$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select public.aprovar_pdv((select id from public.pdvs where cnpj = '66666666000191'))$q$, 'sem_permissao');
+-- Conta CPF não cadastra PDV.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('77777777000191', 'X', null, 'Rua X', null, null, null, null, null,
+     auth.uid() || '/alvara.jpg')$q$, 'conta_nao_cnpj');
+
+-- Admin vê a fila, rejeita (com motivo) e, no novo pedido, aprova.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare v uuid;
+begin
+  select id into v from public.pdvs_pendentes() where cnpj = '66666666000191';
+  assert (select dono_nome = 'Bruno' and alvara_path like '%/alvara.jpg' and dados_receita ->> 'situacao' = 'ATIVA'
+          from public.pdvs_pendentes() where id = v);
+  begin
+    perform public.rejeitar_pdv(v, '  ');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%motivo_obrigatorio%', sqlerrm;
+  end;
+  perform public.rejeitar_pdv(v, 'Alvará ilegível');
+end $$;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare v uuid;
+begin
+  assert (select status = 'rejeitado' and motivo_rejeicao = 'Alvará ilegível' from public.meus_pdvs());
+  -- Envia de novo (nova foto): volta para a fila.
+  v := public.cadastrar_pdv('66666666000191', 'Padaria do Bruno', null, 'Rua do Imperador, 10',
+         null, null, null, null, null, auth.uid() || '/alvara2.jpg');
+  assert (select count(*) from public.meus_pdvs()) = 1;
+  assert (select status from public.meus_pdvs()) = 'pendente';
+end $$;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select public.aprovar_pdv((select id from public.pdvs where cnpj = '66666666000191'));
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare v uuid := (select id from public.pdvs where cnpj = '66666666000191');
+begin
+  assert (select status from public.meus_pdvs() where id = v) = 'aprovado';
+  assert (select count(*) from public.lojas_do_cnpj('66666666000191')) = 1;
+  -- O dono muda o nome de exibição, mas não o CNPJ nem o status.
+  update public.pdvs set nome_fantasia = 'Padaria Imperial' where id = v;
+  begin
+    update public.pdvs set status = 'aprovado' where id = v;
+    raise exception 'devia recusar';
+  exception when insufficient_privilege then null;
+  end;
+  perform public.pdv_salvar_precos(v, (select id from public.lojas where pdv_id = v),
+    '[{"produto": "Pão francês kg", "preco_centavos": 1590}]');
+end $$;
+-- Fraude descoberta depois: Admin suspende e os preços oficiais saem da busca.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare v uuid := (select id from public.pdvs where cnpj = '66666666000191');
+begin
+  perform public.rejeitar_pdv(v, 'Denúncia confirmada');
+  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id where l.pdv_id = v) = 0;
+end $$;
+
+\echo '== PDV (CNPJ): cota de operações'
 set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 
-insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede)
-values ('10000000-0000-4000-b000-000000000001', auth.uid(), '55555555000191', 'Mercado do Bruno', false);
+-- PDV já aprovado (criado aqui direto no banco, como o Admin faria).
+reset role;
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
+values ('10000000-0000-4000-b000-000000000001', 'b0000000-0000-4000-a000-00000000000b', '55555555000191',
+        'Mercado do Bruno', false, 'aprovado');
+set role authenticated;
 insert into public.lojas (id, pdv_id, endereco, bairro, telefone) values
   ('20000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000001', 'Rua A, 1', 'Centro', '(24) 1111-1111'),
   ('20000000-0000-4000-b000-000000000002', '10000000-0000-4000-b000-000000000001', 'Rua B, 2', 'Retiro', '(24) 3333-3333');

@@ -2,11 +2,17 @@ package br.com.tabelapp.dados.demo
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import br.com.tabelapp.core.CadastroPdv
+import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.DadosDemo
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaResumo
+import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.Validade
@@ -15,6 +21,7 @@ import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
+import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import kotlinx.coroutines.delay
@@ -37,8 +44,10 @@ class DemoAuthRepositorio : AuthRepositorio {
     override suspend fun entrarComEmail(email: String, senha: String) {
         delay(300)
         if (!email.contains('@') || senha.isEmpty()) throw ErroAmigavel("Informe e-mail e senha.")
+        // Na demonstração, e-mail começando com "admin" entra como Admin (para ver a fila de cadastros).
+        val tipo = if (email.trim().lowercase().startsWith("admin")) TipoConta.ADMIN else TipoConta.CPF
         _estado.value = EstadoSessao.Logado(
-            Usuario("demo", email.substringBefore('@'), email, TipoConta.CPF, cadastroCompleto = true)
+            Usuario("demo", email.substringBefore('@'), email, tipo, cadastroCompleto = true)
         )
     }
 
@@ -83,7 +92,68 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
 class DemoBanco {
     val enviados = mutableListOf<Cotacao>()
     val chavesEnviadas = mutableSetOf<String>()
+    val pdvs = mutableListOf<DemoPdv>()
 }
+
+/**
+ * Demonstração do cadastro de PDV: a consulta da Receita devolve dados fictícios
+ * para qualquer CNPJ válido, e os pedidos ficam em memória. O Admin de
+ * demonstração (e-mail começando com "admin") aprova ou rejeita.
+ */
+class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
+    override suspend fun consultarCnpj(cnpj: String): DadosReceita? {
+        delay(500)
+        val digitos = cnpj.filter { it.isDigit() }
+        if (!Cnpj.valido(digitos)) return null
+        return DadosReceita(
+            cnpj = digitos, razaoSocial = "EMPRESA DEMONSTRAÇÃO LTDA", nomeFantasia = "Mercadinho Demonstração",
+            situacao = "ATIVA", endereco = "Rua do Imperador, 100", bairro = "Centro", cidade = "Petrópolis",
+            uf = "RJ", cep = "25620000", telefone = "2422220000", atividade = "Comércio varejista de mercadorias em geral",
+        )
+    }
+
+    override suspend fun meusPdvs(): List<MeuPdv> = banco.pdvs.map { it.meu }
+
+    override suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray, cnpjNoAlvara: Boolean) {
+        delay(600)
+        val cnpj = dados.cnpj.filter { it.isDigit() }
+        banco.pdvs.removeAll { it.meu.cnpj == cnpj }
+        val id = "pdv-" + UUID.randomUUID()
+        banco.pdvs += DemoPdv(
+            meu = MeuPdv(id, cnpj, dados.razaoSocial, dados.nomeFantasia.trim(), StatusPdv.PENDENTE, null, cnpjNoAlvara, Instant.now()),
+            pendente = PdvPendente(
+                id = id, cnpj = cnpj, razaoSocial = dados.razaoSocial, nomeFantasia = dados.nomeFantasia.trim(),
+                endereco = listOf(dados.endereco, dados.bairro, dados.cidade).filter { it.isNotBlank() }.joinToString(", "),
+                telefone = dados.telefone.ifBlank { null }, alvaraPath = id, cnpjConferidoNoAlvara = cnpjNoAlvara,
+                situacaoReceita = receita?.situacao, razaoSocialReceita = receita?.razaoSocial,
+                enderecoReceita = receita?.let { listOfNotNull(it.endereco, it.bairro, it.cidade, it.uf).joinToString(", ") },
+                donoNome = "Você (demonstração)", donoEmail = null, enviadoEm = Instant.now(),
+            ),
+            alvara = alvaraJpeg,
+        )
+    }
+
+    override suspend fun pendentes(): List<PdvPendente> =
+        banco.pdvs.filter { it.meu.status == StatusPdv.PENDENTE }.map { it.pendente }
+
+    override suspend fun fotoAlvara(caminho: String): ByteArray =
+        banco.pdvs.firstOrNull { it.pendente.alvaraPath == caminho }?.alvara ?: throw ErroAmigavel("Foto não encontrada.")
+
+    override suspend fun aprovar(pdvId: String) = mudarStatus(pdvId, StatusPdv.APROVADO, null)
+
+    override suspend fun rejeitar(pdvId: String, motivo: String) {
+        if (motivo.isBlank()) throw ErroAmigavel("Informe o motivo.")
+        mudarStatus(pdvId, StatusPdv.REJEITADO, motivo.trim())
+    }
+
+    private fun mudarStatus(pdvId: String, status: StatusPdv, motivo: String?) {
+        val i = banco.pdvs.indexOfFirst { it.meu.id == pdvId }
+        if (i < 0) throw ErroAmigavel("Cadastro não encontrado.")
+        banco.pdvs[i] = banco.pdvs[i].let { it.copy(meu = it.meu.copy(status = status, motivoRejeicao = motivo)) }
+    }
+}
+
+data class DemoPdv(val meu: MeuPdv, val pendente: PdvPendente, val alvara: ByteArray)
 
 class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalRepositorio {
     override suspend fun lojasDoCnpj(cnpj: String): List<LojaResumo> = DadosDemo.lojasDoCnpj(cnpj)

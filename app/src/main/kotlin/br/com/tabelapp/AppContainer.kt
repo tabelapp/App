@@ -2,17 +2,23 @@ package br.com.tabelapp
 
 import android.content.Context
 import br.com.tabelapp.dados.AuthRepositorio
+import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
+import br.com.tabelapp.dados.Imagens
+import br.com.tabelapp.dados.LeitorTexto
 import br.com.tabelapp.dados.Localizacao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
+import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.Preferencias
 import br.com.tabelapp.dados.demo.DemoAuthRepositorio
 import br.com.tabelapp.dados.demo.DemoBanco
 import br.com.tabelapp.dados.demo.DemoCotacoesRepositorio
 import br.com.tabelapp.dados.demo.DemoNotaFiscalRepositorio
+import br.com.tabelapp.dados.demo.DemoPdvRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseAuthRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseCotacoesRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseNotaFiscalRepositorio
+import br.com.tabelapp.dados.supabase.SupabasePdvRepositorio
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.compose.auth.ComposeAuth
 import io.github.jan.supabase.compose.auth.googleNativeLogin
@@ -37,10 +43,13 @@ class AppContainer(contexto: Context) {
 
     val preferencias = Preferencias(contexto)
     val localizacao = Localizacao(contexto)
+    val imagens = Imagens(contexto)
+    val leitorTexto = LeitorTexto(imagens)
 
     val auth: AuthRepositorio
     val cotacoes: CotacoesRepositorio
     val notasFiscais: NotaFiscalRepositorio
+    val pdvs: PdvRepositorio
 
     init {
         if (modoDemo) {
@@ -48,6 +57,7 @@ class AppContainer(contexto: Context) {
             auth = DemoAuthRepositorio()
             cotacoes = DemoCotacoesRepositorio(banco)
             notasFiscais = DemoNotaFiscalRepositorio(banco)
+            pdvs = DemoPdvRepositorio(banco)
         } else {
             val googleConfigurado = BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
             val supabase = createSupabaseClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY) {
@@ -61,6 +71,7 @@ class AppContainer(contexto: Context) {
             auth = SupabaseAuthRepositorio(supabase, escopo, googleConfigurado)
             cotacoes = SupabaseCotacoesRepositorio(supabase)
             notasFiscais = SupabaseNotaFiscalRepositorio(supabase)
+            pdvs = SupabasePdvRepositorio(supabase, ConsultaCnpj())
         }
     }
 }

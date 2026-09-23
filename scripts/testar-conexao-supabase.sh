@@ -47,12 +47,13 @@ else
   exit 1
 fi
 
-echo "== 3. Migrações mais recentes (QR Code, data da NF, encarte) aplicadas?"
+echo "== 3. Migrações mais recentes (QR Code, data da NF, encarte, cadastro de PDV) aplicadas?"
 for chamada in \
   'lojas_do_cnpj|{"p_cnpj":"0"}|20260923000500_nf_qrcode.sql' \
   'enviar_nota_fiscal|{"p_chave_acesso":null,"p_loja_id":null,"p_pdv_nome":null,"p_pdv_endereco":null,"p_itens":[],"p_data_nf":null}|20260923000600_nf_data_validade.sql' \
   'buscar_lojas|{"p_termo":"x"}|20260923000700_enviar_encarte.sql' \
-  'publicar_encarte|{"p_fotos":[],"p_loja_id":null,"p_pdv_nome":null,"p_pdv_endereco":null,"p_validade":null,"p_itens":[]}|20260923000800_publicar_encarte.sql'
+  'publicar_encarte|{"p_fotos":[],"p_loja_id":null,"p_pdv_nome":null,"p_pdv_endereco":null,"p_validade":null,"p_itens":[]}|20260923000800_publicar_encarte.sql' \
+  'meus_pdvs|{}|20260924001000_pdv_verificacao.sql'
 do
   IFS='|' read -r funcao corpo migracao <<< "$chamada"
   resposta=$(curl -sS -m 20 -X POST "$URL/rest/v1/rpc/$funcao" \

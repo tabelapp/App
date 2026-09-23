@@ -20,8 +20,9 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
 | Envio de NF pelo QR Code: lê produtos, preços e data na Sefaz no próprio celular; tela única de resumo e confirmação, sem digitação | ✅ no app |
 | Envio de encarte pelo usuário | ⏸️ suspenso (decisão do fundador: a leitura automática deixava o envio vulnerável). Aba fora do app e função bloqueada no banco; código de leitura guardado no `core` |
-| Área do PDV, promoções, Pix | ⏳ banco pronto, falta a tela e a integração Mercado Pago |
-| Painel Admin | ⏳ banco pronto, falta a tela |
+| Cadastro do PDV (conta CNPJ): consulta do CNPJ na Receita, foto do alvará conferida pelo app, análise do Admin | ✅ no app (aba "Meu negócio") |
+| Admin: fila de cadastros de PDV (ver alvará, aprovar, rejeitar com motivo) | ✅ no app (aba "Admin") |
+| Área do PDV: tabela de preços, planilha, promoções, Pix | ⏳ banco pronto, falta a tela e o provedor de Pix |
 
 ## Como o projeto está organizado
 
@@ -73,7 +74,7 @@ Cada push no GitHub também gera um APK de debug (aba *Actions* → último run 
    senão o usuário precisa clicar no link do e-mail antes de entrar.
 7. **Conferir a conexão:** `scripts/testar-conexao-supabase.sh` (lê as chaves do `local.properties`) —
    diz se o projeto responde, se a chave está certa e se todas as migrações foram aplicadas.
-8. **Virar Admin:** no *SQL Editor*,
+8. **Virar Admin** (para aprovar cadastros de PDV na aba "Admin"): no *SQL Editor*,
    `update public.usuarios set tipo = 'admin' where email = 'seu@email';`
 
 ## Testes
@@ -92,7 +93,7 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 
 1. Testar o login e a busca com um projeto Supabase real.
 2. ✅ QR Code testado com notas reais.
-3. Painel Admin (moderação: remover preços errados, usuários abusivos).
-4. Área do PDV: cadastro de lojas, tabela de preços, importação de planilha com prévia da cota.
+3. Área do PDV: tabela de preços (manual), importação de planilha com prévia da cota, mais lojas.
+4. Admin: moderação (remover preços errados, suspender PDV).
 5. Lista de compras + mapa (precisa de chave da API de mapas).
 6. Pix via Mercado Pago (Edge Function + webhook chamando `confirmar_pagamento`).

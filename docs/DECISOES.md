@@ -37,6 +37,31 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 | Nota Fiscal | O preço é o **praticado na data da nota** (vale até a meia-noite daquele dia). Na busca, o campo validade mostra **"Preço praticado dia dd/mm/aaaa"** (a data da NF) e o preço **fica visível por 7 dias** a partir dela. Só são aceitas notas dos últimos 7 dias; a data precisa bater com o mês/ano de emissão da chave. |
 | Encarte de usuário | **a data impressa no encarte** (até 30 dias). O app tenta ler a data nas fotos ("válido até 30/09", "ofertas de 20 a 26/09"); se não achar, o usuário escolhe no calendário. Sem validade, não publica. |
 
+## Cadastro do PDV (decisão do fundador: comprovação pelo alvará)
+
+Para ninguém cadastrar uma empresa que não é sua:
+
+1. A conta precisa ser do tipo **CNPJ**. O dono digita o CNPJ (dígitos verificadores conferidos) e o
+   app consulta a **Receita Federal** pela BrasilAPI (gratuita, sem chave): só CNPJ **ativo** segue.
+   Nome, endereço e telefone vêm preenchidos; o que a Receita respondeu fica guardado para o Admin.
+2. O dono envia a **foto do alvará** (bucket privado `alvaras/<id-do-usuário>/…`, só ele e o Admin
+   veem). O app lê a foto no celular (OCR do Google, baixado pelo Google Play) e diz se achou o CNPJ.
+3. O pedido fica **pendente**; só o **Admin aprova** (aba "Admin": dados informados × Receita, foto
+   do alvará, se o app achou o CNPJ) ou **rejeita com motivo** — o dono vê o motivo e pode reenviar.
+4. Enquanto não for aprovado, o PDV **não publica preço nem promoção** e suas lojas não aparecem para
+   ligar notas fiscais (trava no banco, não só no app). O Admin pode suspender um PDV aprovado depois
+   (fraude descoberta): os preços oficiais dele saem da busca.
+5. Ninguém cria PDV direto na tabela, nem muda CNPJ/situação pelo app; alvará, dados da Receita e
+   motivo de rejeição não são visíveis para outros usuários.
+6. CNPJ já aprovado não pode ser cadastrado de novo; CNPJ com pedido pendente de outra pessoa também
+   não (fica para o suporte resolver). Pedido rejeitado pode ser refeito por qualquer um.
+
+- **Por que o app não aprova sozinho:** a leitura roda no celular, que pode ser adulterado — o
+  resultado é só um indício para o Admin. E o alvará costuma ficar **exposto na parede da loja**:
+  qualquer pessoa consegue fotografá-lo. Por isso a aprovação é humana. ⚠️ Se o volume crescer,
+  dá para automatizar no servidor (OCR na nuvem, ex.: Google Cloud Vision) e/ou exigir uma prova
+  mais forte (Pix de R$ 1 feito da conta bancária da empresa, que traz o CNPJ de quem pagou).
+
 ## Cota de operações do PDV (confirmado pelo fundador)
 
 - **Cada loja tem 50 operações grátis por mês** (mês no fuso de São Paulo). Só **criar item** e
