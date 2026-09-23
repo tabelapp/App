@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosDemo
+import br.com.tabelapp.core.EncarteEnviado
+import br.com.tabelapp.core.StatusEncarte
+import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.PontoGeo
@@ -11,6 +14,7 @@ import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
+import br.com.tabelapp.dados.EncarteRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
@@ -82,6 +86,31 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
 class DemoBanco {
     val enviados = mutableListOf<Cotacao>()
     val chavesEnviadas = mutableSetOf<String>()
+    val encartes = mutableListOf<EncarteEnviado>()
+}
+
+/** Demonstração: o encarte fica "aguardando aprovação" (não há Admin no modo demo). */
+class DemoEncarteRepositorio(private val banco: DemoBanco) : EncarteRepositorio {
+    override suspend fun buscarLojas(termo: String): List<LojaResumo> {
+        if (Texto.normalizar(termo).length < 2) return emptyList()
+        return listOf("11111111000191", "22222222000191", "33333333000191", "44444444000191")
+            .flatMap { DadosDemo.lojasDoCnpj(it) }
+            .filter { Texto.casaBusca(it.titulo + " " + it.endereco, termo) }
+    }
+
+    override suspend fun enviar(
+        fotos: List<ByteArray>, lojaId: String?, pdvNome: String, pdvEndereco: String,
+        validade: LocalDate?, comentario: String,
+    ) {
+        delay(600)
+        val nome = lojaId?.let { id ->
+            listOf("11111111000191", "22222222000191", "33333333000191", "44444444000191")
+                .flatMap { DadosDemo.lojasDoCnpj(it) }.firstOrNull { it.lojaId == id }?.titulo
+        } ?: pdvNome.trim()
+        banco.encartes.add(0, EncarteEnviado("enc-" + UUID.randomUUID(), nome, StatusEncarte.PENDENTE, validade, Instant.now()))
+    }
+
+    override suspend fun meusEncartes(): List<EncarteEnviado> = banco.encartes.toList()
 }
 
 class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalRepositorio {

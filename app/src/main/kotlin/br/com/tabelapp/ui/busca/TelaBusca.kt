@@ -231,7 +231,6 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
             HorizontalDivider()
             // Próximas etapas do MVP — aparecem desabilitadas para mostrar o que vem por aí.
             DropdownMenuItem(text = { Text("Lista de compras (em breve)") }, onClick = {}, enabled = false)
-            DropdownMenuItem(text = { Text("Enviar encarte (em breve)") }, onClick = {}, enabled = false)
             if (usuario.tipo == TipoConta.CNPJ) {
                 DropdownMenuItem(text = { Text("Área do PDV (em breve)") }, onClick = {}, enabled = false)
             }

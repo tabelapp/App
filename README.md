@@ -18,7 +18,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
 | Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
 | Envio de NF pelo QR Code: lê produtos, preços e data na Sefaz no próprio celular; tela única de resumo e confirmação, sem digitação | ✅ no app |
-| Envio de encarte | ⏳ banco pronto, falta a tela |
+| Envio de encarte: até 5 fotos (câmera ou galeria), estabelecimento (busca os cadastrados), validade opcional; vai para a fila do Admin; lista "Meus encartes" com o status | ✅ no app |
 | Área do PDV, promoções, Pix | ⏳ banco pronto, falta a tela e a integração Mercado Pago |
 | Painel Admin | ⏳ banco pronto, falta a tela |
 
@@ -90,7 +90,7 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 ## Próximos passos sugeridos
 
 1. Testar o login e a busca com um projeto Supabase real.
-2. Testar a leitura do QR Code com notas reais de Petrópolis. Tela de envio de encarte (foto).
+2. ✅ QR Code testado com notas reais. Testar o envio de encarte com o app ligado ao Supabase.
 3. Painel Admin (fila de encartes).
 4. Área do PDV: cadastro de lojas, tabela de preços, importação de planilha com prévia da cota.
 5. Lista de compras + mapa (precisa de chave da API de mapas).

@@ -84,8 +84,13 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 
 ## Encartes, Admin e promoções
 
-- Encarte de usuário comum: foto vai para o bucket privado `encartes/<id-do-usuário>/…` e entra na fila
-  (`encartes_pendentes`). Só o Admin vê a fila e aprova (montando a lista de produtos/preços) ou rejeita.
+- Encarte de usuário comum: **até 5 fotos** (câmera ou galeria), reduzidas no celular para no máximo
+  1600 px / JPEG 80% (~200–500 KB cada), vão para o bucket privado `encartes/<id-do-usuário>/…`
+  (limite de 5 MB, só imagem). O usuário diz de qual estabelecimento é (busca os cadastrados, ou nome
+  livre + endereço) e, se o encarte mostrar, até quando valem as ofertas — senão o Admin informa.
+  Entra na fila (`encartes_pendentes`) pela função `enviar_encarte` (máx. 10 envios por usuário por dia).
+  Só o Admin vê a fila e aprova (montando a lista de produtos/preços) ou rejeita. O usuário acompanha
+  em "Meus encartes" (aguardando / aprovado / não aprovado com o motivo).
 - Encarte do próprio PDV usado como arte de banner: publicação imediata, não passa pela fila.
 - Admin é definido **direto no banco** (ninguém consegue se promover pelo app).
 - Promoção: segmentação por raio (a partir de uma loja) e/ou palavras-chave do termo buscado.

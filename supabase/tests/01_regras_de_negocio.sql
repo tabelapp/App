@@ -209,6 +209,39 @@ select pg_temp.espera_erro(
   $q$select public.aprovar_encarte('e0000000-0000-4000-a000-000000000001',
      '[{"produto": "Uva kg", "preco_centavos": 999}]')$q$, 'sem_permissao');
 
+\echo '== Enviar encarte (RPC): fotos na pasta do usuário, validade, limite diário'
+set request.jwt.claim.sub = 'd0000000-0000-4000-a000-00000000000d';
+do $$
+declare v uuid;
+begin
+  -- Busca de lojas cadastradas por nome/bairro, sem acento.
+  assert (select count(*) from public.buscar_lojas('quitandinha')) = 1;
+  assert (select count(*) from public.buscar_lojas('serra imperial')) = 2;
+  assert (select count(*) from public.buscar_lojas('x')) = 0, 'termo curto demais';
+
+  v := public.enviar_encarte(array[auth.uid() || '/a.jpg', auth.uid() || '/b.jpg'],
+         '20000000-0000-4000-a000-000000000004', null, null, public.hoje() + 5, 'Ofertas do fim de semana');
+  assert (select cardinality(fotos) = 2 and foto_path = auth.uid() || '/a.jpg' and validade = public.hoje() + 5
+                 and status = 'pendente' and loja_id is not null
+          from public.encartes_pendentes where id = v);
+  -- Sem loja cadastrada e sem validade (o Admin completa).
+  v := public.enviar_encarte(array[auth.uid() || '/c.jpg'], null, 'Feira da Praça', 'Centro');
+  assert (select pdv_nome = 'Feira da Praça' and validade is null from public.encartes_pendentes where id = v);
+  -- "Meus encartes": só os do próprio usuário, com o nome da loja cadastrada resolvido.
+  assert (select count(*) from public.meus_encartes()) = 2;
+  assert (select pdv_nome from public.meus_encartes() where validade is not null) = 'Hortifruti Bingen';
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.enviar_encarte(array['outro-usuario/x.jpg'], null, 'X', null)$q$, 'foto_invalida');
+select pg_temp.espera_erro(
+  $q$select public.enviar_encarte(array[]::text[], null, 'X', null)$q$, 'foto_obrigatoria');
+select pg_temp.espera_erro(
+  $q$select public.enviar_encarte(array[auth.uid() || '/x.jpg'], null, '  ', null)$q$, 'pdv_obrigatorio');
+select pg_temp.espera_erro(
+  $q$select public.enviar_encarte(array[auth.uid() || '/x.jpg'], null, 'X', null, public.hoje() - 1)$q$,
+  'validade_passada');
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+
 \echo '== PDV (CNPJ): cadastro, cota de operações'
 set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 
@@ -407,7 +440,8 @@ set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 do $$
 declare n int;
 begin
-  assert (select count(*) from public.encartes_pendentes where status = 'pendente') = 3;
+  assert (select count(*) from public.encartes_pendentes where status = 'pendente'
+          and enviado_por = 'a0000000-0000-4000-a000-00000000000a') = 3;
   -- Sem validade informada no item, usa a do encarte (digitada pelo usuário no envio);
   -- item com validade própria mantém a dele.
   n := public.aprovar_encarte('e0000000-0000-4000-a000-000000000001',
@@ -439,7 +473,8 @@ begin
   end;
   perform public.rejeitar_encarte('e0000000-0000-4000-a000-000000000002', 'Foto ilegível');
   -- Some da lista de pendências assim que decidido.
-  assert (select count(*) from public.encartes_pendentes where status = 'pendente') = 0;
+  assert (select count(*) from public.encartes_pendentes where status = 'pendente'
+          and enviado_por = 'a0000000-0000-4000-a000-00000000000a') = 0;
 end $$;
 select pg_temp.espera_erro(
   $q$select public.aprovar_encarte('e0000000-0000-4000-a000-000000000002',
