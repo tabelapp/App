@@ -69,7 +69,9 @@ Cada push no GitHub também gera um APK de debug (aba *Actions* → último run 
    Google*, ative e informe o client ID Web.
 6. Para o piloto, pode valer desligar *Confirm email* em *Authentication → Providers → Email* —
    senão o usuário precisa clicar no link do e-mail antes de entrar.
-7. **Virar Admin:** no *SQL Editor*,
+7. **Conferir a conexão:** `scripts/testar-conexao-supabase.sh` (lê as chaves do `local.properties`) —
+   diz se o projeto responde, se a chave está certa e se todas as migrações foram aplicadas.
+8. **Virar Admin:** no *SQL Editor*,
    `update public.usuarios set tipo = 'admin' where email = 'seu@email';`
 
 ## Testes
