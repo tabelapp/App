@@ -54,9 +54,6 @@ data class EstadoPdv(
 ) {
     /** O CNPJ digitado aparece no texto lido da foto do alvará? null = ainda sem foto/leitura. */
     val cnpjNoAlvara: Boolean? get() = alvaraTexto?.let { Alvara.contemCnpj(it, cnpj) }
-
-    /** CNPJ não encontrado ou inativo na Receita: não dá para seguir. */
-    val receitaBloqueia: Boolean get() = consultado && avisoConsulta == null && (receita == null || !receita.ativa)
 }
 
 /**
@@ -182,8 +179,7 @@ class MeuNegocioViewModel(
         )
         val erros = buildList {
             if (!e.consultado) add("Consulte o CNPJ antes de continuar.")
-            if (e.consultado && e.avisoConsulta == null && e.receita == null) add("CNPJ não encontrado na Receita Federal.")
-            addAll(dados.erros(e.receita, temAlvara = e.alvara != null))
+            addAll(dados.erros(temAlvara = e.alvara != null))
         }
         val alvara = e.alvara
         if (erros.isNotEmpty() || alvara == null) {

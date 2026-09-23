@@ -24,3 +24,16 @@ class AlvaraTest {
         assertFalse(Alvara.contemCnpj("qualquer", "123"))
     }
 }
+
+class CadastroPdvTest {
+    private val base = CadastroPdv(
+        cnpj = "66.666.666/0001-91", nomeFantasia = "Padaria", razaoSocial = null,
+        endereco = "Rua A, 1", bairro = "", cidade = "Petrópolis", uf = "RJ", cep = "", telefone = "",
+    )
+
+    @Test fun `qualquer situacao na Receita pode cadastrar, desde que tenha alvara`() {
+        assertTrue(base.erros(temAlvara = true).isEmpty())
+        assertTrue(base.erros(temAlvara = false).size == 1)
+        assertTrue(base.copy(cnpj = "123", nomeFantasia = " ").erros(temAlvara = true).size == 2)
+    }
+}

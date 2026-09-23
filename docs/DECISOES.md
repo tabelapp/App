@@ -42,8 +42,10 @@ Todo preço tem validade, e a busca só mostra preços dentro dela.
 Para ninguém cadastrar uma empresa que não é sua:
 
 1. A conta precisa ser do tipo **CNPJ**. O dono digita o CNPJ (dígitos verificadores conferidos) e o
-   app consulta a **Receita Federal** pela BrasilAPI (gratuita, sem chave): só CNPJ **ativo** segue.
-   Nome, endereço e telefone vêm preenchidos; o que a Receita respondeu fica guardado para o Admin.
+   app consulta a **Receita Federal** pela BrasilAPI (gratuita, sem chave). Nome, endereço e telefone
+   vêm preenchidos; o que a Receita respondeu (inclusive a situação) fica guardado para o Admin.
+   **Qualquer situação do CNPJ é aceita** (decisão do fundador): o que se confirma é que quem cadastra
+   responde pela empresa.
 2. O dono envia a **foto do alvará** (bucket privado `alvaras/<id-do-usuário>/…`, só ele e o Admin
    veem). O app lê a foto no celular (OCR do Google, baixado pelo Google Play) e diz se achou o CNPJ.
 3. O pedido fica **pendente**; só o **Admin aprova** (aba "Admin": dados informados × Receita, foto

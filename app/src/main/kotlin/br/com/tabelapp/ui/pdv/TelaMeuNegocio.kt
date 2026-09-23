@@ -130,7 +130,7 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
     ) {
         Text(
             "Cadastre seu estabelecimento para publicar seus preços no Tabelapp. Para evitar fraudes, " +
-                "pedimos o alvará: nossa equipe confere antes de liberar.",
+                "pedimos o alvará: nossa equipe confere se você responde pela empresa antes de liberar.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
@@ -154,10 +154,7 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
         when {
             receita != null -> Card(
                 Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (receita.ativa) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
             ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Receita Federal", style = MaterialTheme.typography.labelMedium)
@@ -165,20 +162,18 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
                     receita.nomeFantasia?.let { Text(it) }
                     Text("Situação: ${receita.situacao ?: "—"}", fontWeight = FontWeight.SemiBold)
                     receita.atividade?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    if (!receita.ativa) {
-                        Text(
-                            "Só CNPJs ativos podem ser cadastrados.",
-                            color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold,
-                        )
-                    }
                 }
             }
             estado.consultado && estado.avisoConsulta == null ->
-                Text("CNPJ não encontrado na Receita Federal. Confira os números.", color = MaterialTheme.colorScheme.error)
+                Text(
+                    "CNPJ não encontrado na consulta da Receita. Confira os números; se estiverem certos, " +
+                        "preencha os dados — nossa equipe confere pelo alvará.",
+                    color = MaterialTheme.colorScheme.error,
+                )
             estado.avisoConsulta != null -> Text(estado.avisoConsulta, color = MaterialTheme.colorScheme.error)
         }
 
-        if (estado.consultado && !estado.receitaBloqueia) {
+        if (estado.consultado) {
             // 2. Dados
             Text("2. Dados do estabelecimento", fontWeight = FontWeight.Bold)
             Campo("Nome do estabelecimento (como os clientes conhecem)", estado.nomeFantasia, vm::alterarNome)
@@ -237,7 +232,7 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
 
         estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
 
-        if (estado.consultado && !estado.receitaBloqueia) {
+        if (estado.consultado) {
             Button(
                 onClick = vm::enviar,
                 enabled = !estado.enviando && !estado.lendoAlvara,

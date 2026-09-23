@@ -54,11 +54,13 @@ data class CadastroPdv(
     val cep: String,
     val telefone: String,
 ) {
-    fun erros(receita: DadosReceita?, temAlvara: Boolean): List<String> = buildList {
+    /**
+     * O que falta no formulário. A situação do CNPJ na Receita (ativa, baixada...) não
+     * impede o cadastro (decisão do fundador): o que importa é o Admin confirmar,
+     * pelo alvará, que quem cadastra responde pela empresa.
+     */
+    fun erros(temAlvara: Boolean): List<String> = buildList {
         if (!Cnpj.valido(cnpj)) add("CNPJ inválido: confira os 14 números.")
-        if (receita != null && !receita.ativa) {
-            add("Este CNPJ não está ativo na Receita Federal (situação: ${receita.situacao ?: "desconhecida"}).")
-        }
         if (nomeFantasia.isBlank()) add("Informe o nome do estabelecimento.")
         if (endereco.isBlank()) add("Informe o endereço.")
         if (!temAlvara) add("Envie a foto do alvará.")
