@@ -33,6 +33,18 @@ android {
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${config("GOOGLE_WEB_CLIENT_ID")}\"")
     }
 
+    // Chave de debug fixa no repositório: cada APK gerado pela CI tem a mesma assinatura,
+    // então dá para instalar a versão nova por cima da antiga (sem desinstalar).
+    // NÃO é a chave de publicação na Play Store.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
