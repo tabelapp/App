@@ -1,0 +1,34 @@
+name: Aplicar banco no Supabase
+
+# Rodado manualmente (aba Actions → "Aplicar banco no Supabase" → Run workflow).
+# Aplica só as migrações que ainda não foram aplicadas (o Supabase CLI guarda o histórico),
+# então pode rodar quantas vezes quiser.
+on:
+  workflow_dispatch:
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    env:
+      # String de conexão "Session pooler" do painel (botão Connect), com a senha do banco.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir secret
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Cadastre o secret SUPABASE_DB_URL (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Migrações pendentes
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+      - name: Aplicar migrações
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --include-all --yes
+      - name: Testar conexão e migrações pela API
+        if: env.SUPABASE_URL != ''
+        run: scripts/testar-conexao-supabase.sh
