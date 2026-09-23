@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 val AmareloTabelapp = Color(0xFFFFE000)
 val VermelhoTabelapp = Color(0xFFC00000)
 val PretoLupa = Color(0xFF1A1A1A)
+/** Fundo claro, levemente amarelado (tela de login). */
+val FundoClaro = Color(0xFFFFFCEB)
 
 private val claro = lightColorScheme(
     primary = VermelhoTabelapp,

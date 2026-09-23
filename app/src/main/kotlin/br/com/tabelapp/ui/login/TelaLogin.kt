@@ -1,5 +1,7 @@
 package br.com.tabelapp.ui.login
 
+import br.com.tabelapp.ui.tema.TabelappTema
+import br.com.tabelapp.ui.tema.FundoClaro
 import br.com.tabelapp.R
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
@@ -91,104 +93,107 @@ fun TelaLogin(container: AppContainer) {
         }
     }
 
-    Surface(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .safeDrawingPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.logo_lupa),
-                contentDescription = null,
-                modifier = Modifier.size(96.dp),
-            )
-            Text(
-                "Tabelapp",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text("Quem pesquisa economiza", style = MaterialTheme.typography.titleMedium)
-            if (container.modoDemo) {
-                Text(
-                    "Modo demonstração: dados fictícios de Petrópolis. Qualquer e-mail e senha funcionam.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    textAlign = TextAlign.Center,
+    // Sempre claro (mesmo com o celular no modo escuro), para a lupa preta da marca aparecer bem.
+    TabelappTema(escuroAtivo = false) {
+        Surface(Modifier.fillMaxSize(), color = FundoClaro) {
+            Column(
+                Modifier
+                    .safeDrawingPadding()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.logo_lupa),
+                    contentDescription = null,
+                    modifier = Modifier.size(96.dp),
                 )
-            }
-            Spacer(Modifier.height(8.dp))
-
-            Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = !criandoConta,
-                        onClick = { criandoConta = false; erro = null },
-                        shape = SegmentedButtonDefaults.itemShape(0, 2),
-                    ) { Text("Entrar") }
-                    SegmentedButton(
-                        selected = criandoConta,
-                        onClick = { criandoConta = true; erro = null },
-                        shape = SegmentedButtonDefaults.itemShape(1, 2),
-                    ) { Text("Criar conta") }
-                }
-
-                if (criandoConta) {
-                    OutlinedTextField(
-                        value = nome, onValueChange = { nome = it },
-                        label = { Text("Seu nome") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                Text(
+                    "Tabelapp",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text("Quem pesquisa economiza", style = MaterialTheme.typography.titleMedium)
+                if (container.modoDemo) {
+                    Text(
+                        "Modo demonstração: dados fictícios de Petrópolis. Qualquer e-mail e senha funcionam.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center,
                     )
                 }
-                OutlinedTextField(
-                    value = email, onValueChange = { email = it },
-                    label = { Text("E-mail") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = senha, onValueChange = { senha = it },
-                    label = { Text("Senha") }, singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (criandoConta) {
-                    Text("Como você vai usar o Tabelapp?", style = MaterialTheme.typography.labelLarge)
-                    SeletorTipoConta(tipo, aoEscolher = { tipo = it })
-                }
+                Spacer(Modifier.height(8.dp))
 
-                erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                aviso?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-
-                Button(onClick = ::enviar, enabled = !enviando, modifier = Modifier.fillMaxWidth()) {
-                    if (enviando) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(if (criandoConta) "Criar conta" else "Entrar")
+                Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = !criandoConta,
+                            onClick = { criandoConta = false; erro = null },
+                            shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        ) { Text("Entrar") }
+                        SegmentedButton(
+                            selected = criandoConta,
+                            onClick = { criandoConta = true; erro = null },
+                            shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        ) { Text("Criar conta") }
                     }
-                }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(Modifier.weight(1f))
-                    Text("  ou  ", style = MaterialTheme.typography.bodySmall)
-                    HorizontalDivider(Modifier.weight(1f))
-                }
+                    if (criandoConta) {
+                        OutlinedTextField(
+                            value = nome, onValueChange = { nome = it },
+                            label = { Text("Seu nome") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    OutlinedTextField(
+                        value = email, onValueChange = { email = it },
+                        label = { Text("E-mail") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = senha, onValueChange = { senha = it },
+                        label = { Text("Senha") }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (criandoConta) {
+                        Text("Como você vai usar o Tabelapp?", style = MaterialTheme.typography.labelLarge)
+                        SeletorTipoConta(tipo, aoEscolher = { tipo = it })
+                    }
 
-                OutlinedButton(
-                    onClick = { erro = null; entrarComGoogle?.invoke() },
-                    enabled = entrarComGoogle != null && !enviando,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (entrarComGoogle != null) "Entrar com Google" else "Entrar com Google (não configurado)")
-                }
-                // Fluxo técnico do login por WhatsApp ainda não decidido (briefing, seção 10).
-                OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                    Text("Entrar com WhatsApp (em breve)")
+                    erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    aviso?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+
+                    Button(onClick = ::enviar, enabled = !enviando, modifier = Modifier.fillMaxWidth()) {
+                        if (enviando) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(if (criandoConta) "Criar conta" else "Entrar")
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HorizontalDivider(Modifier.weight(1f))
+                        Text("  ou  ", style = MaterialTheme.typography.bodySmall)
+                        HorizontalDivider(Modifier.weight(1f))
+                    }
+
+                    OutlinedButton(
+                        onClick = { erro = null; entrarComGoogle?.invoke() },
+                        enabled = entrarComGoogle != null && !enviando,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (entrarComGoogle != null) "Entrar com Google" else "Entrar com Google (não configurado)")
+                    }
+                    // Fluxo técnico do login por WhatsApp ainda não decidido (briefing, seção 10).
+                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                        Text("Entrar com WhatsApp (em breve)")
+                    }
                 }
             }
         }
