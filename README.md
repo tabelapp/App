@@ -47,7 +47,9 @@ docs/       Decisões técnicas e premissas assumidas
 Abra a pasta no **Android Studio** e dê *Run*. Sem configurar nada, o app sobe em **modo demonstração**:
 qualquer e-mail/senha entra e os preços são fictícios de Petrópolis.
 
-Cada push no GitHub também gera um APK de debug (aba *Actions* → último run → artefato `tabelapp-debug-apk`).
+Cada push no GitHub gera dois APKs de debug (aba *Actions* → último run → *Artifacts*):
+`tabelapp-demo-apk` (modo demonstração) e `tabelapp-apk` (ligado ao Supabase do projeto, usando os
+secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` do repositório; `GOOGLE_WEB_CLIENT_ID` é opcional).
 
 ### 2. Com o banco de verdade (Supabase)
 
