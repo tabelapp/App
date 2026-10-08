@@ -17,10 +17,10 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Tela de busca: últimos preços, busca, 5 ordenações, destaque do mais barato, regra do OBS, PDV clicável, pop-up de aviso | ✅ no app |
 | Modo demonstração (roda sem servidor, com dados fictícios de Petrópolis) | ✅ |
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
-| Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
+| Lista de compras: várias listas salvas, busca inteligente para adicionar itens, pesquisa com 2 relatórios (num lugar só / item a item), envio pelo WhatsApp | ✅ no app (aba "Lista") |
 | Enviar preços (NF): QR Code ou os 44 números da chave; lê produtos, preços e data na Sefaz no celular; nome fantasia pela Receita (ou sugerido e confirmado); cópia em PDF para o e-mail | ✅ no app |
 | Histórico permanente de preços (nada se apaga; a busca mostra só os válidos) | ✅ no banco |
-| Banner patrocinado na busca, card de preço novo e compartilhar preço | ✅ no app |
+| Banner patrocinado na busca, card de preço novo e envio do card pelo WhatsApp | ✅ no app |
 | Login: ver senha e "Esqueci a senha" (código por e-mail) | ✅ no app |
 | Envio de encarte pelo usuário | ⏸️ suspenso (decisão do fundador: a leitura automática deixava o envio vulnerável). Aba fora do app e função bloqueada no banco; código de leitura guardado no `core` |
 | Cadastro do PDV (conta CNPJ): consulta do CNPJ na Receita, foto do alvará conferida pelo app, análise do Admin | ✅ no app (aba "Meu negócio") |
@@ -105,5 +105,5 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 2. ✅ QR Code testado com notas reais.
 3. Área do PDV: importação de planilha com prévia da cota, cadastro de mais lojas, Pix dos pacotes.
 4. Admin: moderação (remover preços errados, suspender PDV).
-5. Lista de compras + mapa (precisa de chave da API de mapas).
+5. Relatório "no mapa" da lista de compras (precisa de chave da API de mapas).
 6. Pix via Mercado Pago (Edge Function + webhook chamando `confirmar_pagamento`).

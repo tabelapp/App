@@ -121,7 +121,7 @@ fun CartaoCotacao(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = aoCompartilhar) {
-                    Icon(Icons.Default.Share, contentDescription = "Compartilhar este preço", Modifier.size(20.dp))
+                    Icon(Icons.Default.Share, contentDescription = "Enviar este preço pelo WhatsApp", Modifier.size(20.dp))
                 }
             }
         }

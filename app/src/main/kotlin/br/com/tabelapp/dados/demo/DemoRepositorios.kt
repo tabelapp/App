@@ -6,6 +6,9 @@ import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.SugestaoProduto
+import br.com.tabelapp.core.ListaResumo
+import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.DadosDemo
 import br.com.tabelapp.core.Texto
@@ -26,6 +29,7 @@ import br.com.tabelapp.core.Validade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.PdvRepositorio
@@ -275,5 +279,61 @@ class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalReposi
             )
         }
         return itens.size
+    }
+}
+
+/** Demonstração: listas em memória; a busca inteligente usa os preços fictícios. */
+class DemoListasRepositorio(private val banco: DemoBanco) : ListasRepositorio {
+    private class Lista(val id: String, var nome: String, val itens: MutableList<ItemSalvo>, var atualizada: Instant)
+
+    private val listas = mutableListOf<Lista>()
+
+    private fun lista(id: String) = listas.firstOrNull { it.id == id } ?: throw ErroAmigavel("Lista não encontrada.")
+
+    override suspend fun listas(): List<ListaResumo> =
+        listas.sortedByDescending { it.atualizada }.map { ListaResumo(it.id, it.nome, it.itens.size, it.atualizada) }
+
+    override suspend fun criar(nome: String): String {
+        val l = Lista("lista-" + UUID.randomUUID(), nome.trim().ifEmpty { "Minha lista" }, mutableListOf(), Instant.now())
+        listas += l
+        return l.id
+    }
+
+    override suspend fun renomear(listaId: String, nome: String) {
+        if (nome.isNotBlank()) lista(listaId).nome = nome.trim()
+    }
+
+    override suspend fun excluir(listaId: String) {
+        listas.removeAll { it.id == listaId }
+    }
+
+    override suspend fun itens(listaId: String): List<ItemSalvo> = lista(listaId).itens.toList()
+
+    override suspend fun adicionar(listaId: String, produto: String, quantidade: Double) {
+        val l = lista(listaId)
+        val i = l.itens.indexOfFirst { Texto.normalizar(it.produto) == Texto.normalizar(produto) }
+        if (i >= 0) l.itens[i] = l.itens[i].copy(quantidade = l.itens[i].quantidade + quantidade)
+        else l.itens += ItemSalvo("item-" + UUID.randomUUID(), produto.trim(), quantidade)
+        l.atualizada = Instant.now()
+    }
+
+    override suspend fun alterarQuantidade(itemId: String, quantidade: Double) {
+        listas.forEach { l ->
+            val i = l.itens.indexOfFirst { it.id == itemId }
+            if (i >= 0) l.itens[i] = l.itens[i].copy(quantidade = quantidade)
+        }
+    }
+
+    override suspend fun remover(itemId: String) {
+        listas.forEach { l -> l.itens.removeAll { it.id == itemId } }
+    }
+
+    override suspend fun sugerir(termo: String): List<SugestaoProduto> {
+        if (Texto.normalizar(termo).length < 2) return emptyList()
+        return DadosDemo.buscar(termo, extras = banco.enviados)
+            .groupBy { Texto.normalizar(it.produto) }
+            .map { (_, cs) -> SugestaoProduto(cs.first().produto, cs.minOf { it.precoCentavos }, cs.map { it.chaveLocal }.distinct().size) }
+            .sortedWith(compareByDescending<SugestaoProduto> { it.lugares }.thenBy { it.produto })
+            .take(8)
     }
 }

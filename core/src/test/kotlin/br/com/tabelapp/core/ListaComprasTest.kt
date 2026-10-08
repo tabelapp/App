@@ -51,3 +51,31 @@ class ListaComprasTest {
         assertEquals(2, pontos.single().itens.size)
     }
 }
+
+class TextoListaTest {
+    private val agora = Instant.parse("2026-09-22T12:00:00Z")
+    private val hoje = LocalDate.parse("2026-09-22")
+    private val itens = listOf(ItemLista("arroz 5kg"), ItemLista("feijão preto", quantidade = 2.0), ItemLista("caviar"))
+    private val relatorio = RelatorioListaCompras(itens, itens.associateWith { DadosDemo.buscar(it.produto, agora, hoje) }, null)
+
+    @Test fun `quantidade sem casas decimais desnecessarias`() {
+        assertEquals("2", TextoLista.quantidade(2.0))
+        assertEquals("1,5", TextoLista.quantidade(1.5))
+    }
+
+    @Test fun `mensagem do lugar unico mostra o total, os itens e o que falta`() {
+        val t = TextoLista.porPdv("Feira", relatorio.pdvUnico(), totalItens = 3)
+        assertTrue(t.startsWith("🛒 *Feira*"), t)
+        assertTrue("*1º Mercadinho Alto da Serra* — R$ 38,67 (2 de 3 itens)" in t, t)
+        assertTrue("(2 de 3 itens)" in t, t)
+        assertTrue("Faltam: caviar" in t, t)
+        assertTrue(t.endsWith(Compartilhamento.LINK_APP))
+    }
+
+    @Test fun `mensagem item a item mostra o local de cada um e o total`() {
+        val t = TextoLista.porItem("Feira", relatorio.melhorPorItem())
+        assertTrue("• 2x feijão preto: R$ 15,18 (R$ 7,59 cada) — " in t, t)
+        assertTrue("*Total: R$ 38,08* em 2 lugares" in t, t)
+        assertTrue("Sem preço encontrado: caviar" in t, t)
+    }
+}

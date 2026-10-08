@@ -63,7 +63,6 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Ordenacao
-import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import kotlinx.coroutines.launch
 
@@ -228,15 +227,6 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            HorizontalDivider()
-            // Próximas etapas do MVP — aparecem desabilitadas para mostrar o que vem por aí.
-            DropdownMenuItem(text = { Text("Lista de compras (em breve)") }, onClick = {}, enabled = false)
-            if (usuario.tipo == TipoConta.CNPJ) {
-                DropdownMenuItem(text = { Text("Área do PDV (em breve)") }, onClick = {}, enabled = false)
-            }
-            if (usuario.tipo == TipoConta.ADMIN) {
-                DropdownMenuItem(text = { Text("Painel Admin (em breve)") }, onClick = {}, enabled = false)
-            }
             HorizontalDivider()
             DropdownMenuItem(text = { Text("Sair") }, onClick = { aberto = false; aoSair() })
         }

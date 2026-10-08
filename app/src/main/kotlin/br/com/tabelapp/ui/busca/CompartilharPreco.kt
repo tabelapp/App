@@ -1,8 +1,6 @@
 package br.com.tabelapp.ui.busca
 
-import android.content.ClipData
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -19,6 +17,7 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Obs
 import br.com.tabelapp.core.Validade
+import br.com.tabelapp.ui.comum.WhatsApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -26,7 +25,7 @@ import java.io.File
 /**
  * Compartilha o "card de preço": uma imagem com produto, preço e local (nas
  * cores da marca) + o texto "Olha esse preço!... Quem pesquisa economiza" com
- * o link para baixar o app. Abre a escolha do app (WhatsApp, Instagram...).
+ * o link para baixar o app. Envia direto pelo WhatsApp.
  */
 object CompartilharPreco {
 
@@ -45,14 +44,8 @@ object CompartilharPreco {
             File(pasta, "preco.png").also { f -> f.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
         }
         val uri = FileProvider.getUriForFile(contexto, contexto.packageName + ".arquivos", arquivo)
-        val envio = Intent(Intent.ACTION_SEND).apply {
-            type = "image/png"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_TEXT, Compartilhamento.texto(cotacao))
-            clipData = ClipData.newRawUri("preco", uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        abrir(contexto, Intent.createChooser(envio, "Compartilhar preço"))
+        // Direto pelo WhatsApp do usuário (pedido do fundador).
+        WhatsApp.enviarImagem(contexto, uri, Compartilhamento.texto(cotacao))
     }
 
     private fun desenhar(c: Cotacao): Bitmap {

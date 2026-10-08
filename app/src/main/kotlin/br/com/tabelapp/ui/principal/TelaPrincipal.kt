@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -25,11 +26,13 @@ import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.admin.TelaAdmin
 import br.com.tabelapp.ui.busca.TelaBusca
+import br.com.tabelapp.ui.lista.TelaLista
 import br.com.tabelapp.ui.nf.TelaEnviarNf
 import br.com.tabelapp.ui.pdv.TelaMeuNegocio
 
 private enum class Aba(val rotulo: String, val icone: ImageVector) {
     BUSCAR("Buscar", Icons.Default.Search),
+    LISTA("Lista", Icons.Default.ShoppingCart),
     ENVIAR_NF("Enviar preços", Icons.Default.QrCode2),
     MEU_NEGOCIO("Meu negócio", Icons.Default.Storefront),
     ADMIN("Admin", Icons.Default.AdminPanelSettings),
@@ -37,12 +40,12 @@ private enum class Aba(val rotulo: String, val icone: ImageVector) {
 
 /** Abas que cada tipo de conta vê. */
 private fun abasDe(tipo: TipoConta): List<Aba> = when (tipo) {
-    TipoConta.CPF -> listOf(Aba.BUSCAR, Aba.ENVIAR_NF)
-    TipoConta.CNPJ -> listOf(Aba.BUSCAR, Aba.ENVIAR_NF, Aba.MEU_NEGOCIO)
-    TipoConta.ADMIN -> listOf(Aba.BUSCAR, Aba.ENVIAR_NF, Aba.ADMIN)
+    TipoConta.CPF -> listOf(Aba.BUSCAR, Aba.LISTA, Aba.ENVIAR_NF)
+    TipoConta.CNPJ -> listOf(Aba.BUSCAR, Aba.LISTA, Aba.ENVIAR_NF, Aba.MEU_NEGOCIO)
+    TipoConta.ADMIN -> listOf(Aba.BUSCAR, Aba.LISTA, Aba.ENVIAR_NF, Aba.ADMIN)
 }
 
-/** Abas do usuário logado. As próximas (lista de compras...) entram aqui. */
+/** Abas do usuário logado. */
 @Composable
 fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
     val abas = abasDe(usuario.tipo)
@@ -68,6 +71,7 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
             when (aba) {
                 Aba.BUSCAR -> TelaBusca(container, usuario)
                 Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { escolhida = Aba.BUSCAR })
+                Aba.LISTA -> TelaLista(container, usuario)
                 Aba.MEU_NEGOCIO -> TelaMeuNegocio(container, usuario)
                 Aba.ADMIN -> TelaAdmin(container, usuario)
             }

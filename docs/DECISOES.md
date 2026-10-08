@@ -119,6 +119,22 @@ Para ninguém cadastrar uma empresa que não é sua:
   da pessoa com o PDF anexado e o endereço da conta já preenchido — ela só toca em enviar. (Enviar
   sozinho, sem abrir o e-mail, exigiria um serviço de e-mail no servidor.)
 
+## Lista de compras
+
+- O usuário tem várias listas (até 50, com até 300 itens cada). **Cada alteração é salva na hora**:
+  ele monta a lista no tempo dele.
+- **Busca inteligente** ao adicionar: enquanto digita, o app sugere os produtos que **têm preço válido
+  agora** (todas as palavras, sem acento), com o menor preço e em quantos lugares aparecem. Também dá
+  para adicionar o texto como foi digitado. O mesmo produto adicionado de novo soma a quantidade.
+- **Pesquisar melhores preços:** o app busca cada item (mesma busca da tela principal) e monta:
+  1. **Num lugar só** — os pontos de venda ordenados por quem tem mais itens da lista e, em empate,
+     pelo menor total (com o que falta em cada um);
+  2. **Item a item** — o preço mais barato de cada item, onde estiver, com o total e em quantos lugares.
+- Os dois relatórios vão **direto para o WhatsApp** como mensagem de texto (negrito do WhatsApp,
+  rodapé "Quem pesquisa economiza" + link do app). Sem WhatsApp instalado, abre a escolha de app.
+- O **card de preço** também é enviado direto pelo WhatsApp (imagem + texto), não mais pelo menu geral.
+- Relatório "no mapa": cálculo pronto no `core`, falta a chave da API de mapas.
+
 ## Histórico de preços (decisão do fundador: vital para o projeto)
 
 - **Nenhum preço é apagado da história.** A busca mostra só o que está dentro da validade (NF: 7 dias;

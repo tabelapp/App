@@ -225,6 +225,55 @@ select pg_temp.espera_erro(
 select pg_temp.espera_erro($q$select * from public.nomes_sugeridos_pendentes()$q$, 'sem_permissao');
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 
+\echo '== Lista de compras: cada um com as suas; busca inteligente'
+do $$
+declare l uuid; i uuid;
+begin
+  l := public.criar_lista('  Compras do mês  ');
+  assert (select nome from public.minhas_listas() where id = l) = 'Compras do mês';
+  i := public.adicionar_item_lista(l, 'Arroz  5kg', 2);
+  -- O mesmo produto de novo (outra grafia) soma a quantidade.
+  assert public.adicionar_item_lista(l, 'arroz 5KG', 1) = i;
+  assert (select quantidade from public.itens_da_lista(l) where id = i) = 3;
+  perform public.adicionar_item_lista(l, 'Feijão preto');
+  assert (select itens from public.minhas_listas() where id = l) = 2;
+  perform public.alterar_quantidade_item(i, 1.5);
+  perform public.remover_item_lista((select id from public.itens_da_lista(l) where produto = 'Feijão preto'));
+  assert (select count(*) from public.itens_da_lista(l)) = 1;
+  perform public.renomear_lista(l, 'Feira');
+  assert (select nome from public.minhas_listas() where id = l) = 'Feira';
+  -- Busca inteligente: produtos com preço válido, sem acento, todas as palavras.
+  assert exists (select 1 from public.sugerir_produtos('feijao') where lugares >= 1 and menor_preco_centavos > 0);
+  assert not exists (select 1 from public.sugerir_produtos('x'));
+end $$;
+select pg_temp.espera_erro($q$select public.adicionar_item_lista((select id from public.minhas_listas() limit 1), ' ')$q$,
+  'produto_vazio');
+select pg_temp.espera_erro(
+  $q$select public.alterar_quantidade_item((select i.id from public.itens_da_lista((select id from public.minhas_listas() limit 1)) i limit 1), 0)$q$,
+  'quantidade_invalida');
+-- Outra pessoa não vê nem mexe na lista.
+set request.jwt.claim.sub = 'd0000000-0000-4000-a000-00000000000d';
+do $$
+declare l uuid;
+begin
+  reset role;
+  select id into l from public.listas_compra where nome = 'Feira';
+  set role authenticated;
+  assert (select count(*) from public.minhas_listas() where id = l) = 0;
+  assert (select count(*) from public.itens_da_lista(l)) = 0;
+  begin
+    perform public.adicionar_item_lista(l, 'Invasão');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%lista_nao_encontrada%', sqlerrm;
+  end;
+  perform public.excluir_lista(l);  -- não apaga a lista dos outros
+  reset role;
+  assert exists (select 1 from public.listas_compra where id = l);
+  set role authenticated;
+end $$;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+
 \echo '== Histórico de preços: nada se perde'
 reset role;
 do $$ begin

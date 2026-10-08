@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.SugestaoProduto
+import br.com.tabelapp.core.ListaResumo
+import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
@@ -21,6 +24,7 @@ import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.EstadoSessao
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.PdvRepositorio
@@ -562,5 +566,74 @@ class SupabasePdvRepositorio(
             put("p_motivo", motivo.trim())
         })
         Unit
+    }
+}
+
+@Serializable
+private data class ListaDto(val id: String, val nome: String, val itens: Int = 0, @SerialName("updated_at") val updatedAt: String)
+
+@Serializable
+private data class ItemListaDto(val id: String, val produto: String, val quantidade: Double)
+
+@Serializable
+private data class SugestaoDto(
+    val produto: String,
+    @SerialName("menor_preco_centavos") val menorPrecoCentavos: Long,
+    val lugares: Int,
+)
+
+class SupabaseListasRepositorio(private val supabase: SupabaseClient) : ListasRepositorio {
+    override suspend fun listas(): List<ListaResumo> = traduzindoErros {
+        supabase.postgrest.rpc("minhas_listas").decodeList<ListaDto>()
+            .map { ListaResumo(it.id, it.nome, it.itens, instante(it.updatedAt)) }
+    }
+
+    override suspend fun criar(nome: String): String = traduzindoErros {
+        supabase.postgrest.rpc("criar_lista", buildJsonObject { put("p_nome", nome) }).decodeAs<String>()
+    }
+
+    override suspend fun renomear(listaId: String, nome: String) = traduzindoErros {
+        supabase.postgrest.rpc("renomear_lista", buildJsonObject {
+            put("p_lista_id", listaId)
+            put("p_nome", nome)
+        })
+        Unit
+    }
+
+    override suspend fun excluir(listaId: String) = traduzindoErros {
+        supabase.postgrest.rpc("excluir_lista", buildJsonObject { put("p_lista_id", listaId) })
+        Unit
+    }
+
+    override suspend fun itens(listaId: String): List<ItemSalvo> = traduzindoErros {
+        supabase.postgrest.rpc("itens_da_lista", buildJsonObject { put("p_lista_id", listaId) })
+            .decodeList<ItemListaDto>().map { ItemSalvo(it.id, it.produto, it.quantidade) }
+    }
+
+    override suspend fun adicionar(listaId: String, produto: String, quantidade: Double) = traduzindoErros {
+        supabase.postgrest.rpc("adicionar_item_lista", buildJsonObject {
+            put("p_lista_id", listaId)
+            put("p_produto", produto)
+            put("p_quantidade", quantidade)
+        })
+        Unit
+    }
+
+    override suspend fun alterarQuantidade(itemId: String, quantidade: Double) = traduzindoErros {
+        supabase.postgrest.rpc("alterar_quantidade_item", buildJsonObject {
+            put("p_item_id", itemId)
+            put("p_quantidade", quantidade)
+        })
+        Unit
+    }
+
+    override suspend fun remover(itemId: String) = traduzindoErros {
+        supabase.postgrest.rpc("remover_item_lista", buildJsonObject { put("p_item_id", itemId) })
+        Unit
+    }
+
+    override suspend fun sugerir(termo: String): List<SugestaoProduto> = traduzindoErros {
+        supabase.postgrest.rpc("sugerir_produtos", buildJsonObject { put("p_termo", termo) })
+            .decodeList<SugestaoDto>().map { SugestaoProduto(it.produto, it.menorPrecoCentavos, it.lugares) }
     }
 }
