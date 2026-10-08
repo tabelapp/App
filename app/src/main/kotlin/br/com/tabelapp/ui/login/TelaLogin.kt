@@ -31,6 +31,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ fun TelaLogin(container: AppContainer) {
     var enviando by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf<String?>(null) }
     var aviso by remember { mutableStateOf<String?>(null) }
+    var esqueciSenha by rememberSaveable { mutableStateOf(false) }
 
     val entrarComGoogle = container.auth.lembrarLoginGoogle(aoFalhar = { erro = it })
 
@@ -95,6 +97,9 @@ fun TelaLogin(container: AppContainer) {
 
     // Sempre claro (mesmo com o celular no modo escuro), para a lupa preta da marca aparecer bem.
     TabelappTema(escuroAtivo = false) {
+        if (esqueciSenha) {
+            DialogoEsqueciSenha(container.auth, emailInicial = email, aoFechar = { esqueciSenha = false })
+        }
         Surface(Modifier.fillMaxSize(), color = FundoClaro) {
             Column(
                 Modifier
@@ -154,13 +159,12 @@ fun TelaLogin(container: AppContainer) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = senha, onValueChange = { senha = it },
-                        label = { Text("Senha") }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    CampoSenha(senha, { senha = it })
+                    if (!criandoConta) {
+                        TextButton(onClick = { esqueciSenha = true }, modifier = Modifier.align(Alignment.End)) {
+                            Text("Esqueci a senha")
+                        }
+                    }
                     if (criandoConta) {
                         Text("Como você vai usar o Tabelapp?", style = MaterialTheme.typography.labelLarge)
                         SeletorTipoConta(tipo, aoEscolher = { tipo = it })

@@ -194,6 +194,54 @@ select pg_temp.espera_erro(
   $q$select public.enviar_nota_fiscal(null, null, 'X', null, '[{"produto": "Pão", "preco_centavos": 0}]')$q$,
   'itens_invalidos');
 
+\echo '== Nome do PDV da NF: sugestão só vale confirmada (2 pessoas ou Admin)'
+do $$
+declare v jsonb;
+begin
+  v := public.enviar_nota_fiscal(pg_temp.chave('77777777000191', 4321), null, 'COMERCIO DE ALIMENTOS XYZ LTDA',
+         'Rua Teresa, 100', '[{"produto": "Queijo minas kg", "preco_centavos": 3990}]');
+  assert public.sugerir_nome_pdv('77.777.777/0001-91', 'Empório da Teresa') = 'aguardando';
+  -- Ainda não confirmado: a busca mostra a razão social da nota.
+  assert (select pdv_nome from public.buscar_cotacoes('queijo minas')) = 'COMERCIO DE ALIMENTOS XYZ LTDA';
+end $$;
+set request.jwt.claim.sub = 'd0000000-0000-4000-a000-00000000000d';
+-- Quem nunca enviou NF desse CNPJ não sugere nome (evita concorrente "batizar" a loja dos outros).
+select pg_temp.espera_erro($q$select public.sugerir_nome_pdv('77777777000191', 'Loja Ruim')$q$, 'sem_permissao');
+do $$
+declare v jsonb;
+begin
+  v := public.enviar_nota_fiscal(pg_temp.chave('77777777000191', 4322), null, 'COMERCIO DE ALIMENTOS XYZ LTDA',
+         null, '[{"produto": "Requeijão 200g", "preco_centavos": 899}]');
+  -- Segunda pessoa, mesmo nome (sem acento/maiúscula não importa): confirmado.
+  assert public.sugerir_nome_pdv('77777777000191', 'EMPORIO DA TERESA') = 'confirmado';
+  assert (select pdv_nome from public.buscar_cotacoes('queijo minas')) = 'EMPORIO DA TERESA';
+  -- Depois de confirmado, outra sugestão não muda o nome.
+  assert public.sugerir_nome_pdv('77777777000191', 'Outro nome') = 'confirmado';
+  assert (select nome from public.nomes_pdv where cnpj = '77777777000191') = 'EMPORIO DA TERESA';
+end $$;
+-- Ninguém grava nome direto na tabela.
+select pg_temp.espera_erro(
+  $q$insert into public.nomes_pdv (cnpj, nome, origem) values ('88888888000191', 'X', 'admin')$q$, 'permission denied');
+select pg_temp.espera_erro($q$select * from public.nomes_sugeridos_pendentes()$q$, 'sem_permissao');
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+
+\echo '== Histórico de preços: nada se perde'
+reset role;
+do $$ begin
+  -- Toda cotação (inclusive as do seed) tem pelo menos o registro de criação.
+  assert not exists (
+    select 1 from public.cotacoes c
+    where not exists (select 1 from public.historico_precos h where h.cotacao_id = c.id and h.operacao = 'criado')
+  );
+  assert (select cnpj from public.historico_precos where produto = 'Queijo minas kg') = '77777777000191';
+end $$;
+set role authenticated;
+-- Usuário comum não lê nem apaga o histórico.
+do $$ begin
+  assert (select count(*) from public.historico_precos) = 0, 'CPF não vê o histórico';
+end $$;
+select pg_temp.espera_erro($q$delete from public.historico_precos$q$, 'permission denied');
+
 \echo '== Encarte de usuário vai para a fila; CPF não aprova'
 insert into public.encartes_pendentes (id, enviado_por, foto_path, pdv_nome, pdv_endereco, validade)
 values ('e0000000-0000-4000-a000-000000000001', auth.uid(),
@@ -414,6 +462,19 @@ begin
   v := public.pdv_salvar_precos(pdv, loja2, itens, 'pdv_excel', true);
   assert (v ->> 'restantes')::int = 49, v::text;
 end $$;
+-- Histórico (visto como superusuário: no app, só o Admin lê).
+reset role;
+do $$ begin
+  -- Cada mudança fica no histórico (2500 -> 2400 -> só OBS -> 2600).
+  assert (select array_agg(h.preco_centavos order by h.id) from public.historico_precos h
+          where h.loja_id = '20000000-0000-4000-b000-000000000001' and h.produto_busca = 'arroz 5kg')
+         = array[2500, 2400, 2400, 2600], 'histórico de alterações';
+  -- Excluído da tabela, mas guardado no histórico (com o CNPJ do PDV).
+  assert exists (select 1 from public.historico_precos h
+                 where h.loja_id = '20000000-0000-4000-b000-000000000002' and h.operacao = 'excluido'
+                   and h.cnpj = '55555555000191'), 'histórico de exclusão';
+end $$;
+set role authenticated;
 
 select pg_temp.espera_erro(
   $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',

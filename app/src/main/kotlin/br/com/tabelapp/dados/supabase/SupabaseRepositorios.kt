@@ -25,6 +25,7 @@ import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -42,6 +43,8 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -141,6 +144,25 @@ class SupabaseAuthRepositorio(
             }
             throw e
         }
+    }
+
+    override suspend fun enviarCodigoSenha(email: String) = traduzindoErros {
+        // O modelo "Reset Password" do Supabase precisa mostrar o código ({{ .Token }}) — ver README.
+        supabase.auth.resetPasswordForEmail(email.trim(), redirectUrl = null)
+    }
+
+    override suspend fun redefinirSenha(email: String, codigo: String, novaSenha: String) = traduzindoErros {
+        // Ao conferir o código a pessoa já entra; a troca da senha não pode ser interrompida
+        // quando a tela de login sai de cena.
+        withContext(NonCancellable) {
+            try {
+                supabase.auth.verifyEmailOtp(OtpType.Email.RECOVERY, email = email.trim(), token = codigo.trim())
+            } catch (e: RestException) {
+                throw ErroAmigavel("Código inválido ou vencido. Peça um novo código.", e)
+            }
+            supabase.auth.updateUser { password = novaSenha }
+        }
+        Unit
     }
 
     override suspend fun cadastrarComEmail(

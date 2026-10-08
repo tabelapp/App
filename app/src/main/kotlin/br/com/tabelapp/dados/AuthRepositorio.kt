@@ -20,6 +20,12 @@ interface AuthRepositorio {
 
     suspend fun sair()
 
+    /** "Esqueci a senha": manda um código de 6 números para o e-mail cadastrado. */
+    suspend fun enviarCodigoSenha(email: String)
+
+    /** Confere o código recebido por e-mail e grava a nova senha (a pessoa já fica logada). */
+    suspend fun redefinirSenha(email: String, codigo: String, novaSenha: String)
+
     /**
      * Ação de "Entrar com Google" pronta para ser chamada no clique,
      * ou null se o login Google não estiver configurado.

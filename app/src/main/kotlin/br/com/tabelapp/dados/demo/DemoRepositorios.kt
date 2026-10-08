@@ -71,6 +71,18 @@ class DemoAuthRepositorio : AuthRepositorio {
         _estado.value = EstadoSessao.Deslogado
     }
 
+    override suspend fun enviarCodigoSenha(email: String) {
+        delay(400)
+        if (!email.contains('@')) throw ErroAmigavel("Informe um e-mail válido.")
+    }
+
+    /** Na demonstração não há e-mail: qualquer código de 6 números serve. */
+    override suspend fun redefinirSenha(email: String, codigo: String, novaSenha: String) {
+        delay(400)
+        if (codigo.trim().length != 6) throw ErroAmigavel("Código inválido ou vencido. Peça um novo código.")
+        entrarComEmail(email, novaSenha)
+    }
+
     /** Simula o primeiro login pelo Google: cai na tela de escolher CPF/CNPJ. */
     @Composable
     override fun lembrarLoginGoogle(aoFalhar: (String) -> Unit): (() -> Unit)? {
