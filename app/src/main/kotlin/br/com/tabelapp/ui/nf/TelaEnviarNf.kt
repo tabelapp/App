@@ -1,5 +1,26 @@
 package br.com.tabelapp.ui.nf
 
+import java.io.File
+import kotlinx.coroutines.launch
+import br.com.tabelapp.dados.PdfNota
+import br.com.tabelapp.dados.ErroAmigavel
+import androidx.core.content.FileProvider
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.clickable
+import android.content.Intent
+import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ActivityNotFoundException
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,11 +79,13 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
-/** Aba "Enviar NF": QR Code do cupom -> leitura na Sefaz -> conferência -> confirmação única -> envio. */
+/** Aba "Enviar preços": QR Code (ou chave) do cupom -> leitura na Sefaz -> conferência -> envio. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> Unit) {
-    val vm: EnviarNfViewModel = viewModel(key = "nf-${usuario.id}") { EnviarNfViewModel(container.notasFiscais) }
+    val vm: EnviarNfViewModel = viewModel(key = "nf-${usuario.id}") {
+        EnviarNfViewModel(container.notasFiscais, container.pdvs::consultarCnpj)
+    }
     val estado by vm.estado.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -70,7 +93,7 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Enviar nota fiscal", fontWeight = FontWeight.Bold) },
+                title = { Text("Enviar preços", fontWeight = FontWeight.Bold) },
                 colors = coresBarraTopo(),
                 actions = {
                     if (estado.etapa != EtapaNf.INICIO && estado.etapa != EtapaNf.ENVIADO) {
@@ -88,7 +111,7 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
                 EtapaNf.LENDO_SEFAZ -> EtapaLendoSefaz(estado, vm)
                 EtapaNf.FALHA -> EtapaFalha(estado, vm)
                 EtapaNf.CONFIRMACAO -> EtapaConfirmacao(estado, vm)
-                EtapaNf.ENVIADO -> EtapaEnviado(estado, vm, aoVerNaBusca)
+                EtapaNf.ENVIADO -> EtapaEnviado(estado, vm, usuario, aoVerNaBusca)
             }
         }
     }
@@ -110,7 +133,7 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
                 // Na primeira vez o Google Play baixa o leitor; pode falhar até terminar.
                 vm.erroNoLeitor(
                     "Não foi possível abrir o leitor de QR Code agora. Tente de novo em instantes " +
-                        "ou digite a chave da nota abaixo."
+                        "ou digite os 44 números da nota abaixo."
                 )
             }
         // Cancelado pelo usuário: nada a fazer.
@@ -130,8 +153,8 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
         )
         Text(
-            "Aponte a câmera para o QR Code impresso no cupom fiscal. O Tabelapp lê os produtos na Sefaz " +
-                "e você só confere antes de enviar. Seu CPF não é lido nem guardado.",
+            "Aponte a câmera para o QR Code impresso no final do cupom fiscal. O Tabelapp guarda somente " +
+                "as informações do vendedor, produtos e preços. As informações do comprador nunca serão armazenadas.",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -145,18 +168,32 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
-        Text("O leitor não abriu? Cole o link do QR Code (ex.: lido por outro app de câmera):")
+        Text("Entrada manual", fontWeight = FontWeight.Bold)
+        Text(
+            "Digite os 44 números da nota (a \"chave de acesso\", impressa no cupom perto do QR Code).",
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         OutlinedTextField(
-            value = textoChave, onValueChange = { textoChave = it },
-            label = { Text("Link do QR Code") },
+            value = textoChave,
+            onValueChange = { textoChave = it.filter { c -> c.isDigit() }.take(44) },
+            label = { Text("Chave de acesso (${textoChave.length}/44)") },
             singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            // Mostra em grupos de 4, como no cupom, para facilitar a conferência.
+            visualTransformation = GruposDeQuatro,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedButton(
-            onClick = { vm.qrLido(textoChave) },
-            enabled = textoChave.isNotBlank(),
+            onClick = {
+                // Copia a chave: se a página da Sefaz não deixar preencher sozinha, é só colar.
+                (contexto.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)
+                    ?.setPrimaryClip(ClipData.newPlainText("Chave de acesso", textoChave))
+                vm.chaveDigitada(textoChave)
+            },
+            enabled = textoChave.length == 44,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Continuar com o link") }
+        ) { Text("Consultar a nota") }
     }
 }
 
@@ -172,7 +209,12 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             Column(Modifier.weight(1f)) {
                 Text("Lendo os produtos na Sefaz…", fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Se aparecer alguma verificação abaixo, resolva-a que a leitura continua.",
+                    if (estado.modoManual) {
+                        "Confira se a chave foi preenchida (se não, toque no campo e cole: ela já está copiada), " +
+                            "resolva a verificação da Sefaz e toque em consultar."
+                    } else {
+                        "Se aparecer alguma verificação abaixo, resolva-a que a leitura continua."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -183,6 +225,7 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             aoLer = vm::notaLidaNaSefaz,
             aoDesistir = vm::leituraSefazFalhou,
             aoCapturarHtml = vm::htmlCapturado,
+            chaveParaPreencher = estado.chave.takeIf { estado.modoManual },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -259,14 +302,38 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(loja?.titulo ?: rascunho.pdvNome, fontWeight = FontWeight.Bold)
+                if (loja == null && estado.razaoSocialNota.isNotBlank() && estado.razaoSocialNota != rascunho.pdvNome) {
+                    Text("Razão social: ${estado.razaoSocialNota}", style = MaterialTheme.typography.bodySmall)
+                }
                 (loja?.endereco ?: rascunho.pdvEndereco.ifBlank { null })?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                if (estado.consultandoReceita) {
+                    Text("Buscando o nome do estabelecimento…", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 ChaveAcessoNfe.deTexto(rascunho.chaveAcesso)?.let {
                     Text("Chave: ${it.formatada()}", style = MaterialTheme.typography.bodySmall)
                 }
                 Text("Data da compra: ${Validade.formatar(rascunho.dataNf)}", style = MaterialTheme.typography.bodySmall)
             }
+        }
+
+        if (estado.podeSugerirNome) {
+            Text("Como este lugar é conhecido?", fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = estado.nomeSugerido, onValueChange = vm::alterarNomeSugerido,
+                label = { Text("Nome do estabelecimento (opcional)") },
+                placeholder = { Text("Ex.: Padaria do Zé") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "A nota mostra só a razão social. Para evitar uso indevido, o nome que você sugerir aparece " +
+                    "na busca depois de confirmado por outra pessoa que comprou lá ou pela nossa equipe.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Card(Modifier.fillMaxWidth()) {
@@ -288,6 +355,14 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        Row(
+            Modifier.fillMaxWidth().clickable { vm.alternarPdf(!estado.querPdf) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = estado.querPdf, onCheckedChange = vm::alternarPdf)
+            Text("Quero uma cópia em PDF desta nota no meu e-mail")
+        }
+
         estado.erros.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Button(
@@ -305,7 +380,34 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
 }
 
 @Composable
-private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, aoVerNaBusca: () -> Unit) {
+private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuario, aoVerNaBusca: () -> Unit) {
+    val contexto = LocalContext.current
+    val escopo = rememberCoroutineScope()
+    var gerandoPdf by remember { mutableStateOf(false) }
+    var erroPdf by remember { mutableStateOf<String?>(null) }
+
+    fun enviarPdf() {
+        val pagina = vm.paginaDaNota()
+        if (pagina == null) {
+            erroPdf = "A página da nota não está mais disponível."
+            return
+        }
+        gerandoPdf = true
+        erroPdf = null
+        escopo.launch {
+            try {
+                val arquivo = PdfNota.gerar(contexto, pagina.first, pagina.second, "nota-fiscal-${estado.chave.takeLast(8)}.pdf")
+                abrirEmailComPdf(contexto, arquivo, usuario.email, estado)
+            } catch (e: ErroAmigavel) {
+                erroPdf = e.message
+            } finally {
+                gerandoPdf = false
+            }
+        }
+    }
+    // Marcou a opção na confirmação: já abre o e-mail com o PDF.
+    LaunchedEffect(Unit) { if (estado.querPdf) enviarPdf() }
+
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -320,6 +422,12 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, aoVerNaBusca: 
             "${estado.itensEnviados} preço(s) enviados. Quem pesquisa economiza — e agora você ajudou quem pesquisa.",
             textAlign = TextAlign.Center,
         )
+        estado.resultadoSugestao?.let { Text(it, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall) }
+        OutlinedButton(onClick = ::enviarPdf, enabled = !gerandoPdf, modifier = Modifier.fillMaxWidth()) {
+            if (gerandoPdf) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            else Text("Receber cópia em PDF no e-mail")
+        }
+        erroPdf?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
         Button(onClick = { vm.novaNota(); aoVerNaBusca() }, modifier = Modifier.fillMaxWidth()) {
             Text("Ver na busca")
         }
@@ -344,4 +452,40 @@ private fun BotaoEnviarParaAnalise(vm: EnviarNfViewModel) {
             contexto.startActivity(android.content.Intent.createChooser(envio, "Enviar página para análise"))
         }
     }) { Text("Enviar página para análise") }
+}
+
+/**
+ * Abre o app de e-mail com o PDF da nota anexado, já endereçado ao e-mail da
+ * conta. A pessoa só toca em enviar (o Tabelapp não envia e-mails sozinho).
+ */
+private fun abrirEmailComPdf(contexto: Context, arquivo: File, email: String?, estado: EstadoNf) {
+    val uri = FileProvider.getUriForFile(contexto, contexto.packageName + ".arquivos", arquivo)
+    val envio = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        email?.let { putExtra(Intent.EXTRA_EMAIL, arrayOf(it)) }
+        putExtra(Intent.EXTRA_SUBJECT, "Nota fiscal - ${estado.pdvNome.ifBlank { "compra" }} - ${Validade.formatar(estado.dataNf)}")
+        putExtra(Intent.EXTRA_TEXT, "Cópia da nota fiscal consultada na Sefaz pelo Tabelapp.")
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newRawUri("nota", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        contexto.startActivity(Intent.createChooser(envio, "Enviar PDF para o seu e-mail"))
+    } catch (e: ActivityNotFoundException) {
+        // Sem app de e-mail/compartilhamento: nada a fazer.
+    }
+}
+
+/** Mostra a chave em grupos de 4 números ("3525 0911 ..."), sem mudar o que foi digitado. */
+private object GruposDeQuatro : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val original = text.text
+        val formatado = original.chunked(4).joinToString(" ")
+        val mapa = object : OffsetMapping {
+            // Antes da posição n há (n - 1) / 4 espaços inseridos.
+            override fun originalToTransformed(offset: Int): Int = offset + (offset - 1).coerceAtLeast(0) / 4
+            override fun transformedToOriginal(offset: Int): Int = (offset - offset / 5).coerceIn(0, original.length)
+        }
+        return TransformedText(AnnotatedString(formatado), mapa)
+    }
 }

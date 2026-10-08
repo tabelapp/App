@@ -2,6 +2,7 @@ package br.com.tabelapp.dados.demo
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Cotacao
@@ -12,6 +13,7 @@ import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.RegrasCota
@@ -103,6 +105,15 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
         delay(250)
         return DadosDemo.buscar(termo, extras = banco.enviados)
     }
+
+    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> = listOf(
+        Banner("demo-1", "Supermercado Serra Imperial", "Semana do hortifrúti",
+            "Frutas e verduras com até 30% de desconto. Só até domingo!", null),
+        Banner("demo-2", "Empório Itaipava", "Queijos e vinhos da serra",
+            "Leve 3, pague 2 em queijos artesanais.", null),
+    )
+
+    override suspend fun registrarVisualizacao(bannerId: String) {}
 }
 
 /** Guarda em memória o que foi enviado na demonstração (some ao fechar o app). */
@@ -112,6 +123,7 @@ class DemoBanco {
     val pdvs = mutableListOf<DemoPdv>()
     val precosPdv = mutableListOf<PrecoPdv>()
     val operacoesUsadas = mutableMapOf<String, Int>()
+    var nomeDemoDecidido = false
 }
 
 /**
@@ -198,6 +210,14 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         banco.enviados.removeAll { it.id == precoId }
     }
 
+    override suspend fun nomesSugeridos(): List<NomeSugerido> =
+        if (banco.nomeDemoDecidido) emptyList()
+        else listOf(NomeSugerido("77777777000191", "Empório da Teresa", 1, "COMERCIO DE ALIMENTOS XYZ LTDA", "Rua Teresa, 100"))
+
+    override suspend fun decidirNome(cnpj: String, nome: String, aprovar: Boolean) {
+        banco.nomeDemoDecidido = true
+    }
+
     override suspend fun pendentes(): List<PdvPendente> =
         banco.pdvs.filter { it.meu.status == StatusPdv.PENDENTE }.map { it.pendente }
 
@@ -221,6 +241,9 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
 data class DemoPdv(val meu: MeuPdv, val pendente: PdvPendente, val alvara: ByteArray)
 
 class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalRepositorio {
+    /** Na demonstração não há outra pessoa para confirmar: fica "aguardando". */
+    override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = false
+
     override suspend fun lojasDoCnpj(cnpj: String): List<LojaResumo> = DadosDemo.lojasDoCnpj(cnpj)
 
     override suspend fun enviar(rascunho: RascunhoNf): Int {

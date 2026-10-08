@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
@@ -30,7 +30,7 @@ import br.com.tabelapp.ui.pdv.TelaMeuNegocio
 
 private enum class Aba(val rotulo: String, val icone: ImageVector) {
     BUSCAR("Buscar", Icons.Default.Search),
-    ENVIAR_NF("Enviar NF", Icons.Default.ReceiptLong),
+    ENVIAR_NF("Enviar preços", Icons.Default.QrCode2),
     MEU_NEGOCIO("Meu negócio", Icons.Default.Storefront),
     ADMIN("Admin", Icons.Default.AdminPanelSettings),
 }

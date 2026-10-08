@@ -13,3 +13,13 @@ enum class OrigemArte(val codigo: String, val rotulo: String) {
     // Publicação imediata: o PDV é dono da informação, não passa pelo Admin.
     ENCARTE_PDV("encarte_pdv", "Usar meu encarte"),
 }
+
+/** Banner patrocinado exibido na tela de busca (espelha `promocoes_para_busca`). */
+data class Banner(
+    val id: String,
+    val pdvNome: String,
+    val titulo: String,
+    val descricao: String?,
+    /** Endereço público da arte; null = banner só com texto. */
+    val imagemUrl: String?,
+)

@@ -18,7 +18,10 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Modo demonstração (roda sem servidor, com dados fictícios de Petrópolis) | ✅ |
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
 | Lista de compras (3 relatórios) | ⏳ cálculo pronto no `core`, falta a tela |
-| Envio de NF pelo QR Code: lê produtos, preços e data na Sefaz no próprio celular; tela única de resumo e confirmação, sem digitação | ✅ no app |
+| Enviar preços (NF): QR Code ou os 44 números da chave; lê produtos, preços e data na Sefaz no celular; nome fantasia pela Receita (ou sugerido e confirmado); cópia em PDF para o e-mail | ✅ no app |
+| Histórico permanente de preços (nada se apaga; a busca mostra só os válidos) | ✅ no banco |
+| Banner patrocinado na busca, card de preço novo e compartilhar preço | ✅ no app |
+| Login: ver senha e "Esqueci a senha" (código por e-mail) | ✅ no app |
 | Envio de encarte pelo usuário | ⏸️ suspenso (decisão do fundador: a leitura automática deixava o envio vulnerável). Aba fora do app e função bloqueada no banco; código de leitura guardado no `core` |
 | Cadastro do PDV (conta CNPJ): consulta do CNPJ na Receita, foto do alvará conferida pelo app, análise do Admin | ✅ no app (aba "Meu negócio") |
 | Admin: fila de cadastros de PDV (ver alvará, aprovar, rejeitar com motivo) | ✅ no app (aba "Admin") |
@@ -75,9 +78,13 @@ secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` do repositório; `GOOGLE_WEB_CLIENT
    Google*, ative e informe o client ID Web.
 6. Para o piloto, pode valer desligar *Confirm email* em *Authentication → Providers → Email* —
    senão o usuário precisa clicar no link do e-mail antes de entrar.
-7. **Conferir a conexão:** `scripts/testar-conexao-supabase.sh` (lê as chaves do `local.properties`) —
+7. **"Esqueci a senha"** usa um código de 6 números. Em *Authentication → Email Templates → Reset
+   Password*, troque o texto do e-mail para mostrar o código `{{ .Token }}` (veja `docs/EMAIL_SENHA.md`).
+   O e-mail gratuito do Supabase só entrega para os membros do projeto: para os usuários receberem,
+   configure um SMTP próprio (*Project Settings → Authentication → SMTP*).
+8. **Conferir a conexão:** `scripts/testar-conexao-supabase.sh` (lê as chaves do `local.properties`) —
    diz se o projeto responde, se a chave está certa e se todas as migrações foram aplicadas.
-8. **Virar Admin** (para aprovar cadastros de PDV na aba "Admin"): no *SQL Editor*,
+9. **Virar Admin** (para aprovar cadastros de PDV na aba "Admin"): no *SQL Editor*,
    `update public.usuarios set tipo = 'admin' where email = 'seu@email';`
 
 ## Testes

@@ -1,6 +1,7 @@
 package br.com.tabelapp.dados.supabase
 
 import androidx.compose.runtime.Composable
+import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosReceita
@@ -9,6 +10,7 @@ import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.SaldoCota
@@ -269,7 +271,40 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
             },
         ).decodeList<CotacaoDto>().map { it.paraCotacao() }
     }
+
+    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> = traduzindoErros {
+        supabase.postgrest.rpc(
+            "promocoes_para_busca",
+            buildJsonObject {
+                put("p_termo", termo?.trim()?.takeIf { it.isNotEmpty() })
+                put("p_lat", posicao?.latitude)
+                put("p_lng", posicao?.longitude)
+                put("p_limite", 3)
+            },
+        ).decodeList<BannerDto>().map { d ->
+            Banner(
+                id = d.id, pdvNome = d.pdvNome, titulo = d.titulo, descricao = d.descricao,
+                // Artes ficam no bucket público "promocoes".
+                imagemUrl = d.artePath?.let { supabase.storage.from("promocoes").publicUrl(it) },
+            )
+        }
+    }
+
+    override suspend fun registrarVisualizacao(bannerId: String) {
+        runCatching {
+            supabase.postgrest.rpc("registrar_visualizacao_promocao", buildJsonObject { put("p_promocao_id", bannerId) })
+        }
+    }
 }
+
+@Serializable
+private data class BannerDto(
+    val id: String,
+    @SerialName("pdv_nome") val pdvNome: String,
+    val titulo: String,
+    val descricao: String? = null,
+    @SerialName("arte_path") val artePath: String? = null,
+)
 
 @Serializable
 private data class LojaDoCnpjDto(
@@ -309,6 +344,13 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
             },
         ).decodeAs<RespostaEnvioNf>().itens
     }
+
+    override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = traduzindoErros {
+        supabase.postgrest.rpc("sugerir_nome_pdv", buildJsonObject {
+            put("p_cnpj", cnpj)
+            put("p_nome", nome.trim())
+        }).decodeAs<String>() == "confirmado"
+    }
 }
 
 
@@ -342,6 +384,15 @@ private data class PrecoPdvDto(
 private data class CotaDto(
     @SerialName("gratis_usadas") val gratisUsadas: Int,
     @SerialName("saldo_pacotes") val saldoPacotes: Int = 0,
+)
+
+@Serializable
+private data class NomeSugeridoDto(
+    val cnpj: String,
+    val nome: String,
+    val sugestoes: Int,
+    @SerialName("razao_social") val razaoSocial: String? = null,
+    val endereco: String? = null,
 )
 
 @Serializable
@@ -487,6 +538,21 @@ class SupabasePdvRepositorio(
 
     override suspend fun aprovar(pdvId: String) = traduzindoErros {
         supabase.postgrest.rpc("aprovar_pdv", buildJsonObject { put("p_pdv_id", pdvId) })
+        Unit
+    }
+
+    override suspend fun nomesSugeridos(): List<NomeSugerido> = traduzindoErros {
+        supabase.postgrest.rpc("nomes_sugeridos_pendentes").decodeList<NomeSugeridoDto>().map {
+            NomeSugerido(it.cnpj, it.nome, it.sugestoes, it.razaoSocial, it.endereco)
+        }
+    }
+
+    override suspend fun decidirNome(cnpj: String, nome: String, aprovar: Boolean) = traduzindoErros {
+        supabase.postgrest.rpc("decidir_nome_pdv", buildJsonObject {
+            put("p_cnpj", cnpj)
+            put("p_nome", nome)
+            put("p_aprovar", aprovar)
+        })
         Unit
     }
 

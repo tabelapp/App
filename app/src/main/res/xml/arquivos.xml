@@ -2,4 +2,6 @@
 <paths>
     <!-- Fotos (ex.: alvará) tiradas pela câmera ficam no cache do app até serem enviadas. -->
     <cache-path name="fotos" path="fotos/" />
+    <!-- Imagem do card de preço compartilhado e PDF da nota fiscal. -->
+    <cache-path name="compartilhar" path="compartilhar/" />
 </paths>

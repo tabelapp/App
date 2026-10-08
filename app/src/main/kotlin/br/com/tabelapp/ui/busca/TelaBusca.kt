@@ -76,6 +76,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val foco = LocalFocusManager.current
     val escopo = rememberCoroutineScope()
+    val contexto = LocalContext.current
     var pdvAberto by remember { mutableStateOf<Cotacao?>(null) }
 
     // "Mais perto" precisa da localização: pede permissão na hora em que o usuário escolhe.
@@ -114,6 +115,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
         },
     ) { margens ->
         Column(Modifier.padding(margens).fillMaxSize()) {
+            BannerPatrocinado(estado.banners, aoExibir = vm::bannerExibido)
             OutlinedTextField(
                 value = estado.texto,
                 onValueChange = vm::aoDigitar,
@@ -185,6 +187,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                                 maisBarato = cotacao.id in estado.maisBaratos,
                                 posicao = estado.posicao,
                                 aoAbrirPdv = { pdvAberto = cotacao },
+                                aoCompartilhar = { escopo.launch { CompartilharPreco.compartilhar(contexto, cotacao) } },
                             )
                         }
                     }

@@ -1,11 +1,10 @@
 package br.com.tabelapp.core
 
-/** Ordenações da tela de busca (briefing, seção 2). */
+/** Ordenações da tela de busca (briefing, seção 2; "Validade" retirada a pedido do fundador). */
 enum class Ordenacao(val rotulo: String) {
     MENOR_PRECO("Menor preço"),
     MAIOR_PRECO("Maior preço"),
     MAIS_PERTO("Mais perto"),
-    VALIDADE("Validade"),
     PDV_AZ("PDV (A-Z)");
 }
 
@@ -20,8 +19,6 @@ object Busca {
             Ordenacao.MAIS_PERTO -> compareBy<Cotacao, Double?>(nullsLast()) {
                 Geo.distanciaKm(posicao, it.local)
             }.then(porPreco)
-            // Vence antes aparece primeiro; sem validade informada vai para o fim.
-            Ordenacao.VALIDADE -> compareBy<Cotacao, java.time.LocalDate?>(nullsLast()) { it.validade }.then(porPreco)
             Ordenacao.PDV_AZ -> compareBy<Cotacao> { Texto.normalizar(it.pdvNome) }.then(porPreco)
         }
         return cotacoes.sortedWith(comparador)

@@ -130,3 +130,13 @@ data class PdvPendente(
     val donoEmail: String?,
     val enviadoEm: Instant,
 )
+
+/** Nome de estabelecimento sugerido por quem enviou NF, esperando confirmação do Admin. */
+data class NomeSugerido(
+    val cnpj: String,
+    val nome: String,
+    /** Quantas pessoas sugeriram esse mesmo nome. */
+    val sugestoes: Int,
+    val razaoSocial: String?,
+    val endereco: String?,
+)

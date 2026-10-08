@@ -101,6 +101,32 @@ Para ninguém cadastrar uma empresa que não é sua:
    e o usuário pode mandar a página para análise (sem scripts, CPF mascarado).
    Linhas repetidas (mesmo produto e preço) viram uma.
 
+## Nota Fiscal — ajustes do lançamento (pedidos do fundador)
+
+- A aba chama **"Enviar preços"** (ícone de QR Code). Texto da tela: "O Tabelapp guarda somente as
+  informações do vendedor, produtos e preços. As informações do comprador nunca serão armazenadas."
+- **Entrada manual:** em vez de colar o link, a pessoa digita os **44 números** da chave. O app abre a
+  consulta pública da Sefaz-RJ pela chave (`www.fazenda.rj.gov.br/nfce/consulta`, endereço impresso
+  no cupom), preenche a chave sozinho (e também a copia) e a pessoa resolve a verificação da Sefaz.
+  ⚠️ Confirmar com uma nota real: o formulário da Sefaz pode mudar.
+- **Nome do ponto de venda:** a nota traz a razão social. O app consulta o CNPJ na Receita (BrasilAPI)
+  e usa o **nome fantasia** quando houver (e o endereço da Receita, se a página da nota não mostrar).
+  Sem nome fantasia, a pessoa pode **sugerir** como o lugar é conhecido. Para não ser mal usado
+  (concorrente, fraude), a sugestão só vale **confirmada**: só sugere quem enviou uma NF daquele CNPJ,
+  e o nome entra na busca quando **2 pessoas diferentes** sugerem o mesmo nome ou o **Admin aprova**.
+  Até lá, a busca mostra a razão social. Nome confirmado não muda por novas sugestões.
+- **Cópia em PDF:** depois de enviar, o app "imprime" em PDF a mesma página da Sefaz e abre o e-mail
+  da pessoa com o PDF anexado e o endereço da conta já preenchido — ela só toca em enviar. (Enviar
+  sozinho, sem abrir o e-mail, exigiria um serviço de e-mail no servidor.)
+
+## Histórico de preços (decisão do fundador: vital para o projeto)
+
+- **Nenhum preço é apagado da história.** A busca mostra só o que está dentro da validade (NF: 7 dias;
+  PDV: até 30), mas toda criação, alteração ou exclusão em `cotacoes` vira uma linha em
+  `historico_precos` (produto, preço, data, loja/CNPJ, nome e endereço do ponto de venda), mesmo que a
+  cotação, a loja ou o usuário sejam excluídos depois. Ninguém altera nem apaga o histórico pelo app;
+  por enquanto só o Admin lê. É a base para o histórico de preços completo no futuro.
+
 ## Nota Fiscal — regras gerais
 
 - Uma chamada `enviar_nota_fiscal` grava todos os itens da nota de uma vez (depois da tela de

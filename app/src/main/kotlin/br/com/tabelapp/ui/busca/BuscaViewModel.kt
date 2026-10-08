@@ -2,6 +2,7 @@ package br.com.tabelapp.ui.busca
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.Busca
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Geo
@@ -32,6 +33,8 @@ data class EstadoBusca(
     /** Posição real do usuário, se ele deu permissão. */
     val posicao: PontoGeo? = null,
     val mostrarDisclaimer: Boolean = false,
+    /** Banners patrocinados para a busca atual (vazio = espaço "Anuncie aqui"). */
+    val banners: List<Banner> = emptyList(),
 )
 
 class BuscaViewModel(
@@ -51,6 +54,7 @@ class BuscaViewModel(
     /** Resultado como veio do servidor, antes da ordenação escolhida na tela. */
     private var brutos: List<Cotacao> = emptyList()
     private var carga: Job? = null
+    private val bannersVistos = mutableSetOf<String>()
 
     init {
         carregar(null)
@@ -79,6 +83,12 @@ class BuscaViewModel(
         reaplicarOrdenacao()
     }
 
+    /** Conta a visualização uma vez por banner nesta abertura da tela. */
+    fun bannerExibido(banner: Banner) {
+        if (!bannersVistos.add(banner.id)) return
+        viewModelScope.launch { cotacoes.registrarVisualizacao(banner.id) }
+    }
+
     fun aceitarDisclaimer() {
         preferencias.disclaimerAceito = true
         _estado.update { it.copy(mostrarDisclaimer = false) }
@@ -95,6 +105,14 @@ class BuscaViewModel(
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
             }
+        }
+        viewModelScope.launch {
+            val banners = try {
+                cotacoes.banners(termo, _estado.value.posicao)
+            } catch (e: ErroAmigavel) {
+                emptyList()
+            }
+            _estado.update { it.copy(banners = banners) }
         }
     }
 

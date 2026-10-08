@@ -44,6 +44,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.core.Cnpj
+import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.PdvRepositorio
@@ -63,6 +64,7 @@ data class EstadoAdmin(
     val alvaras: Map<String, ImageBitmap> = emptyMap(),
     val ocupado: String? = null,
     val erro: String? = null,
+    val nomes: List<NomeSugerido> = emptyList(),
 )
 
 /** Fila de cadastros de PDV esperando análise (só para o Admin). */
@@ -79,7 +81,8 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
         viewModelScope.launch {
             try {
                 val lista = repositorio.pendentes()
-                _estado.update { it.copy(carregando = false, pendentes = lista) }
+                val nomes = repositorio.nomesSugeridos()
+                _estado.update { it.copy(carregando = false, pendentes = lista, nomes = nomes) }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
             }
@@ -96,6 +99,18 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
                 } ?: throw ErroAmigavel("Não consegui abrir a foto do alvará.")
                 _estado.update { it.copy(ocupado = null, alvaras = it.alvaras + (pdv.id to imagem)) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(ocupado = null, erro = e.message) }
+            }
+        }
+    }
+
+    fun decidirNome(n: NomeSugerido, aprovar: Boolean) {
+        _estado.update { it.copy(ocupado = n.cnpj + n.nome, erro = null) }
+        viewModelScope.launch {
+            try {
+                repositorio.decidirNome(n.cnpj, n.nome, aprovar)
+                _estado.update { e -> e.copy(ocupado = null, nomes = e.nomes.filter { it.cnpj != n.cnpj || !aprovar && it != n }) }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(ocupado = null, erro = e.message) }
             }
@@ -152,6 +167,36 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                         aoAprovar = { vm.aprovar(pdv) },
                         aoRejeitar = { rejeitando = pdv },
                     )
+                }
+                if (estado.nomes.isNotEmpty()) {
+                    Text(
+                        "Nomes de estabelecimentos sugeridos (${estado.nomes.size})",
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        "Quem enviou uma NF sugeriu como o lugar é conhecido. Aprovado, o nome aparece na busca " +
+                            "no lugar da razão social.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    estado.nomes.forEach { n ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("\"${n.nome}\"", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("${n.sugestoes} pessoa(s) sugeriram", style = MaterialTheme.typography.bodySmall)
+                                n.razaoSocial?.let { Text("Na nota: $it", style = MaterialTheme.typography.bodySmall) }
+                                Text("CNPJ ${Cnpj.formatar(n.cnpj)}", style = MaterialTheme.typography.bodySmall)
+                                n.endereco?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                val ocupadoNome = estado.ocupado == n.cnpj + n.nome
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                                    OutlinedButton(onClick = { vm.decidirNome(n, false) }, enabled = !ocupadoNome,
+                                        modifier = Modifier.weight(1f)) { Text("Rejeitar") }
+                                    Button(onClick = { vm.decidirNome(n, true) }, enabled = !ocupadoNome,
+                                        modifier = Modifier.weight(1f)) { Text("Aprovar nome") }
+                                }
+                            }
+                        }
+                    }
                 }
                 OutlinedButton(onClick = vm::carregar, modifier = Modifier.fillMaxWidth()) { Text("Atualizar") }
             }

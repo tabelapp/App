@@ -32,7 +32,6 @@ class BuscaTest {
         assertEquals(1899, Busca.ordenar(r, Ordenacao.MENOR_PRECO, null).first().precoCentavos)
         assertEquals(2150, Busca.ordenar(r, Ordenacao.MAIOR_PRECO, null).first().precoCentavos)
         assertEquals("Empório Itaipava", Busca.ordenar(r, Ordenacao.PDV_AZ, null).first().pdvNome)
-        assertEquals(hoje.plusDays(15), Busca.ordenar(r, Ordenacao.VALIDADE, null).first().validade)
 
         // Em Itaipava, o mais perto é o Empório.
         val itaipava = PontoGeo(-22.39, -43.13)

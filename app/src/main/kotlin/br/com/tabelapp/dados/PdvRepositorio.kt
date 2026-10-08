@@ -4,6 +4,7 @@ import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.SaldoCota
@@ -40,4 +41,8 @@ interface PdvRepositorio {
     suspend fun fotoAlvara(caminho: String): ByteArray
     suspend fun aprovar(pdvId: String)
     suspend fun rejeitar(pdvId: String, motivo: String)
+
+    /** Nomes de estabelecimento sugeridos nas NFs, esperando confirmação. */
+    suspend fun nomesSugeridos(): List<NomeSugerido>
+    suspend fun decidirNome(cnpj: String, nome: String, aprovar: Boolean)
 }

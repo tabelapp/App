@@ -30,6 +30,14 @@ import kotlin.coroutines.resume
 
 private const val INTERVALO_MS = 1_500L
 private const val DESISTIR_APOS_MS = 90_000L
+/** Na consulta pela chave digitada o usuário ainda resolve a verificação da Sefaz: mais tempo. */
+private const val DESISTIR_APOS_MS_MANUAL = 240_000L
+
+/**
+ * Consulta pública da NFC-e pela chave de acesso na Sefaz-RJ (é o endereço impresso
+ * no cupom: "Consulte pela Chave de Acesso em www.fazenda.rj.gov.br/nfce/consulta").
+ */
+const val URL_CONSULTA_CHAVE_RJ = "https://www.fazenda.rj.gov.br/nfce/consulta"
 
 /**
  * Abre a consulta da NFC-e (URL do QR Code) DENTRO do celular e lê os produtos.
@@ -49,8 +57,10 @@ fun LeitorSefaz(
     aoLer: (NotaLida) -> Unit,
     aoDesistir: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Recebe o HTML atual a cada leitura (para o diagnóstico, se a leitura falhar). */
-    aoCapturarHtml: (String) -> Unit = {},
+    /** Recebe o HTML e o endereço atuais a cada leitura (diagnóstico e cópia em PDF). */
+    aoCapturarHtml: (html: String, url: String?) -> Unit = { _, _ -> },
+    /** Entrada manual: chave de 44 números para preencher no formulário de consulta da Sefaz. */
+    chaveParaPreencher: String? = null,
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val aoLerAtual by rememberUpdatedState(aoLer)
@@ -74,10 +84,13 @@ fun LeitorSefaz(
 
     LaunchedEffect(url) {
         val inicio = System.currentTimeMillis()
-        while (System.currentTimeMillis() - inicio < DESISTIR_APOS_MS) {
+        val limite = if (chaveParaPreencher != null) DESISTIR_APOS_MS_MANUAL else DESISTIR_APOS_MS
+        while (System.currentTimeMillis() - inicio < limite) {
             delay(INTERVALO_MS)
-            val html = webView?.let { htmlDaPagina(it) } ?: continue
-            aoCapturarHtmlAtual(html)
+            val wv = webView ?: continue
+            chaveParaPreencher?.let { preencherChave(wv, it) }
+            val html = htmlDaPagina(wv) ?: continue
+            aoCapturarHtmlAtual(html, wv.url)
             val nota = withContext(Dispatchers.Default) { runCatching { LeitorNfce.ler(html) }.getOrNull() }
             if (nota != null) {
                 aoLerAtual(nota)
@@ -95,6 +108,37 @@ fun LeitorSefaz(
             }
         }
     }
+}
+
+/**
+ * Preenche a chave no formulário de consulta da Sefaz (o campo cujo nome fala em
+ * "chave" ou que aceita 44 caracteres), se ainda estiver vazio. O usuário só
+ * resolve a verificação ("não sou robô") e toca em consultar.
+ */
+private fun preencherChave(webView: WebView, chave: String) {
+    val digitos = chave.filter { it.isDigit() }
+    webView.evaluateJavascript(
+        """
+        (function(c){
+          var campos = document.querySelectorAll('input');
+          for (var i = 0; i < campos.length; i++) {
+            var e = campos[i];
+            if (e.type && ['text','tel','number','search'].indexOf(e.type) < 0) continue;
+            var nome = ((e.name||'') + ' ' + (e.id||'') + ' ' + (e.placeholder||'')).toLowerCase();
+            if (nome.indexOf('chave') >= 0 || e.maxLength >= 44) {
+              if (!e.value) {
+                e.value = c;
+                e.dispatchEvent(new Event('input', {bubbles: true}));
+                e.dispatchEvent(new Event('change', {bubbles: true}));
+              }
+              return true;
+            }
+          }
+          return false;
+        })('$digitos')
+        """.trimIndent(),
+        null,
+    )
 }
 
 /** HTML atual da página (já com o que o JavaScript da Sefaz montou). */
