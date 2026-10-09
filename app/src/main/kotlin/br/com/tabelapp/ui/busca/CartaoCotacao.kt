@@ -43,6 +43,7 @@ fun CartaoCotacao(
     posicao: PontoGeo?,
     aoAbrirPdv: () -> Unit,
     aoCompartilhar: () -> Unit,
+    aoAbrirMapa: () -> Unit,
 ) {
     val cores = MaterialTheme.colorScheme
     Card(
@@ -96,11 +97,19 @@ fun CartaoCotacao(
             } else {
                 Text(nome, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             }
-            Text(
-                cotacao.endereco ?: "Endereço não informado",
-                style = MaterialTheme.typography.bodySmall,
-                color = cores.onSurfaceVariant,
-            )
+            val endereco = cotacao.endereco?.takeIf { it.isNotBlank() }
+            if (endereco != null) {
+                // Toque no endereço: abre o mapa do celular para chegar até a oferta.
+                Text(
+                    "📍 $endereco",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cores.primary,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.clickable(onClick = aoAbrirMapa),
+                )
+            } else {
+                Text("Endereço não informado", style = MaterialTheme.typography.bodySmall, color = cores.onSurfaceVariant)
+            }
             Surface(color = cores.tertiaryContainer, shape = MaterialTheme.shapes.small) {
                 Text(
                     Obs.exibir(cotacao),

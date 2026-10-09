@@ -187,6 +187,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                                 posicao = estado.posicao,
                                 aoAbrirPdv = { pdvAberto = cotacao },
                                 aoCompartilhar = { escopo.launch { CompartilharPreco.compartilhar(contexto, cotacao) } },
+                                aoAbrirMapa = { abrirNoMapa(contexto, cotacao) },
                             )
                         }
                     }
@@ -273,6 +274,14 @@ private fun DialogoPdv(cotacao: Cotacao, aoFechar: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = aoFechar) { Text("Fechar") } },
     )
+}
+
+/** Abre o endereço do ponto de venda no app de mapas (Google Maps, Waze...). */
+internal fun abrirNoMapa(contexto: Context, cotacao: Cotacao) {
+    val endereco = cotacao.endereco?.takeIf { it.isNotBlank() } ?: return
+    val local = cotacao.local
+    val geo = if (local != null) "geo:${local.latitude},${local.longitude}?q=" else "geo:0,0?q="
+    abrir(contexto, Intent(Intent.ACTION_VIEW, (geo + android.net.Uri.encode(endereco)).toUri()))
 }
 
 internal fun abrir(contexto: Context, intent: Intent) {

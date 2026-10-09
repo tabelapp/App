@@ -254,7 +254,7 @@ private data class CotacaoDto(
         pdvId = pdvId,
         pdvNome = pdvNome,
         lojaNome = lojaNome,
-        endereco = endereco,
+        endereco = endereco?.takeIf { it.isNotBlank() },
         telefone = telefone,
         site = site,
         local = if (latitude != null && longitude != null) PontoGeo(latitude, longitude) else null,

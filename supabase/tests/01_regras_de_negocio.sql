@@ -139,6 +139,9 @@ begin
           where lote_id = (v ->> 'lote_id')::uuid);
   assert (select bool_and(data_nf = public.hoje()) from public.buscar_cotacoes('manteiga 200g')
           where fonte = 'usuario_nf');
+  -- Estabelecimento não cadastrado: o card mostra o endereço lido da nota.
+  assert (select endereco from public.buscar_cotacoes('manteiga 200g') where fonte = 'usuario_nf')
+         = 'Avenida Koeler, 10 - Centro', 'endereço da nota na busca';
   assert (select count(*) from public.cotacoes
           where lote_id = (v ->> 'lote_id')::uuid and fonte = 'usuario_nf'
             and chave_acesso_nf = pg_temp.chave('11111111000191', 9999)) = 3;
