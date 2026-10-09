@@ -81,10 +81,15 @@ object Planilha {
         return Resultado(linhas, erros)
     }
 
-    private fun lerData(texto: String): LocalDate? =
-        try {
+    private fun lerData(texto: String): LocalDate? {
+        // Data guardada pelo Excel como número de dias (ex.: "46300" ou "46300.0").
+        texto.toDoubleOrNull()?.let { serial ->
+            if (serial in 30000.0..80000.0) return LocalDate.of(1899, 12, 30).plusDays(serial.toLong())
+        }
+        return try {
             if ('-' in texto) LocalDate.parse(texto.take(10)) else LocalDate.parse(texto, formatoBr)
         } catch (e: DateTimeParseException) {
             null
         }
+    }
 }

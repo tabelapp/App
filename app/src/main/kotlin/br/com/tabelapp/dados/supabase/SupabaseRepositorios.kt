@@ -14,7 +14,11 @@ import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
+import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.Planilha
+import br.com.tabelapp.core.PromocaoPdv
+import br.com.tabelapp.core.SimulacaoImportacao
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.SaldoCota
 import br.com.tabelapp.core.PontoGeo
@@ -293,6 +297,7 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
                 id = d.id, pdvNome = d.pdvNome, titulo = d.titulo, descricao = d.descricao,
                 // Artes ficam no bucket público "promocoes".
                 imagemUrl = d.artePath?.let { supabase.storage.from("promocoes").publicUrl(it) },
+                link = d.link,
             )
         }
     }
@@ -311,6 +316,7 @@ private data class BannerDto(
     val titulo: String,
     val descricao: String? = null,
     @SerialName("arte_path") val artePath: String? = null,
+    val link: String? = null,
 )
 
 @Serializable
@@ -372,10 +378,62 @@ private data class MeuPdvDto(
     @SerialName("cnpj_conferido_no_alvara") val cnpjConferidoNoAlvara: Boolean = false,
     @SerialName("created_at") val createdAt: String,
     @SerialName("modo_rede") val modoRede: Boolean = true,
+    val site: String? = null,
 )
 
 @Serializable
-private data class LojaPdvDto(val id: String, val nome: String? = null, val endereco: String, val telefone: String? = null)
+private data class LojaPdvDto(
+    val id: String,
+    val nome: String? = null,
+    val endereco: String,
+    val telefone: String? = null,
+    val logradouro: String? = null,
+    val bairro: String? = null,
+    val cidade: String? = null,
+    val uf: String? = null,
+    val whatsapp: String? = null,
+)
+
+@Serializable
+private data class SimulacaoDto(
+    val criados: Int = 0,
+    val aumentados: Int = 0,
+    val diminuidos: Int = 0,
+    val inalterados: Int = 0,
+    val operacoes: Int = 0,
+    val restantes: Int = 0,
+    @SerialName("cabe_na_cota") val cabeNaCota: Boolean = true,
+    @SerialName("pacotes_necessarios") val pacotesNecessarios: Int = 0,
+)
+
+@Serializable
+private data class PromocaoDto(
+    val id: String,
+    val titulo: String,
+    val descricao: String? = null,
+    val link: String? = null,
+    @SerialName("arte_path") val artePath: String? = null,
+    @SerialName("palavras_chave") val palavrasChave: List<String> = emptyList(),
+    val status: String,
+    @SerialName("visualizacoes_contratadas") val contratadas: Int = 0,
+    @SerialName("visualizacoes_exibidas") val exibidas: Int = 0,
+    @SerialName("pagamento_pendente_id") val pagamentoPendenteId: String? = null,
+    @SerialName("valor_pendente_centavos") val valorPendente: Long? = null,
+    @SerialName("visualizacoes_pendentes") val visualizacoesPendentes: Int? = null,
+)
+
+@Serializable
+private data class PagamentoPendenteDto(
+    val id: String,
+    val tipo: String,
+    @SerialName("pdv_nome") val pdvNome: String,
+    val descricao: String,
+    val quantidade: Int,
+    @SerialName("valor_centavos") val valorCentavos: Long,
+    @SerialName("dono_nome") val donoNome: String? = null,
+    @SerialName("dono_email") val donoEmail: String? = null,
+    @SerialName("created_at") val createdAt: String,
+)
 
 @Serializable
 private data class PrecoPdvDto(
@@ -431,7 +489,7 @@ class SupabasePdvRepositorio(
                 id = d.id, cnpj = d.cnpj, razaoSocial = d.razaoSocial, nomeFantasia = d.nomeFantasia,
                 status = StatusPdv.doCodigo(d.status), motivoRejeicao = d.motivoRejeicao,
                 cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara, enviadoEm = instante(d.createdAt),
-                modoRede = d.modoRede,
+                modoRede = d.modoRede, site = d.site,
             )
         }
     }
@@ -439,7 +497,124 @@ class SupabasePdvRepositorio(
     override suspend fun lojas(pdvId: String): List<LojaPdv> = traduzindoErros {
         supabase.postgrest.rpc("minhas_lojas", buildJsonObject { put("p_pdv_id", pdvId) })
             .decodeList<LojaPdvDto>()
-            .map { LojaPdv(it.id, it.nome, it.endereco, it.telefone) }
+            .map {
+                LojaPdv(it.id, it.nome, it.endereco, it.telefone, it.logradouro.orEmpty(), it.bairro, it.cidade, it.uf, it.whatsapp)
+            }
+    }
+
+    override suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?) = traduzindoErros {
+        supabase.postgrest.rpc("atualizar_pdv", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_nome_fantasia", nomeFantasia.trim())
+            put("p_site", site?.trim())
+        })
+        Unit
+    }
+
+    override suspend fun atualizarLoja(loja: LojaPdv) = traduzindoErros {
+        supabase.postgrest.rpc("atualizar_loja", buildJsonObject {
+            put("p_loja_id", loja.id)
+            put("p_nome", loja.nome)
+            put("p_endereco", loja.logradouro)
+            put("p_bairro", loja.bairro)
+            put("p_cidade", loja.cidade)
+            put("p_telefone", loja.telefone)
+            put("p_whatsapp", loja.whatsapp)
+        })
+        Unit
+    }
+
+    private fun itensPlanilha(linhas: List<Planilha.Linha>) = buildJsonArray {
+        linhas.forEach { l ->
+            addJsonObject {
+                put("produto", l.produto)
+                put("preco_centavos", l.precoCentavos)
+                put("validade", l.validade.toString())
+                l.obs?.let { put("obs", it) }
+            }
+        }
+    }
+
+    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): SimulacaoImportacao =
+        traduzindoErros {
+            val d = supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
+                put("p_pdv_id", pdvId)
+                put("p_loja_id", lojaId)
+                put("p_itens", itensPlanilha(linhas))
+                put("p_fonte", "pdv_excel")
+                put("p_simular", true)
+            }).decodeAs<SimulacaoDto>()
+            SimulacaoImportacao(d.criados, d.aumentados, d.diminuidos, d.inalterados, d.operacoes, d.restantes,
+                d.cabeNaCota, d.pacotesNecessarios)
+        }
+
+    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): Int =
+        traduzindoErros {
+            supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
+                put("p_pdv_id", pdvId)
+                put("p_loja_id", lojaId)
+                put("p_itens", itensPlanilha(linhas))
+                put("p_fonte", "pdv_excel")
+            }).decodeAs<SimulacaoDto>().operacoes
+        }
+
+    override suspend fun promocoes(pdvId: String): List<PromocaoPdv> = traduzindoErros {
+        supabase.postgrest.rpc("minhas_promocoes", buildJsonObject { put("p_pdv_id", pdvId) })
+            .decodeList<PromocaoDto>().map {
+                PromocaoPdv(it.id, it.titulo, it.descricao, it.link, it.artePath, it.palavrasChave, it.status,
+                    it.contratadas, it.exibidas, it.pagamentoPendenteId, it.valorPendente, it.visualizacoesPendentes)
+            }
+    }
+
+    override suspend fun enviarArte(pdvId: String, jpeg: ByteArray): String = traduzindoErros {
+        // A regra do bucket público "promocoes" exige a pasta do próprio PDV.
+        val caminho = "$pdvId/${java.util.UUID.randomUUID()}.jpg"
+        supabase.storage.from("promocoes").upload(caminho, jpeg) { upsert = false }
+        caminho
+    }
+
+    override suspend fun criarPromocao(
+        pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
+        palavrasChave: List<String>, visualizacoes: Int,
+    ): String = traduzindoErros {
+        supabase.postgrest.rpc("criar_promocao", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_titulo", titulo.trim())
+            put("p_descricao", descricao?.trim())
+            put("p_link", link?.trim())
+            put("p_arte_path", artePath)
+            put("p_palavras_chave", buildJsonArray { palavrasChave.forEach { add(JsonPrimitive(it)) } })
+            put("p_visualizacoes", visualizacoes)
+        }).decodeAs<String>()
+    }
+
+    override suspend fun excluirPromocao(promocaoId: String): Boolean = traduzindoErros {
+        supabase.postgrest.rpc("encerrar_promocao", buildJsonObject { put("p_promocao_id", promocaoId) })
+            .decodeAs<String>() == "excluida"
+    }
+
+    override suspend fun comprarPacoteOperacoes(pdvId: String, lojaId: String): String = traduzindoErros {
+        supabase.postgrest.rpc("comprar_pacote_operacoes", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_loja_id", lojaId)
+        }).decodeAs<String>()
+    }
+
+    override suspend fun pagamentosPendentes(): List<PagamentoPendente> = traduzindoErros {
+        supabase.postgrest.rpc("pagamentos_pendentes").decodeList<PagamentoPendenteDto>().map {
+            PagamentoPendente(it.id, it.tipo, it.pdvNome, it.descricao, it.quantidade, it.valorCentavos,
+                it.donoNome, it.donoEmail, instante(it.createdAt))
+        }
+    }
+
+    override suspend fun confirmarPagamento(pagamentoId: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_confirmar_pagamento", buildJsonObject { put("p_pagamento_id", pagamentoId) })
+        Unit
+    }
+
+    override suspend fun cancelarPagamento(pagamentoId: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_cancelar_pagamento", buildJsonObject { put("p_pagamento_id", pagamentoId) })
+        Unit
     }
 
     override suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv> = traduzindoErros {

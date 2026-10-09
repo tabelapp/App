@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +47,7 @@ fun CartaoCotacao(
     aoAbrirPdv: () -> Unit,
     aoCompartilhar: () -> Unit,
     aoAbrirMapa: () -> Unit,
+    aoChamarNoWhatsApp: () -> Unit,
 ) {
     val cores = MaterialTheme.colorScheme
     Card(
@@ -53,19 +57,19 @@ fun CartaoCotacao(
         border = if (maisBarato) BorderStroke(2.dp, cores.primary) else null,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(start = 12.dp, top = 8.dp, end = 4.dp, bottom = 0.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             // 1. Produto e preço — o principal.
             Row(verticalAlignment = Alignment.Top) {
                 Text(
                     cotacao.produto,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f).padding(end = 8.dp),
                 )
-                Column(horizontalAlignment = Alignment.End) {
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
                     Text(
                         Dinheiro.formatar(cotacao.precoCentavos),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = cores.primary,
                     )
@@ -88,14 +92,14 @@ fun CartaoCotacao(
             if (cotacao.pdvCadastrado) {
                 Text(
                     nome,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = cores.primary,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable(onClick = aoAbrirPdv),
                 )
             } else {
-                Text(nome, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(nome, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
             }
             val endereco = cotacao.endereco?.takeIf { it.isNotBlank() }
             if (endereco != null) {
@@ -113,7 +117,7 @@ fun CartaoCotacao(
             Surface(color = cores.tertiaryContainer, shape = MaterialTheme.shapes.small) {
                 Text(
                     Obs.exibir(cotacao),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = cores.onTertiaryContainer,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
@@ -123,14 +127,20 @@ fun CartaoCotacao(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val distancia = Geo.distanciaKm(posicao, cotacao.local)?.let(Geo::formatarDistancia)
                 Text(
-                    listOfNotNull(Validade.exibir(cotacao), distancia, cotacao.telefone?.let { "Tel. $it" })
-                        .joinToString(" · "),
+                    listOfNotNull(Validade.exibir(cotacao), distancia).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
                     color = cores.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = aoCompartilhar) {
-                    Icon(Icons.Default.Share, contentDescription = "Enviar este preço pelo WhatsApp", Modifier.size(20.dp))
+                // Contato do comércio: abre o WhatsApp dele com uma mensagem sobre a oferta.
+                if (!cotacao.telefone.isNullOrBlank()) {
+                    TextButton(onClick = aoChamarNoWhatsApp, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, Modifier.size(16.dp))
+                        Text(" WhatsApp", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                IconButton(onClick = aoCompartilhar, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Share, contentDescription = "Enviar este preço pelo WhatsApp", Modifier.size(18.dp))
                 }
             }
         }

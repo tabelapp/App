@@ -22,4 +22,6 @@ data class Banner(
     val descricao: String?,
     /** Endereço público da arte; null = banner só com texto. */
     val imagemUrl: String?,
+    /** Página aberta ao tocar no banner (site, Instagram, cardápio...). */
+    val link: String? = null,
 )

@@ -2,6 +2,7 @@ package br.com.tabelapp.ui.busca
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +44,13 @@ val ALTURA_BANNER: Dp = 136.dp
  * "Anuncie aqui" do próprio Tabelapp — o espaço nunca fica vazio.
  */
 @Composable
-fun BannerPatrocinado(banners: List<Banner>, aoExibir: (Banner) -> Unit, modifier: Modifier = Modifier) {
+fun BannerPatrocinado(
+    banners: List<Banner>,
+    aoExibir: (Banner) -> Unit,
+    /** Toque no banner (null = espaço "Anuncie aqui"). */
+    aoTocar: (Banner?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var indice by remember(banners) { mutableIntStateOf(0) }
     LaunchedEffect(banners) {
         while (banners.size > 1) {
@@ -59,7 +66,8 @@ fun BannerPatrocinado(banners: List<Banner>, aoExibir: (Banner) -> Unit, modifie
             .fillMaxWidth()
             .height(ALTURA_BANNER)
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { aoTocar(atual) },
     ) {
         Crossfade(targetState = atual, label = "banner") { b ->
             val url = b?.imagemUrl
@@ -117,6 +125,6 @@ private fun AnuncieAqui() {
             "Seu comércio em destaque para quem está pesquisando preços em Petrópolis.",
             color = PretoLupa, style = MaterialTheme.typography.bodyMedium,
         )
-        Text("Cadastre seu estabelecimento no Tabelapp.", color = PretoLupa, style = MaterialTheme.typography.labelSmall)
+        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelSmall)
     }
 }

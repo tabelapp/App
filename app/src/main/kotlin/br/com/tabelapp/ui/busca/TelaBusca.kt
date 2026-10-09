@@ -62,6 +62,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.ContatoTabelapp
+import br.com.tabelapp.core.Mensagens
+import br.com.tabelapp.ui.principal.QuemSomos
+import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.dados.Usuario
 import kotlinx.coroutines.launch
@@ -114,7 +118,17 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
         },
     ) { margens ->
         Column(Modifier.padding(margens).fillMaxSize()) {
-            BannerPatrocinado(estado.banners, aoExibir = vm::bannerExibido)
+            BannerPatrocinado(
+                estado.banners,
+                aoExibir = vm::bannerExibido,
+                aoTocar = { banner ->
+                    if (banner == null) {
+                        WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.QUERO_ANUNCIAR)
+                    } else {
+                        banner.link?.let { abrir(contexto, Intent(Intent.ACTION_VIEW, it.toUri())) }
+                    }
+                },
+            )
             OutlinedTextField(
                 value = estado.texto,
                 onValueChange = vm::aoDigitar,
@@ -177,8 +191,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                     )
 
                     else -> LazyColumn(
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         items(estado.resultados, key = { it.id }) { cotacao ->
                             CartaoCotacao(
@@ -188,6 +202,9 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                                 aoAbrirPdv = { pdvAberto = cotacao },
                                 aoCompartilhar = { escopo.launch { CompartilharPreco.compartilhar(contexto, cotacao) } },
                                 aoAbrirMapa = { abrirNoMapa(contexto, cotacao) },
+                                aoChamarNoWhatsApp = {
+                                    cotacao.telefone?.let { WhatsApp.abrirConversa(contexto, it, Mensagens.interesseNaOferta(cotacao)) }
+                                },
                             )
                         }
                     }
@@ -218,6 +235,9 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
 @Composable
 private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
     var aberto by remember { mutableStateOf(false) }
+    var quemSomos by remember { mutableStateOf(false) }
+    val contexto = LocalContext.current
+    if (quemSomos) QuemSomos(aoFechar = { quemSomos = false })
     Box {
         IconButton(onClick = { aberto = true }) {
             Icon(Icons.Default.MoreVert, contentDescription = "Menu")
@@ -227,6 +247,15 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
                 usuario.nome ?: usuario.email.orEmpty(),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            HorizontalDivider()
+            DropdownMenuItem(text = { Text("Quem somos") }, onClick = { aberto = false; quemSomos = true })
+            DropdownMenuItem(
+                text = { Text("Fale conosco (WhatsApp)") },
+                onClick = {
+                    aberto = false
+                    WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.FALE_CONOSCO)
+                },
             )
             HorizontalDivider()
             DropdownMenuItem(text = { Text("Sair") }, onClick = { aberto = false; aoSair() })
@@ -255,11 +284,12 @@ private fun DialogoPdv(cotacao: Cotacao, aoFechar: () -> Unit) {
                     )
                 }
                 cotacao.telefone?.let { tel ->
+                    // Contato pelo WhatsApp, já com a mensagem sobre a oferta.
                     Text(
-                        tel,
+                        "💬 WhatsApp: $tel",
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable {
-                            abrir(contexto, Intent(Intent.ACTION_DIAL, "tel:${tel.filter { it.isDigit() }}".toUri()))
+                            WhatsApp.abrirConversa(contexto, tel, Mensagens.interesseNaOferta(cotacao))
                         },
                     )
                 }

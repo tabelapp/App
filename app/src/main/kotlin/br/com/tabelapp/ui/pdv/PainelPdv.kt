@@ -1,5 +1,7 @@
 package br.com.tabelapp.ui.pdv
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +19,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,7 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoPdv
+import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoPreco
 import br.com.tabelapp.core.RegrasCota
 import br.com.tabelapp.core.SaldoCota
@@ -62,12 +70,19 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** Área do PDV aprovado: saldo de operações e tabela de preços oficial. */
+/** Área do PDV aprovado: cadastro, saldo de operações, tabela de preços oficial e promoções. */
 @Composable
 fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     val vm: PainelPdvViewModel = viewModel(key = "painel-${pdv.id}") { PainelPdvViewModel(container.pdvs, pdv) }
     val estado by vm.estado.collectAsStateWithLifecycle()
+    val contexto = LocalContext.current
     var excluindo by remember { mutableStateOf<PrecoPdv?>(null) }
+    var excluindoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
+    var editandoCadastro by remember { mutableStateOf(false) }
+    var criandoPromocao by remember { mutableStateOf(false) }
+    val seletorPlanilha = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) lerArquivoPlanilha(contexto, uri)?.let { (bytes, nome) -> vm.abrirPlanilha(bytes, nome) }
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -76,8 +91,25 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(pdv.nomeFantasia, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                estado.loja?.let { Text(it.endereco, style = MaterialTheme.typography.bodySmall) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(estado.nomeFantasia, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f))
+                    if (estado.loja != null) {
+                        TextButton(onClick = { editandoCadastro = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Editar dados")
+                        }
+                    }
+                }
+                estado.loja?.let { l ->
+                    Text(l.endereco, style = MaterialTheme.typography.bodySmall)
+                    val contatos = listOfNotNull(l.telefone?.let { "Tel. $it" }, l.whatsapp?.let { "WhatsApp $it" }, estado.site)
+                    if (contatos.isNotEmpty()) {
+                        Text(contatos.joinToString(" · "), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 if (!pdv.modoRede && estado.lojas.size > 1) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         estado.lojas.forEach { l ->
@@ -91,7 +123,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 }
             }
         }
-        item { estado.cota?.let { CartaoCota(it) } }
+        item { estado.cota?.let { CartaoCota(it, aoComprar = vm::comprarPacote) } }
         item {
             Button(onClick = vm::novoItem, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Add, contentDescription = null)
@@ -99,6 +131,27 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 Text("Adicionar produto")
             }
         }
+        item { Column {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { seletorPlanilha.launch(TIPOS_PLANILHA) }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Enviar planilha")
+                }
+                OutlinedButton(onClick = { compartilharModeloPlanilha(contexto) }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Modelo")
+                }
+            }
+            Text(
+                "Planilha Excel (.xlsx) ou .csv com as colunas Produto, Preço, Validade e OBS. " +
+                    "Antes de publicar, o app mostra quantas operações vai usar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } }
         estado.mensagem?.let { m -> item { Text(m, color = MaterialTheme.colorScheme.primary) } }
         estado.erro?.let { m -> item { Text(m, color = MaterialTheme.colorScheme.error) } }
         item {
@@ -134,14 +187,85 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         items(estado.precosFiltrados, key = { it.id }) { p ->
             LinhaPreco(p, aoEditar = { vm.editar(p) }, aoExcluir = { excluindo = p })
         }
-        item {
+        item { Column {
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text("Promoções (banner na busca)", fontWeight = FontWeight.Bold)
             Text(
-                "Planilha de preços e promoções: em breve.",
+                "Seu banner aparece no topo da busca para quem procura as palavras escolhidas. " +
+                    "Pacotes de 100, 250 ou 500 visualizações.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
+            )
+        } }
+        item {
+            Button(onClick = { criandoPromocao = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Campaign, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Criar promoção")
+            }
+        }
+        items(estado.promocoes, key = { "promo-" + it.id }) { p ->
+            CartaoPromocao(p, aoPagar = { vm.pagarPromocao(p) }, aoExcluir = { excluindoPromocao = p })
+        }
+    }
+
+    if (editandoCadastro) {
+        estado.loja?.let { loja ->
+            DialogoCadastro(
+                nomeAtual = estado.nomeFantasia,
+                siteAtual = estado.site,
+                loja = loja,
+                aoSalvar = { nome, site, l -> vm.salvarCadastro(nome, site, l) { editandoCadastro = false } },
+                aoFechar = { editandoCadastro = false },
             )
         }
+    }
+
+    if (criandoPromocao) {
+        DialogoPromocao(
+            imagens = container.imagens,
+            aoCriar = { titulo, descricao, link, arte, palavras, vis, aoErro, aoTerminar ->
+                vm.criarPromocao(titulo, descricao, link, arte, palavras, vis, aoErro) {
+                    aoTerminar()
+                    criandoPromocao = false
+                }
+            },
+            aoFechar = { criandoPromocao = false },
+        )
+    }
+
+    estado.planilha?.let { p ->
+        DialogoPlanilha(
+            estado = p,
+            aoImportar = vm::importarPlanilha,
+            aoComprarPacote = vm::comprarPacote,
+            aoConferirDeNovo = vm::refazerSimulacao,
+            aoFechar = vm::fecharPlanilha,
+        )
+    }
+
+    estado.pagamentoCriado?.let { pg ->
+        DialogoPagamento(pdvNome = estado.nomeFantasia, pagamento = pg, aoFechar = vm::fecharPagamento)
+    }
+
+    excluindoPromocao?.let { p ->
+        AlertDialog(
+            onDismissRequest = { excluindoPromocao = null },
+            title = { Text("Excluir a promoção \"${p.titulo}\"?") },
+            text = {
+                Text(
+                    if (p.status == "aguardando_pagamento") "O pedido de pagamento também é cancelado."
+                    else "O banner sai do ar. Visualizações não usadas não são devolvidas."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.excluirPromocao(p)
+                    excluindoPromocao = null
+                }) { Text("Excluir") }
+            },
+            dismissButton = { TextButton(onClick = { excluindoPromocao = null }) { Text("Cancelar") } },
+        )
     }
 
     estado.rascunho?.let { r ->
@@ -174,7 +298,43 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
 }
 
 @Composable
-private fun CartaoCota(cota: SaldoCota) {
+private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoExcluir: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(p.titulo, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        p.rotuloStatus,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = when (p.status) {
+                            "ativa" -> MaterialTheme.colorScheme.primary
+                            "aguardando_pagamento" -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+                IconButton(onClick = aoExcluir) { Icon(Icons.Default.Delete, contentDescription = "Excluir promoção") }
+            }
+            if (p.visualizacoesContratadas > 0) {
+                Text("Visualizações: ${p.visualizacoesExibidas} de ${p.visualizacoesContratadas}",
+                    style = MaterialTheme.typography.bodySmall)
+            }
+            if (p.palavrasChave.isNotEmpty()) {
+                Text("Palavras: ${p.palavrasChave.joinToString(", ")}", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (p.pagamentoPendenteId != null) {
+                TextButton(onClick = aoPagar) {
+                    Text("Pagar ${p.valorPendenteCentavos?.let { Dinheiro.formatar(it) }.orEmpty()}".trim())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CartaoCota(cota: SaldoCota, aoComprar: () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -188,6 +348,9 @@ private fun CartaoCota(cota: SaldoCota) {
                 "Criar produto ou aumentar preço usa 1 operação. Baixar preço, mudar OBS/validade e excluir são grátis.",
                 style = MaterialTheme.typography.bodySmall,
             )
+            OutlinedButton(onClick = aoComprar, modifier = Modifier.fillMaxWidth()) {
+                Text("Comprar +50 operações (R$ 10)")
+            }
         }
     }
 }

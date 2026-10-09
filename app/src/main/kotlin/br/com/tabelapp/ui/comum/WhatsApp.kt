@@ -31,6 +31,32 @@ object WhatsApp {
         })
     }
 
+    /**
+     * Abre uma conversa com [numero] já com [texto] escrito. Aceita "(24) 98802-9067",
+     * "24988029067" ou "5524988029067"; sem código do país, usa o do Brasil (55).
+     */
+    fun abrirConversa(contexto: Context, numero: String, texto: String) {
+        val digitos = numero.filter { it.isDigit() }.let { if (it.length in 10..11) "55$it" else it }
+        if (digitos.length < 12) {
+            Toast.makeText(contexto, "Número de WhatsApp inválido.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = Uri.parse("https://wa.me/$digitos?text=" + Uri.encode(texto))
+        for (pacote in pacotes) {
+            try {
+                contexto.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(pacote))
+                return
+            } catch (e: ActivityNotFoundException) {
+                // Não instalado: tenta o próximo.
+            }
+        }
+        try {
+            contexto.startActivity(Intent(Intent.ACTION_VIEW, uri)) // abre no navegador (wa.me)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(contexto, "WhatsApp não encontrado.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun enviar(contexto: Context, base: Intent) {
         for (pacote in pacotes) {
             try {

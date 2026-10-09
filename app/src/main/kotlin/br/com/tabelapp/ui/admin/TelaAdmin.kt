@@ -44,7 +44,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.core.Cnpj
+import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.NomeSugerido
+import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.PdvRepositorio
@@ -57,6 +59,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class EstadoAdmin(
     val carregando: Boolean = true,
@@ -65,6 +69,7 @@ data class EstadoAdmin(
     val ocupado: String? = null,
     val erro: String? = null,
     val nomes: List<NomeSugerido> = emptyList(),
+    val pagamentos: List<PagamentoPendente> = emptyList(),
 )
 
 /** Fila de cadastros de PDV esperando análise (só para o Admin). */
@@ -82,7 +87,8 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
             try {
                 val lista = repositorio.pendentes()
                 val nomes = repositorio.nomesSugeridos()
-                _estado.update { it.copy(carregando = false, pendentes = lista, nomes = nomes) }
+                val pagamentos = repositorio.pagamentosPendentes()
+                _estado.update { it.copy(carregando = false, pendentes = lista, nomes = nomes, pagamentos = pagamentos) }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
             }
@@ -117,6 +123,19 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
         }
     }
 
+    /** Confirma (libera o banner/as operações) ou cancela um pedido de pagamento. */
+    fun decidirPagamento(p: PagamentoPendente, confirmar: Boolean) {
+        _estado.update { it.copy(ocupado = p.id, erro = null) }
+        viewModelScope.launch {
+            try {
+                if (confirmar) repositorio.confirmarPagamento(p.id) else repositorio.cancelarPagamento(p.id)
+                _estado.update { e -> e.copy(ocupado = null, pagamentos = e.pagamentos.filter { it.id != p.id }) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(ocupado = null, erro = e.message) }
+            }
+        }
+    }
+
     fun aprovar(pdv: PdvPendente) = decidir(pdv) { repositorio.aprovar(pdv.id) }
 
     fun rejeitar(pdv: PdvPendente, motivo: String) = decidir(pdv) { repositorio.rejeitar(pdv.id, motivo) }
@@ -140,10 +159,11 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
     val vm: AdminViewModel = viewModel(key = "admin-${usuario.id}") { AdminViewModel(container.pdvs) }
     val estado by vm.estado.collectAsStateWithLifecycle()
     var rejeitando by remember { mutableStateOf<PdvPendente?>(null) }
+    var confirmando by remember { mutableStateOf<PagamentoPendente?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = { Text("Admin — cadastros", fontWeight = FontWeight.Bold) }, colors = coresBarraTopo()) },
+        topBar = { TopAppBar(title = { Text("Admin", fontWeight = FontWeight.Bold) }, colors = coresBarraTopo()) },
     ) { margens ->
         Box(Modifier.padding(margens).fillMaxSize()) {
             Column(
@@ -198,9 +218,44 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                         }
                     }
                 }
+                if (estado.pagamentos.isNotEmpty()) {
+                    Text(
+                        "Pagamentos esperando confirmação (${estado.pagamentos.size})",
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        "Confirme só depois de ver o Pix na conta. Confirmado, o banner entra no ar ou as operações " +
+                            "são liberadas na hora.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    estado.pagamentos.forEach { p ->
+                        CartaoPagamento(
+                            p = p,
+                            ocupado = estado.ocupado == p.id,
+                            aoConfirmar = { confirmando = p },
+                            aoCancelar = { vm.decidirPagamento(p, confirmar = false) },
+                        )
+                    }
+                }
                 OutlinedButton(onClick = vm::carregar, modifier = Modifier.fillMaxWidth()) { Text("Atualizar") }
             }
         }
+    }
+
+    confirmando?.let { p ->
+        AlertDialog(
+            onDismissRequest = { confirmando = null },
+            title = { Text("Confirmar ${Dinheiro.formatar(p.valorCentavos)}?") },
+            text = { Text("${p.pdvNome}: ${p.descricao}. Código ${p.id.take(8).uppercase()}. O Pix já caiu na conta?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.decidirPagamento(p, confirmar = true)
+                    confirmando = null
+                }) { Text("Confirmar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmando = null }) { Text("Voltar") } },
+        )
     }
 
     rejeitando?.let { pdv ->
@@ -283,6 +338,35 @@ private fun CartaoPendente(
             if (alvara == null) {
                 Text("Veja o alvará antes de aprovar.", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+private val formatoData = DateTimeFormatter.ofPattern("dd/MM HH:mm")
+
+@Composable
+private fun CartaoPagamento(p: PagamentoPendente, ocupado: Boolean, aoConfirmar: () -> Unit, aoCancelar: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(p.pdvNome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+                Text(Dinheiro.formatar(p.valorCentavos), style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            Text(p.descricao)
+            Text("Código ${p.id.take(8).uppercase()} · ${formatoData.format(p.criadoEm.atZone(ZoneId.of("America/Sao_Paulo")))}",
+                style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Pedido por: ${listOfNotNull(p.donoNome, p.donoEmail).joinToString(" — ").ifEmpty { "—" }}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = aoCancelar, enabled = !ocupado, modifier = Modifier.weight(1f)) { Text("Cancelar pedido") }
+                Button(onClick = aoConfirmar, enabled = !ocupado, modifier = Modifier.weight(1f)) {
+                    if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Pago")
+                }
             }
         }
     }

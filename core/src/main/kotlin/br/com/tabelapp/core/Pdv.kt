@@ -26,10 +26,21 @@ data class MeuPdv(
     val enviadoEm: Instant,
     /** true = "modo rede": a tabela de preços vale para todas as lojas. */
     val modoRede: Boolean = true,
+    val site: String? = null,
 )
 
-/** Uma loja do PDV. */
-data class LojaPdv(val id: String, val nome: String?, val endereco: String, val telefone: String?)
+/** Uma loja do PDV. [endereco] é o completo (para exibir); os outros campos são para editar. */
+data class LojaPdv(
+    val id: String,
+    val nome: String?,
+    val endereco: String,
+    val telefone: String?,
+    val logradouro: String = "",
+    val bairro: String? = null,
+    val cidade: String? = null,
+    val uf: String? = null,
+    val whatsapp: String? = null,
+)
 
 /** Um item da tabela de preços oficial do PDV. */
 data class PrecoPdv(
@@ -140,3 +151,59 @@ data class NomeSugerido(
     val razaoSocial: String?,
     val endereco: String?,
 )
+
+/** Resultado da prévia de uma importação de planilha (função pdv_salvar_precos com simular). */
+data class SimulacaoImportacao(
+    val criados: Int,
+    val aumentados: Int,
+    val diminuidos: Int,
+    val inalterados: Int,
+    val operacoes: Int,
+    val restantes: Int,
+    val cabeNaCota: Boolean,
+    val pacotesNecessarios: Int,
+)
+
+/** Promoção (banner pago) do PDV. */
+data class PromocaoPdv(
+    val id: String,
+    val titulo: String,
+    val descricao: String?,
+    val link: String?,
+    val artePath: String?,
+    val palavrasChave: List<String>,
+    /** aguardando_pagamento | ativa | pausada | esgotada */
+    val status: String,
+    val visualizacoesContratadas: Int,
+    val visualizacoesExibidas: Int,
+    val pagamentoPendenteId: String?,
+    val valorPendenteCentavos: Long?,
+    val visualizacoesPendentes: Int?,
+) {
+    val rotuloStatus: String
+        get() = when (status) {
+            "aguardando_pagamento" -> "Aguardando pagamento"
+            "ativa" -> "No ar"
+            "pausada" -> "Pausada"
+            "esgotada" -> "Visualizações esgotadas"
+            else -> status
+        }
+}
+
+/** Pagamento esperando confirmação do Admin (até o Pix automático). */
+data class PagamentoPendente(
+    val id: String,
+    val tipo: String,
+    val pdvNome: String,
+    val descricao: String,
+    val quantidade: Int,
+    val valorCentavos: Long,
+    val donoNome: String?,
+    val donoEmail: String?,
+    val criadoEm: Instant,
+)
+
+/** Contato oficial do Tabelapp (WhatsApp). */
+object ContatoTabelapp {
+    const val WHATSAPP = "5524988029067"
+}

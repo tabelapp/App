@@ -183,6 +183,20 @@ Para ninguém cadastrar uma empresa que não é sua:
   Visualizações são contadas por `registrar_visualizacao_promocao`; ao esgotar, o banner sai.
 - **Pix:** a criação da cobrança e o webhook do Mercado Pago ficarão numa Edge Function do Supabase
   (usa a chave secreta, nunca no app). O webhook chama `confirmar_pagamento`, que é idempotente.
+- **Pagamento manual (até o Pix automático)** — migração `20261010001600`: o PDV cria a promoção
+  (`criar_promocao`: título, texto, link, imagem, palavras-chave, pacote de 100/250/500 visualizações por
+  R$ 10/25/50) ou pede +50 operações (`comprar_pacote_operacoes`, R$ 10). Fica um pagamento `pendente`
+  (provedor `manual`, máx. 5 em aberto); o app abre o WhatsApp do Tabelapp com o código do pedido. O Admin
+  confere o Pix e toca em "Pago" (`admin_confirmar_pagamento` → `confirmar_pagamento`). O banner tocado
+  abre o link do anunciante.
+- **Encerrar promoção** (`encerrar_promocao`): sem pagamento confirmado, é apagada; com pagamento, sai
+  do ar ("pausada") e fica no histórico financeiro.
+- **Planilha do PDV:** Excel (.xlsx) ou .csv (Produto, Preço, Validade, OBS), lida no celular
+  (`LeitorPlanilha`), validada linha a linha (`Planilha.validar`); antes de gravar, a prévia mostra
+  novos/aumentos/baixas e quantas operações vai usar (`pdv_salvar_precos` com `p_simular`). Linhas com
+  erro ficam de fora. O app oferece um modelo .csv.
+- **Dados do PDV editáveis** (`atualizar_pdv`, `atualizar_loja`): nome de exibição, site, endereço,
+  telefone e WhatsApp. O WhatsApp da loja passa a ser o contato do card de preço.
 
 ## Segurança (resumo)
 

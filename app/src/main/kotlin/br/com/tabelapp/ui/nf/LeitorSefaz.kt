@@ -1,5 +1,20 @@
 package br.com.tabelapp.ui.nf
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import android.webkit.WebChromeClient
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
@@ -70,22 +85,52 @@ fun LeitorSefaz(
     val aoCapturarHtmlAtual by rememberUpdatedState(aoCapturarHtml)
     val aoFalharRedeAtual by rememberUpdatedState(aoFalharRede)
 
-    AndroidView(
-        factory = { contexto ->
-            WebView(contexto).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.loadWithOverviewMode = true
-                settings.useWideViewPort = true
-                // Alguns portais recusam o "navegador embutido": apresenta-se como o Chrome do celular.
-                settings.userAgentString = settings.userAgentString.replace("; wv", "")
-                webViewClient = ClienteSefaz { erro -> aoFalharRedeAtual(erro) }
-                loadUrl(url)
-                webView = this
+    // Enquanto a Sefaz não responde, a página fica em branco: mostramos um aviso por cima.
+    var progresso by remember { mutableIntStateOf(0) }
+
+    Box(modifier) {
+        AndroidView(
+            factory = { contexto ->
+                WebView(contexto).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                    // Alguns portais recusam o "navegador embutido": apresenta-se como o Chrome do celular.
+                    settings.userAgentString = settings.userAgentString.replace("; wv", "")
+                    webViewClient = ClienteSefaz { erro -> aoFalharRedeAtual(erro) }
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onProgressChanged(view: WebView, newProgress: Int) {
+                            progresso = newProgress
+                        }
+                    }
+                    loadUrl(url)
+                    webView = this
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (progresso < 100) {
+            Column(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    "Um instante, por favor…",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    "Estamos consultando sua nota fiscal na Sefaz. Isso pode levar alguns segundos.",
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        },
-        modifier = modifier,
-    )
+        }
+    }
 
     LaunchedEffect(url) {
         val inicio = System.currentTimeMillis()

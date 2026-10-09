@@ -46,6 +46,10 @@ object ErrosServidor {
         "listas_demais" to "Você já tem listas demais. Exclua alguma para criar outra.",
         "produto_vazio" to "Digite o nome do produto.",
         "quantidade_invalida" to "Quantidade inválida.",
+        "pacote_invalido" to "Escolha um pacote de visualizações (100, 250 ou 500).",
+        "titulo_obrigatorio" to "Dê um título para a promoção.",
+        "arte_invalida" to "Não foi possível usar essa imagem. Tente outra.",
+        "promocoes_pendentes_demais" to "Você já tem promoções aguardando pagamento. Conclua ou exclua uma delas.",
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
     )
 

@@ -776,4 +776,64 @@ begin
   assert (select count(*) from public.historico_precos where produto = 'Requeijão 200g') >= 1, 'o preço continua na história';
 end $$;
 
+\echo '== PDV: edita o cadastro, cria promoção paga, Admin confirma o pagamento'
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja constant uuid := '20000000-0000-4000-b000-000000000001';
+  pag uuid;
+begin
+  perform public.atualizar_pdv(pdv, 'Mercado do Bruno Ltda', 'https://exemplo.invalid');
+  perform public.atualizar_loja(loja, 'Loja Centro', 'Rua A, 10', 'Centro', 'Petrópolis', '(24) 1111-1111', '(24) 99999-0000');
+  assert (select whatsapp = '2499999-0000' or whatsapp = '24999990000' from public.minhas_lojas(pdv) where id = loja), 'whatsapp só números';
+  -- O contato do card passa a ser o WhatsApp da loja.
+  assert (select telefone from public.buscar_cotacoes('arroz 5kg') where loja_id = loja) = '24999990000';
+
+  pag := public.criar_promocao(pdv, 'Semana do arroz', 'Arroz com desconto', 'https://exemplo.invalid/arroz',
+                               null, array['arroz', ' '], 250);
+  assert (select status = 'aguardando_pagamento' and valor_pendente_centavos = 2500 and visualizacoes_pendentes = 250
+                 and palavras_chave = array['arroz']
+          from public.minhas_promocoes(pdv) where titulo = 'Semana do arroz');
+  assert (select count(*) from public.promocoes_para_busca('arroz tio joao')) = 0, 'sem pagamento não aparece';
+  perform set_config('tabelapp.pag', pag::text, false);
+  perform set_config('tabelapp.pagop', public.comprar_pacote_operacoes(pdv, loja)::text, false);
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.criar_promocao('10000000-0000-4000-b000-000000000001', 'X', null, null, null, null, 300)$q$,
+  'pacote_invalido');
+-- Outro usuário não cria promoção nem confirma pagamento.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.criar_promocao('10000000-0000-4000-b000-000000000001', 'X', null, null, null, null, 100)$q$,
+  'sem_permissao');
+select pg_temp.espera_erro($q$select public.admin_confirmar_pagamento(current_setting('tabelapp.pag')::uuid)$q$,
+  'sem_permissao');
+-- Admin vê os pendentes e confirma.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$ begin
+  assert (select count(*) from public.pagamentos_pendentes()) >= 2;
+  perform public.admin_confirmar_pagamento(current_setting('tabelapp.pag')::uuid);
+  perform public.admin_confirmar_pagamento(current_setting('tabelapp.pagop')::uuid);
+end $$;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare restantes_antes integer;
+begin
+  assert (select status = 'ativa' and visualizacoes_contratadas = 250 and pagamento_pendente_id is null
+          from public.minhas_promocoes('10000000-0000-4000-b000-000000000001') where titulo = 'Semana do arroz');
+  assert (select link from public.promocoes_para_busca('arroz tio joao') where titulo = 'Semana do arroz')
+         = 'https://exemplo.invalid/arroz';
+  -- Promoção sem pagamento é apagada; com pagamento, sai do ar mas fica no histórico.
+  perform public.criar_promocao('10000000-0000-4000-b000-000000000001', 'Rascunho', null, null, null, null, 100);
+  assert public.encerrar_promocao((select id from public.promocoes where titulo = 'Rascunho')) = 'excluida';
+  assert not exists (select 1 from public.promocoes where titulo = 'Rascunho');
+  assert public.encerrar_promocao((select id from public.promocoes where titulo = 'Semana do arroz')) = 'pausada';
+  assert (select count(*) from public.promocoes_para_busca('arroz tio joao')) = 0, 'pausada sai da busca';
+end $$;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.encerrar_promocao((select id from public.promocoes limit 1))$q$, 'sem_permissao');
+
 \echo 'OK — todos os testes do banco passaram'

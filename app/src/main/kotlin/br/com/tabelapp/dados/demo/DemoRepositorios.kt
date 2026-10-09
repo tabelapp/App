@@ -17,7 +17,11 @@ import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
+import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.Planilha
+import br.com.tabelapp.core.PromocaoPdv
+import br.com.tabelapp.core.SimulacaoImportacao
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.RegrasCota
 import br.com.tabelapp.core.SaldoCota
@@ -110,7 +114,10 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
         return DadosDemo.buscar(termo, extras = banco.enviados)
     }
 
-    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> = listOf(
+    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> =
+        banco.promocoesDemo.filter { it.second.status == "ativa" }.map { (_, p) ->
+            Banner(p.id, "Seu banner (demonstração)", p.titulo, p.descricao, null, p.link)
+        } + listOf(
         Banner("demo-1", "Supermercado Serra Imperial", "Semana do hortifrúti",
             "Frutas e verduras com até 30% de desconto. Só até domingo!", null),
         Banner("demo-2", "Empório Itaipava", "Queijos e vinhos da serra",
@@ -128,6 +135,10 @@ class DemoBanco {
     val precosPdv = mutableListOf<PrecoPdv>()
     val operacoesUsadas = mutableMapOf<String, Int>()
     var nomeDemoDecidido = false
+    val lojasEditadas = mutableMapOf<String, LojaPdv>()
+    val promocoesDemo = mutableListOf<Pair<String, PromocaoPdv>>()
+    val pacotesPendentes = mutableMapOf<String, String>()
+    val pacotesPagos = mutableMapOf<String, Int>()
 }
 
 /**
@@ -170,14 +181,118 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
 
     override suspend fun lojas(pdvId: String): List<LojaPdv> {
         val p = banco.pdvs.firstOrNull { it.meu.id == pdvId } ?: return emptyList()
-        return listOf(LojaPdv("loja-$pdvId", null, p.pendente.endereco ?: "Petrópolis", p.pendente.telefone))
+        val id = "loja-$pdvId"
+        return listOf(
+            banco.lojasEditadas[id]
+                ?: LojaPdv(id, null, p.pendente.endereco ?: "Petrópolis", p.pendente.telefone,
+                    logradouro = p.pendente.endereco?.substringBefore(',').orEmpty(), cidade = "Petrópolis", uf = "RJ")
+        )
+    }
+
+    override suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?) {
+        if (nomeFantasia.isBlank()) throw ErroAmigavel("Informe o nome do estabelecimento.")
+        val i = banco.pdvs.indexOfFirst { it.meu.id == pdvId }
+        if (i >= 0) banco.pdvs[i] = banco.pdvs[i].let {
+            it.copy(meu = it.meu.copy(nomeFantasia = nomeFantasia.trim(), site = site?.trim()?.ifEmpty { null }))
+        }
+    }
+
+    override suspend fun atualizarLoja(loja: LojaPdv) {
+        if (loja.logradouro.isBlank()) throw ErroAmigavel("Informe o endereço.")
+        val completo = listOfNotNull(loja.logradouro, loja.bairro, loja.cidade).filter { it.isNotBlank() }.joinToString(", ")
+        banco.lojasEditadas[loja.id] = loja.copy(endereco = completo, whatsapp = loja.whatsapp?.filter { it.isDigit() })
+    }
+
+    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): SimulacaoImportacao {
+        delay(300)
+        val tipos = linhas.map { l ->
+            val atual = banco.precosPdv.firstOrNull { it.lojaId == lojaId && Texto.normalizar(it.produto) == Texto.normalizar(l.produto) }
+            TipoOperacao.classificar(atual?.precoCentavos, l.precoCentavos)
+        }
+        val operacoes = tipos.count { it.contaNaCota }
+        val restantes = cota(pdvId, lojaId).restantes
+        val faltam = (operacoes - restantes).coerceAtLeast(0)
+        return SimulacaoImportacao(
+            criados = tipos.count { it == TipoOperacao.CRIAR_ITEM }, aumentados = tipos.count { it == TipoOperacao.AUMENTAR_PRECO },
+            diminuidos = tipos.count { it == TipoOperacao.DIMINUIR_PRECO }, inalterados = tipos.count { it == TipoOperacao.EDITAR_DADOS },
+            operacoes = operacoes, restantes = restantes, cabeNaCota = faltam == 0,
+            pacotesNecessarios = (faltam + RegrasCota.OPERACOES_POR_PACOTE - 1) / RegrasCota.OPERACOES_POR_PACOTE,
+        )
+    }
+
+    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): Int {
+        val simulacao = simularPlanilha(pdvId, lojaId, linhas)
+        if (!simulacao.cabeNaCota) throw ErroAmigavel("As operações desta loja não bastam para esta planilha.")
+        var usadas = 0
+        linhas.forEach { usadas += salvarPreco(pdvId, lojaId, it.produto, it.precoCentavos, it.validade, it.obs) }
+        return usadas
+    }
+
+    override suspend fun promocoes(pdvId: String): List<PromocaoPdv> = banco.promocoesDemo.filter { it.first == pdvId }.map { it.second }
+
+    override suspend fun enviarArte(pdvId: String, jpeg: ByteArray): String = "$pdvId/demo-${UUID.randomUUID()}.jpg"
+
+    override suspend fun criarPromocao(
+        pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
+        palavrasChave: List<String>, visualizacoes: Int,
+    ): String {
+        delay(300)
+        val valor = when (visualizacoes) { 100 -> 1000L; 250 -> 2500L; 500 -> 5000L; else -> throw ErroAmigavel("Pacote inválido.") }
+        if (titulo.isBlank()) throw ErroAmigavel("Dê um título para a promoção.")
+        val pagamento = "pag-" + UUID.randomUUID()
+        banco.promocoesDemo += pdvId to PromocaoPdv(
+            "promo-" + UUID.randomUUID(), titulo.trim(), descricao, link, artePath, palavrasChave, "aguardando_pagamento",
+            0, 0, pagamento, valor, visualizacoes,
+        )
+        return pagamento
+    }
+
+    override suspend fun excluirPromocao(promocaoId: String): Boolean {
+        banco.promocoesDemo.removeAll { it.second.id == promocaoId }
+        return true
+    }
+
+    override suspend fun comprarPacoteOperacoes(pdvId: String, lojaId: String): String {
+        val id = "pag-" + UUID.randomUUID()
+        banco.pacotesPendentes[id] = lojaId
+        return id
+    }
+
+    override suspend fun pagamentosPendentes(): List<PagamentoPendente> =
+        banco.promocoesDemo.mapNotNull { (_, p) ->
+            p.pagamentoPendenteId?.let { PagamentoPendente(it, "pacote_visualizacoes", "PDV demonstração", "Banner: ${p.titulo}",
+                p.visualizacoesPendentes ?: 0, p.valorPendenteCentavos ?: 0, "Você (demonstração)", null, Instant.now()) }
+        } + banco.pacotesPendentes.keys.map {
+            PagamentoPendente(it, "pacote_operacoes", "PDV demonstração", "+50 operações", 50, 1000, "Você (demonstração)", null, Instant.now())
+        }
+
+    override suspend fun confirmarPagamento(pagamentoId: String) {
+        banco.pacotesPendentes.remove(pagamentoId)?.let { loja ->
+            banco.pacotesPagos[loja] = (banco.pacotesPagos[loja] ?: 0) + RegrasCota.OPERACOES_POR_PACOTE
+        }
+        val i = banco.promocoesDemo.indexOfFirst { it.second.pagamentoPendenteId == pagamentoId }
+        if (i >= 0) banco.promocoesDemo[i] = banco.promocoesDemo[i].let { (pdv, p) ->
+            pdv to p.copy(status = "ativa", visualizacoesContratadas = p.visualizacoesContratadas + (p.visualizacoesPendentes ?: 0),
+                pagamentoPendenteId = null, valorPendenteCentavos = null, visualizacoesPendentes = null)
+        }
+    }
+
+    override suspend fun cancelarPagamento(pagamentoId: String) {
+        banco.pacotesPendentes.remove(pagamentoId)
+        val i = banco.promocoesDemo.indexOfFirst { it.second.pagamentoPendenteId == pagamentoId }
+        if (i >= 0) banco.promocoesDemo[i] = banco.promocoesDemo[i].let { (pdv, p) ->
+            pdv to p.copy(pagamentoPendenteId = null, valorPendenteCentavos = null, visualizacoesPendentes = null)
+        }
     }
 
     override suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv> =
         banco.precosPdv.filter { it.lojaId == lojaId }.sortedBy { Texto.normalizar(it.produto) }
 
-    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota =
-        SaldoCota(gratisUsadas = banco.operacoesUsadas[lojaId] ?: 0)
+    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota {
+        val usadas = banco.operacoesUsadas[lojaId] ?: 0
+        val pacote = (banco.pacotesPagos[lojaId] ?: 0) - (usadas - RegrasCota.GRATIS_POR_MES).coerceAtLeast(0)
+        return SaldoCota(gratisUsadas = usadas.coerceAtMost(RegrasCota.GRATIS_POR_MES), saldoPacotes = pacote.coerceAtLeast(0))
+    }
 
     override suspend fun salvarPreco(
         pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
@@ -188,7 +303,7 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         val atual = banco.precosPdv.firstOrNull { it.lojaId == lojaId && Texto.normalizar(it.produto) == Texto.normalizar(produto) }
         val conta = TipoOperacao.classificar(atual?.precoCentavos, precoCentavos).contaNaCota
         val usadas = banco.operacoesUsadas[lojaId] ?: 0
-        if (conta && usadas >= RegrasCota.GRATIS_POR_MES) {
+        if (conta && cota(pdvId, lojaId).restantes <= 0) {
             throw ErroAmigavel("As operações desta loja acabaram. Compre +50 operações por R\$ 10 via Pix (valem 30 dias).")
         }
         if (conta) banco.operacoesUsadas[lojaId] = usadas + 1
@@ -204,7 +319,9 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         banco.enviados += Cotacao(
             id = item.id, produto = item.produto, precoCentavos = item.precoCentavos, validade = item.validade,
             obs = item.obs, fonte = Fonte.PDV_MANUAL, lojaId = null, pdvId = null, pdvNome = pdv.meu.nomeFantasia,
-            endereco = pdv.pendente.endereco, telefone = pdv.pendente.telefone, criadoEm = Instant.now(),
+            endereco = banco.lojasEditadas[lojaId]?.endereco ?: pdv.pendente.endereco,
+            telefone = banco.lojasEditadas[lojaId]?.let { it.whatsapp ?: it.telefone } ?: pdv.pendente.telefone,
+            criadoEm = Instant.now(),
         )
         return if (conta) 1 else 0
     }
