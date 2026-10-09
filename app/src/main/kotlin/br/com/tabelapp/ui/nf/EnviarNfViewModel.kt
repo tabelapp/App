@@ -180,6 +180,17 @@ class EnviarNfViewModel(
 
     fun leituraSefazFalhou() = _estado.update { it.copy(etapa = EtapaNf.FALHA) }
 
+    /** O site da Sefaz não respondeu (ex.: ERR_CONNECTION_RESET) em nenhum endereço. */
+    fun sefazFoiDoAr(erroTecnico: String) = _estado.update {
+        it.copy(
+            etapa = EtapaNf.FALHA,
+            motivoFalha = "O site da Sefaz não respondeu" +
+                (if (erroTecnico.isNotBlank()) " ($erroTecnico)" else "") +
+                ". Costuma ser instabilidade da Sefaz: tente de novo em alguns minutos. Se quiser, abra a nota " +
+                "no navegador para ver se o site está no ar.",
+        )
+    }
+
     /** Tenta ler a mesma nota de novo (ex.: a Sefaz estava fora do ar). */
     fun tentarDeNovo() = _estado.update { it.copy(etapa = EtapaNf.LENDO_SEFAZ, temPaginaSefaz = false, motivoFalha = null) }
 

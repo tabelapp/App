@@ -61,11 +61,14 @@ fun LeitorSefaz(
     aoCapturarHtml: (html: String, url: String?) -> Unit = { _, _ -> },
     /** Entrada manual: chave de 44 números para preencher no formulário de consulta da Sefaz. */
     chaveParaPreencher: String? = null,
+    /** O site da Sefaz não respondeu em nenhum dos endereços (recebe o erro técnico). */
+    aoFalharRede: (String) -> Unit = {},
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val aoLerAtual by rememberUpdatedState(aoLer)
     val aoDesistirAtual by rememberUpdatedState(aoDesistir)
     val aoCapturarHtmlAtual by rememberUpdatedState(aoCapturarHtml)
+    val aoFalharRedeAtual by rememberUpdatedState(aoFalharRede)
 
     AndroidView(
         factory = { contexto ->
@@ -74,7 +77,9 @@ fun LeitorSefaz(
                 settings.domStorageEnabled = true
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
-                webViewClient = ClienteSefaz() // mantém a navegação dentro do app e força https
+                // Alguns portais recusam o "navegador embutido": apresenta-se como o Chrome do celular.
+                settings.userAgentString = settings.userAgentString.replace("; wv", "")
+                webViewClient = ClienteSefaz { erro -> aoFalharRedeAtual(erro) }
                 loadUrl(url)
                 webView = this
             }
@@ -153,19 +158,35 @@ private suspend fun htmlDaPagina(webView: WebView): String? = suspendCancellable
 }
 
 /**
- * O portal da Sefaz-RJ, depois do QR Code, redireciona para
- * http://consultadfe.fazenda.rj.gov.br/.../resultadoQRCode2.faces — mas a porta http
- * do servidor está fechada (ERR_CONNECTION_REFUSED). Os navegadores trocam para https
- * sozinhos; aqui fazemos o mesmo: qualquer página http da Sefaz-RJ é aberta em https.
+ * Navegação dentro da Sefaz-RJ, tolerante às falhas do portal:
+ *
+ *  - Depois do QR Code, o portal redireciona para páginas em http:// cuja porta
+ *    está fechada (ERR_CONNECTION_REFUSED): como os navegadores, abrimos em https.
+ *  - Mas há endereços que só respondem em http, ou que cortam a conexão em https
+ *    (ERR_CONNECTION_RESET), e o portal tem dois endereços (consultadfe e www4).
+ *    Se a página principal falhar, tentamos as outras combinações de endereço e
+ *    protocolo antes de desistir — e então avisamos [aoFalhar].
  */
-private class ClienteSefaz : WebViewClient() {
+private class ClienteSefaz(private val aoFalhar: (String) -> Unit) : WebViewClient() {
 
-    private fun paraHttps(url: Uri): Uri? =
-        if (url.scheme == "http" && (url.host ?: "").endsWith("fazenda.rj.gov.br")) {
-            url.buildUpon().scheme("https").build()
-        } else {
-            null
-        }
+    private val hostsSefaz = listOf("consultadfe.fazenda.rj.gov.br", "www4.fazenda.rj.gov.br")
+    /** Endereços (exatos) que já falharam: não insistimos neles. */
+    private val falharam = mutableSetOf<String>()
+    private var tentativas = 0
+
+    private fun ehSefaz(url: Uri) = (url.host ?: "").endsWith("fazenda.rj.gov.br")
+
+    private fun paraHttps(url: Uri): Uri? {
+        if (url.scheme != "http" || !ehSefaz(url)) return null
+        val seguro = url.buildUpon().scheme("https").build()
+        return seguro.takeIf { it.toString() !in falharam }
+    }
+
+    /** Mesma página nos outros endereços/protocolos da Sefaz, na ordem de tentativa. */
+    private fun alternativas(url: Uri): List<Uri> =
+        (listOfNotNull(url.host) + hostsSefaz).distinct().flatMap { host ->
+            listOf("https", "http").map { esquema -> url.buildUpon().scheme(esquema).authority(host).build() }
+        }.filter { it.toString() != url.toString() && it.toString() !in falharam }
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val seguro = paraHttps(request.url) ?: return false
@@ -184,9 +205,22 @@ private class ClienteSefaz : WebViewClient() {
         super.onPageStarted(view, url, favicon)
     }
 
-    // Última garantia: se a página principal em http falhar, tenta a mesma em https.
     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-        val seguro = if (request.isForMainFrame) paraHttps(request.url) else null
-        if (seguro != null) view.loadUrl(seguro.toString()) else super.onReceivedError(view, request, error)
+        if (!request.isForMainFrame || !ehSefaz(request.url)) {
+            super.onReceivedError(view, request, error)
+            return
+        }
+        falharam += request.url.toString()
+        val proxima = alternativas(request.url).firstOrNull()
+        if (proxima != null && tentativas < MAX_TENTATIVAS) {
+            tentativas++
+            view.loadUrl(proxima.toString())
+        } else {
+            aoFalhar(error.description?.toString().orEmpty())
+        }
+    }
+
+    private companion object {
+        const val MAX_TENTATIVAS = 6
     }
 }

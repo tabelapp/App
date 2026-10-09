@@ -226,6 +226,7 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             aoDesistir = vm::leituraSefazFalhou,
             aoCapturarHtml = vm::htmlCapturado,
             chaveParaPreencher = estado.chave.takeIf { estado.modoManual },
+            aoFalharRede = vm::sefazFoiDoAr,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -252,6 +253,19 @@ private fun EtapaFalha(estado: EstadoNf, vm: EnviarNfViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(onClick = vm::tentarDeNovo, modifier = Modifier.fillMaxWidth()) { Text("Tentar de novo") }
+        estado.urlSefaz?.let { url ->
+            val contexto = LocalContext.current
+            OutlinedButton(
+                onClick = {
+                    try {
+                        contexto.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    } catch (e: ActivityNotFoundException) {
+                        // Sem navegador: nada a fazer.
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Abrir a nota no navegador") }
+        }
         OutlinedButton(onClick = vm::novaNota, modifier = Modifier.fillMaxWidth()) { Text("Ler outra nota") }
         if (estado.temPaginaSefaz) {
             Text(
