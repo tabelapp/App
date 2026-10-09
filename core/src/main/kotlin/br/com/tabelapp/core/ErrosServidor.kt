@@ -39,6 +39,13 @@ object ErrosServidor {
         "pdv_nao_verificado" to "Seu cadastro ainda não foi aprovado.",
         "pdv_nao_encontrado" to "Cadastro não encontrado (talvez já analisado).",
         "motivo_obrigatorio" to "Informe o motivo.",
+        "chave_obrigatoria" to "Leia o QR Code ou digite os 44 números da nota.",
+        "nf_fora_do_rj" to "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ.",
+        "limite_notas" to "Você já enviou muitas notas hoje. Tente de novo amanhã.",
+        "lista_nao_encontrada" to "Lista não encontrada.",
+        "listas_demais" to "Você já tem listas demais. Exclua alguma para criar outra.",
+        "produto_vazio" to "Digite o nome do produto.",
+        "quantidade_invalida" to "Quantidade inválida.",
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
     )
 

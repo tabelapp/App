@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,6 +23,8 @@ import br.com.tabelapp.ui.principal.TelaPrincipal
 @Composable
 fun RaizApp(container: AppContainer) {
     val estado by container.auth.estado.collectAsStateWithLifecycle()
+    // Aba aberta: guardada aqui (fora das telas que somem durante o "carregando").
+    val abaSalva = rememberSaveable { mutableStateOf("BUSCAR") }
 
     when (val e = estado) {
         EstadoSessao.Carregando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -31,7 +35,7 @@ fun RaizApp(container: AppContainer) {
             if (!e.usuario.cadastroCompleto) {
                 TelaCompletarCadastro(container, e.usuario)
             } else {
-                TelaPrincipal(container, e.usuario)
+                TelaPrincipal(container, e.usuario, abaSalva)
             }
     }
 }

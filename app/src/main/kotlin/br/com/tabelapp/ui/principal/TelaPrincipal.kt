@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,9 +48,12 @@ private fun abasDe(tipo: TipoConta): List<Aba> = when (tipo) {
 
 /** Abas do usuário logado. */
 @Composable
-fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
+fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableState<String>) {
     val abas = abasDe(usuario.tipo)
-    var escolhida by rememberSaveable { mutableStateOf(Aba.BUSCAR) }
+    // A aba escolhida fica guardada fora desta tela (em RaizApp): se a sessão for
+    // recarregada no meio de uma operação, o usuário continua na mesma aba.
+    var escolhidaNome by abaSalva
+    val escolhida = Aba.entries.firstOrNull { it.name == escolhidaNome } ?: Aba.BUSCAR
     val aba = if (escolhida in abas) escolhida else Aba.BUSCAR
 
     Scaffold(
@@ -58,7 +62,7 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
                 abas.forEach { a ->
                     NavigationBarItem(
                         selected = aba == a,
-                        onClick = { escolhida = a },
+                        onClick = { escolhidaNome = a.name },
                         icon = { Icon(a.icone, contentDescription = null) },
                         label = { Text(a.rotulo) },
                     )
@@ -70,7 +74,7 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario) {
         Box(Modifier.fillMaxSize().padding(bottom = margens.calculateBottomPadding())) {
             when (aba) {
                 Aba.BUSCAR -> TelaBusca(container, usuario)
-                Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { escolhida = Aba.BUSCAR })
+                Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { escolhidaNome = Aba.BUSCAR.name })
                 Aba.LISTA -> TelaLista(container, usuario)
                 Aba.MEU_NEGOCIO -> TelaMeuNegocio(container, usuario)
                 Aba.ADMIN -> TelaAdmin(container, usuario)

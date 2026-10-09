@@ -109,3 +109,14 @@ class AnonimizarTest {
         assertEquals(150L, LeitorNfce.ler(limpo)?.itens?.single()?.precoCentavos)
     }
 }
+
+class ChaveNaPaginaTest {
+    private val chave = "33250911111111000191650010000099991000099990"
+
+    @Test fun `acha a chave em grupos de 4 ou junta`() {
+        val agrupada = chave.chunked(4).joinToString(" ")
+        assertEquals(setOf(chave), LeitorNfce.chavesNaPagina("<p>Chave de acesso: <span class='chave'>$agrupada</span></p>"))
+        assertEquals(setOf(chave), LeitorNfce.chavesNaPagina("<p>$chave</p>"))
+        assertEquals(emptySet(), LeitorNfce.chavesNaPagina("<p>CNPJ 11.111.111/0001-91</p>"))
+    }
+}

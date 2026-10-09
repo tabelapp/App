@@ -52,6 +52,8 @@ data class EstadoNf(
     val resultadoSugestao: String? = null,
     /** Receber cópia em PDF da nota no e-mail depois de enviar. */
     val querPdf: Boolean = false,
+    /** Por que a leitura não serviu (mostrado na tela de falha). */
+    val motivoFalha: String? = null,
 ) {
     /** A Receita não informou nome fantasia: o usuário pode sugerir um. */
     val podeSugerirNome: Boolean
@@ -156,6 +158,15 @@ class EnviarNfViewModel(
     fun erroNoLeitor(mensagem: String) = _estado.update { it.copy(erroInicio = mensagem) }
 
     fun notaLidaNaSefaz(nota: NotaLida) {
+        // A página aberta precisa ser a da nota do QR Code / da chave digitada
+        // (na entrada manual a pessoa poderia consultar outra nota no meio do caminho).
+        val chavesNaPagina = htmlSefaz?.let { runCatching { LeitorNfce.chavesNaPagina(it) }.getOrNull() }.orEmpty()
+        if (chavesNaPagina.isNotEmpty() && _estado.value.chave !in chavesNaPagina) {
+            _estado.update {
+                it.copy(etapa = EtapaNf.FALHA, motivoFalha = "A nota aberta na Sefaz não é a mesma da chave informada.")
+            }
+            return
+        }
         _estado.update { e ->
             val base = e.copy(
                 itens = nota.itens,
@@ -170,7 +181,7 @@ class EnviarNfViewModel(
     fun leituraSefazFalhou() = _estado.update { it.copy(etapa = EtapaNf.FALHA) }
 
     /** Tenta ler a mesma nota de novo (ex.: a Sefaz estava fora do ar). */
-    fun tentarDeNovo() = _estado.update { it.copy(etapa = EtapaNf.LENDO_SEFAZ, temPaginaSefaz = false) }
+    fun tentarDeNovo() = _estado.update { it.copy(etapa = EtapaNf.LENDO_SEFAZ, temPaginaSefaz = false, motivoFalha = null) }
 
     /** Rede com várias lojas: o usuário escolhe em qual foi a compra (a única escolha permitida). */
     fun escolherLoja(lojaId: String) = _estado.update { e ->

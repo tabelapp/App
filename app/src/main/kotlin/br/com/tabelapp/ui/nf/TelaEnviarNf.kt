@@ -246,8 +246,8 @@ private fun EtapaFalha(estado: EstadoNf, vm: EnviarNfViewModel) {
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
         )
         Text(
-            "Pode ser instabilidade no site da Sefaz. Tente de novo em instantes. " +
-                "Só enviamos preços lidos direto da nota, por isso não dá para digitar os produtos.",
+            estado.motivoFalha ?: ("Pode ser instabilidade no site da Sefaz. Tente de novo em instantes. " +
+                "Só enviamos preços lidos direto da nota, por isso não dá para digitar os produtos."),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

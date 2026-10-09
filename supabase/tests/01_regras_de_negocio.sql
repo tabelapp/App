@@ -31,12 +31,26 @@ $$;
 grant execute on function pg_temp.espera_erro(text, text) to anon, authenticated, service_role;
 
 -- Chave de acesso de teste emitida no mês de p_data (AAMM precisa bater com a data da NF).
-create function pg_temp.chave(p_cnpj text, p_numero int, p_data date default null) returns text
-language sql as $$
-  select '33' || to_char(coalesce(p_data, public.hoje()), 'YYMM') || p_cnpj || '65001'
-         || lpad(p_numero::text, 9, '0') || '1' || '00000000' || '0'
+-- Chave de NFC-e do RJ com dígito verificador correto (módulo 11).
+create function pg_temp.chave(p_cnpj text, p_numero int, p_data date default null, p_uf text default '33')
+returns text
+language plpgsql as $$
+declare
+  v_base text := p_uf || to_char(coalesce(p_data, public.hoje()), 'YYMM') || p_cnpj || '65001'
+                 || lpad(p_numero::text, 9, '0') || '1' || '00000000';
+  v_soma integer := 0;
+  v_peso integer := 2;
+  v_dv integer;
+begin
+  for i in reverse 43..1 loop
+    v_soma := v_soma + substr(v_base, i, 1)::integer * v_peso;
+    v_peso := case when v_peso = 9 then 2 else v_peso + 1 end;
+  end loop;
+  v_dv := 11 - (v_soma % 11);
+  return v_base || case when v_dv >= 10 then 0 else v_dv end;
+end;
 $$;
-grant execute on function pg_temp.chave(text, int, date) to anon, authenticated, service_role;
+grant execute on function pg_temp.chave(text, int, date, text) to anon, authenticated, service_role;
 
 -- Usuários de teste
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -128,8 +142,8 @@ begin
   assert (select count(*) from public.cotacoes
           where lote_id = (v ->> 'lote_id')::uuid and fonte = 'usuario_nf'
             and chave_acesso_nf = pg_temp.chave('11111111000191', 9999)) = 3;
-  -- NF sem chave também é aceita (chave é opcional).
-  v := public.enviar_nota_fiscal(null, '20000000-0000-4000-a000-000000000003', null, null,
+  -- NF ligada a uma loja cadastrada (do mesmo CNPJ da chave).
+  v := public.enviar_nota_fiscal(pg_temp.chave('22222222000191', 5555), '20000000-0000-4000-a000-000000000003', null, null,
     '[{"produto": "Detergente 500ml", "preco_centavos": 259}]');
   assert (v ->> 'itens')::int = 1;
 end $$;
@@ -148,10 +162,10 @@ begin
   assert (select count(*) from public.buscar_cotacoes('sonho recheado')) = 1;
 end $$;
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal(null, null, 'X', null,
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7101, public.hoje() - 8), null, 'X', null,
      '[{"produto": "Pão", "preco_centavos": 100}]', public.hoje() - 8)$q$, 'nf_antiga');
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal(null, null, 'X', null,
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7102, public.hoje() + 1), null, 'X', null,
      '[{"produto": "Pão", "preco_centavos": 100}]', public.hoje() + 1)$q$, 'data_nf_futura');
 -- Chave emitida em outro mês que não o da data informada.
 select pg_temp.espera_erro(
@@ -188,11 +202,22 @@ select pg_temp.espera_erro(
   $q$select public.enviar_nota_fiscal('123', null, 'X', null,
      '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'chave_acesso_invalida');
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal(null, null, '  ', null,
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7103), null, '  ', null,
      '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'pdv_obrigatorio');
 select pg_temp.espera_erro(
-  $q$select public.enviar_nota_fiscal(null, null, 'X', null, '[{"produto": "Pão", "preco_centavos": 0}]')$q$,
-  'itens_invalidos');
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7104), null, 'X', null,
+     '[{"produto": "Pão", "preco_centavos": 0}]')$q$, 'itens_invalidos');
+-- Chave obrigatória e de verdade (dígito verificador), só do RJ.
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(null, null, 'X', null, '[{"produto": "Pão", "preco_centavos": 100}]')$q$,
+  'chave_obrigatoria');
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(left(pg_temp.chave('11111111000191', 7105), 43) ||
+       ((right(pg_temp.chave('11111111000191', 7105), 1)::int + 1) % 10)::text,
+     null, 'X', null, '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'chave_acesso_invalida');
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('11111111000191', 7106, null, '35'), null, 'X', null,
+     '[{"produto": "Pão", "preco_centavos": 100}]')$q$, 'nf_fora_do_rj');
 
 \echo '== Nome do PDV da NF: sugestão só vale confirmada (2 pessoas ou Admin)'
 do $$
@@ -725,11 +750,27 @@ do $$ begin
   assert (select count(*) from public.promocoes_para_busca('cerveja gelada')) = 1;
   assert (select count(*) from public.promocoes_para_busca('arroz')) = 0;
   perform public.registrar_visualizacao_promocao('70000000-0000-4000-a000-000000000001');
+  -- A mesma pessoa chamando de novo no mesmo dia não "queima" visualizações do anunciante.
+  perform public.registrar_visualizacao_promocao('70000000-0000-4000-a000-000000000001');
+  perform public.registrar_visualizacao_promocao('70000000-0000-4000-a000-000000000001');
 end $$;
+set request.jwt.claim.sub = 'd0000000-0000-4000-a000-00000000000d';
+select public.registrar_visualizacao_promocao('70000000-0000-4000-a000-000000000001');
 reset role;
 do $$ begin
   assert (select visualizacoes_exibidas from public.promocoes
-          where id = '70000000-0000-4000-a000-000000000001') = 1;
+          where id = '70000000-0000-4000-a000-000000000001') = 2, 'uma por pessoa por dia';
+end $$;
+
+\echo '== LGPD: conta excluída some do histórico de preços (o preço fica)'
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.historico_precos where enviado_por = 'd0000000-0000-4000-a000-00000000000d';
+  assert n > 0, 'Davi enviou notas';
+  delete from auth.users where id = 'd0000000-0000-4000-a000-00000000000d';
+  assert not exists (select 1 from public.historico_precos where enviado_por = 'd0000000-0000-4000-a000-00000000000d');
+  assert (select count(*) from public.historico_precos where produto = 'Requeijão 200g') >= 1, 'o preço continua na história';
 end $$;
 
 \echo 'OK — todos os testes do banco passaram'

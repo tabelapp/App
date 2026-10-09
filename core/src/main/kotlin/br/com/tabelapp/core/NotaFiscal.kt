@@ -66,6 +66,19 @@ object LeitorNfce {
      * falha): sem scripts/estilos e com qualquer CPF mascarado — a página da Sefaz
      * mostra o CPF do consumidor quando ele foi informado na compra.
      */
+    // 44 números, juntos ou em grupos de 4 ("3325 0911 1111 ...").
+    private val chaveNaPaginaRegex = Regex("""(?<!\d)(?:\d{4}[ .]?){10}\d{4}(?!\d)""")
+
+    /**
+     * Chaves de acesso (44 números) que aparecem no texto da página da Sefaz.
+     * Serve para conferir que a nota aberta é a mesma do QR Code / da chave digitada.
+     */
+    fun chavesNaPagina(html: String): Set<String> =
+        chaveNaPaginaRegex.findAll(Jsoup.parse(html).text())
+            .map { m -> m.value.filter { it.isDigit() } }
+            .filter { it.length == 44 }
+            .toSet()
+
     fun anonimizar(html: String): String {
         val doc = Jsoup.parse(html)
         doc.select("script, style, noscript, iframe, img, svg").remove()

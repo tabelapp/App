@@ -108,7 +108,10 @@ class SupabaseAuthRepositorio(
                 when (status) {
                     is SessionStatus.Authenticated -> carregarPerfil()
                     is SessionStatus.NotAuthenticated -> _estado.value = EstadoSessao.Deslogado
-                    SessionStatus.Initializing -> _estado.value = EstadoSessao.Carregando
+                    // Ao voltar de outro app (ex.: leitor de QR Code) a biblioteca reinicia a sessão:
+                    // quem já estava logado continua na tela em que estava (não volta ao "carregando").
+                    SessionStatus.Initializing ->
+                        if (_estado.value !is EstadoSessao.Logado) _estado.value = EstadoSessao.Carregando
                     // Sessão salva, mas não deu para renovar (ex.: sem internet): mantém quem já estava logado.
                     is SessionStatus.RefreshFailure -> Unit
                 }
