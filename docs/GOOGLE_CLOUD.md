@@ -43,7 +43,7 @@ Nenhuma chave precisa ser enviada por chat: elas vão direto para os *secrets* d
     cliente **Web** (o mesmo do passo 12; não é o do Android).
 
 ## D. Novo APK
-14. GitHub → **Actions** → **CI** → **Run workflow** (ou peça ao Claude). Instale o `tabelapp-apk` novo.
+14. Peça ao Claude um build novo (ou GitHub → **Actions** → último **CI** → **Re-run all jobs**). Instale o `tabelapp-apk` novo.
 
 ## Problemas comuns
 - **Mapa cinza, sem ruas:** chave errada, Maps SDK não ativado, faturamento não vinculado ou SHA-1/pacote
