@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Ordenar por "mais perto" e mostrar distância até o PDV. -->
+    <!-- Mostrar onde o usuário está no mapa e a distância até o PDV. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
@@ -20,6 +20,11 @@
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode_ui,ocr" />
+
+        <!-- Chave do Google Maps ("Ver no mapa"), vinda do build (secret MAPS_API_KEY). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
 
         <!-- Arquivo temporário para a foto (alvará) tirada pela câmera. -->
         <provider

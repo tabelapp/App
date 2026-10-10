@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -81,21 +83,22 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
     val escopo = rememberCoroutineScope()
     val contexto = LocalContext.current
     var pdvAberto by remember { mutableStateOf<Cotacao?>(null) }
+    var verMapa by remember { mutableStateOf(false) }
 
-    // "Mais perto" precisa da localização: pede permissão na hora em que o usuário escolhe.
+    // No mapa, mostramos onde a pessoa está: pede a permissão (uma vez) ao abrir. Negar não impede o mapa.
     val pedirLocalizacao = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         vm.atualizarPosicao()
-        vm.escolherOrdenacao(Ordenacao.MAIS_PERTO)
+        verMapa = true
     }
-    fun escolher(ordenacao: Ordenacao) {
-        if (ordenacao == Ordenacao.MAIS_PERTO && estado.ordenacao != ordenacao && !container.localizacao.temPermissao()) {
+    fun abrirMapa() {
+        if (container.localizacao.temPermissao()) {
+            verMapa = true
+        } else {
             pedirLocalizacao.launch(
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             )
-        } else {
-            vm.escolherOrdenacao(ordenacao)
         }
     }
 
@@ -154,10 +157,17 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                 Ordenacao.entries.forEach { o ->
                     FilterChip(
                         selected = estado.ordenacao == o,
-                        onClick = { escolher(o) },
+                        onClick = { vm.escolherOrdenacao(o) },
                         label = { Text(o.rotulo) },
                     )
                 }
+                FilterChip(
+                    selected = false,
+                    onClick = ::abrirMapa,
+                    enabled = estado.resultados.isNotEmpty(),
+                    label = { Text("Ver no mapa") },
+                    leadingIcon = { Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                )
             }
 
             Text(
@@ -230,6 +240,16 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
     }
 
     pdvAberto?.let { c -> DialogoPdv(c, aoFechar = { pdvAberto = null }) }
+
+    if (verMapa) {
+        MapaDePrecos(
+            cotacoes = estado.resultados,
+            termo = estado.termoBuscado,
+            geocodificador = container.geocodificador,
+            mostrarMinhaPosicao = container.localizacao.temPermissao(),
+            aoFechar = { verMapa = false },
+        )
+    }
 }
 
 @Composable

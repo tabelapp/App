@@ -1,10 +1,12 @@
 package br.com.tabelapp.core
 
-/** Ordenações da tela de busca (briefing, seção 2; "Validade" retirada a pedido do fundador). */
+/**
+ * Ordenações da tela de busca (briefing, seção 2). "Validade" e "Mais perto" foram retiradas a pedido
+ * do fundador — no lugar de "Mais perto" a tela tem "Ver no mapa".
+ */
 enum class Ordenacao(val rotulo: String) {
     MENOR_PRECO("Menor preço"),
     MAIOR_PRECO("Maior preço"),
-    MAIS_PERTO("Mais perto"),
     PDV_AZ("PDV (A-Z)");
 }
 
@@ -15,10 +17,6 @@ object Busca {
         val comparador: Comparator<Cotacao> = when (ordenacao) {
             Ordenacao.MENOR_PRECO -> porPreco
             Ordenacao.MAIOR_PRECO -> compareByDescending<Cotacao> { it.precoCentavos }
-            // Sem localização conhecida do PDV vai para o fim.
-            Ordenacao.MAIS_PERTO -> compareBy<Cotacao, Double?>(nullsLast()) {
-                Geo.distanciaKm(posicao, it.local)
-            }.then(porPreco)
             Ordenacao.PDV_AZ -> compareBy<Cotacao> { Texto.normalizar(it.pdvNome) }.then(porPreco)
         }
         return cotacoes.sortedWith(comparador)

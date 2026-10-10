@@ -44,6 +44,7 @@ jobs:
       - name: Compilar APK (modo demonstração)
         env:
           SUPABASE_URL: ''
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
           ./gradlew :app:assembleDebug --stacktrace
           mkdir -p saida/demo && cp app/build/outputs/apk/debug/*.apk saida/demo/tabelapp-demo.apk
@@ -59,6 +60,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
           ./gradlew :app:assembleDebug --stacktrace
           mkdir -p saida/real && cp app/build/outputs/apk/debug/*.apk saida/real/tabelapp.apk

@@ -32,16 +32,6 @@ class BuscaTest {
         assertEquals(1899, Busca.ordenar(r, Ordenacao.MENOR_PRECO, null).first().precoCentavos)
         assertEquals(2150, Busca.ordenar(r, Ordenacao.MAIOR_PRECO, null).first().precoCentavos)
         assertEquals("Empório Itaipava", Busca.ordenar(r, Ordenacao.PDV_AZ, null).first().pdvNome)
-
-        // Em Itaipava, o mais perto é o Empório.
-        val itaipava = PontoGeo(-22.39, -43.13)
-        assertEquals("Empório Itaipava", Busca.ordenar(r, Ordenacao.MAIS_PERTO, itaipava).first().pdvNome)
-    }
-
-    @Test fun `mais perto deixa PDV sem localizacao por ultimo`() {
-        val r = Busca.ordenar(DadosDemo.buscar("tomate", agora, hoje), Ordenacao.MAIS_PERTO, Geo.PETROPOLIS_CENTRO)
-        assertEquals("Hortifruti Bingen", r.first().pdvNome)
-        assertEquals("Sacolão Corrêas", r.last().pdvNome)
     }
 
     @Test fun distancia() {

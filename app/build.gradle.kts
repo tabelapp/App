@@ -31,6 +31,10 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${config("SUPABASE_ANON_KEY")}\"")
         // Client ID do tipo "Web application" no Google Cloud (usado pelo login nativo do Google).
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${config("GOOGLE_WEB_CLIENT_ID")}\"")
+        // Chave do Maps SDK for Android (Google Cloud), restrita ao pacote e à assinatura do app.
+        // Sem ela, "Ver no mapa" avisa que o mapa ainda não foi configurado.
+        buildConfigField("String", "MAPS_API_KEY", "\"${config("MAPS_API_KEY")}\"")
+        manifestPlaceholders["MAPS_API_KEY"] = config("MAPS_API_KEY")
     }
 
     // Chave de debug fixa no repositório: cada APK gerado pela CI tem a mesma assinatura,
@@ -96,6 +100,8 @@ dependencies {
 
     implementation(libs.play.services.code.scanner)
     implementation(libs.play.services.text.recognition)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
 }

@@ -51,7 +51,8 @@
 6. **Play Store:** política de privacidade e termos de uso, chave de assinatura de produção (hoje só a de
    debug), ícone/telas da loja, classificação etária.
 7. **Link de download** usado no compartilhamento (hoje aponta para a futura página da Play Store).
-8. Relatório **"no mapa"** da lista de compras (precisa de chave da API de mapas).
+8. **Mapa:** "Ver no mapa" na busca está pronto, mas precisa da chave do Google Maps (`docs/MAPA_GOOGLE.md`).
+   Falta o relatório "no mapa" da lista de compras (usa a mesma tela).
 9. Envio de **encarte** por usuário: suspenso por decisão do fundador.
 
 ### Limitações conhecidas (menores)

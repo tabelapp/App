@@ -13,6 +13,8 @@ junit = "4.13.2"
 jsoup = "1.23.2"
 codeScanner = "16.1.0"
 textRecognition = "19.0.1"
+mapsCompose = "6.12.2"
+playServicesMaps = "19.2.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -44,6 +46,9 @@ jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
 # Leitura do texto da foto do alvará no celular (modelo baixado pelo Google Play, APK fica leve).
 play-services-text-recognition = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "textRecognition" }
+# Mapa de preços ("Ver no mapa"): Google Maps para Compose.
+maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

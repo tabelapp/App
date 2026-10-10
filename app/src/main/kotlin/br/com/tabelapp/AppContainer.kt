@@ -4,6 +4,7 @@ import android.content.Context
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
+import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.dados.LeitorTexto
 import br.com.tabelapp.dados.ListasRepositorio
@@ -46,6 +47,7 @@ class AppContainer(contexto: Context) {
 
     val preferencias = Preferencias(contexto)
     val localizacao = Localizacao(contexto)
+    val geocodificador = Geocodificador(contexto)
     val imagens = Imagens(contexto)
     val leitorTexto = LeitorTexto(imagens)
 
