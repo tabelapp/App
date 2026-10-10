@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cores da logomarca -->
+    <color name="amarelo_tabelapp">#FFE000</color>
+    <color name="vermelho_tabelapp">#C00000</color>
+    <color name="fundo_icone">#FFE000</color>
+</resources>

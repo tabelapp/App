@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  O portal de consulta da NFC-e da Sefaz-RJ redireciona o QR Code para uma página
+  em http:// (resultadoQRCode2.faces). O Android bloqueia http por padrão; liberamos
+  SÓ os domínios da Sefaz-RJ. Todo o resto (Supabase etc.) continua exigindo https.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">fazenda.rj.gov.br</domain>
+    </domain-config>
+</network-security-config>

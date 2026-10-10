@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A lupa da logomarca, sem margem (tela de login). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="54"
+    android:viewportHeight="54">
+    <!-- cabo da lupa -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M37,37 L48,48" />
+    <!-- aro da lupa -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="6"
+        android:pathData="M7,24 A17,17 0 1,1 41,24 A17,17 0 1,1 7,24 Z" />
+    <!-- cifrão -->
+    <path
+        android:strokeColor="#C00000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M24,12.5 L24,35.5" />
+    <path
+        android:strokeColor="#C00000"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M28.8,15.8 A5.5,5.5 0 1,0 24,24 A5.5,5.5 0 1,1 19.2,32.2" />
+</vector>
