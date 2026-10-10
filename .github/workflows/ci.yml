@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  # Botão "Run workflow": gera um APK novo (ex.: depois de cadastrar um secret).
+  workflow_dispatch:
 
 jobs:
   banco:

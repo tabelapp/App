@@ -27,7 +27,7 @@
   Também falta colar o modelo do e-mail (`docs/EMAIL_SENHA.md`).
 - **Supabase gratuito pausa após 7 dias sem uso.** Para produção: plano pago (US$ 25/mês) ou uma
   rotina que acesse o projeto. Plano gratuito também não tem backup automático.
-- **Login com Google:** falta criar as credenciais no Google Cloud (o botão aparece "não configurado").
+- **Login com Google e mapa:** criar as credenciais no Google Cloud — passo a passo em `docs/GOOGLE_CLOUD.md`.
 - **Login por WhatsApp:** ainda sem definição (custo do provedor de SMS/WhatsApp).
 
 ### Riscos aceitos (documentados)
@@ -51,7 +51,7 @@
 6. **Play Store:** política de privacidade e termos de uso, chave de assinatura de produção (hoje só a de
    debug), ícone/telas da loja, classificação etária.
 7. **Link de download** usado no compartilhamento (hoje aponta para a futura página da Play Store).
-8. **Mapa:** "Ver no mapa" na busca está pronto, mas precisa da chave do Google Maps (`docs/MAPA_GOOGLE.md`).
+8. **Mapa:** "Ver no mapa" na busca está pronto, mas precisa da chave do Google Maps (`docs/GOOGLE_CLOUD.md`).
    Falta o relatório "no mapa" da lista de compras (usa a mesma tela).
 9. Envio de **encarte** por usuário: suspenso por decisão do fundador.
 
