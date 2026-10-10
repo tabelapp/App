@@ -433,7 +433,13 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuar
         )
         Text("Obrigado!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
-            "${estado.itensEnviados} preço(s) enviados. Quem pesquisa economiza — e agora você ajudou quem pesquisa.",
+            if (estado.itensEnviados == 0) {
+                "Esses preços já estavam no Tabelapp (mesmo local, dia e preço) — confirmados por você. " +
+                    "Quem pesquisa economiza!"
+            } else {
+                "${estado.itensEnviados} preço(s) novos enviados. Itens repetidos (mesmo local, dia e preço) " +
+                    "não entram duas vezes. Quem pesquisa economiza — e agora você ajudou quem pesquisa."
+            },
             textAlign = TextAlign.Center,
         )
         estado.resultadoSugestao?.let { Text(it, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall) }

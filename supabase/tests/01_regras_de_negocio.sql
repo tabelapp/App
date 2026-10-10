@@ -836,4 +836,36 @@ set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 select pg_temp.espera_erro(
   $q$select public.encerrar_promocao((select id from public.promocoes limit 1))$q$, 'sem_permissao');
 
+\echo '== Lançamentos repetidos: o igual não entra; a busca mostra o mais recente'
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare v jsonb;
+begin
+  v := public.enviar_nota_fiscal(pg_temp.chave('44444444000191', 8001), null, 'Mercearia Quatro', 'Rua Quatro, 4',
+    '[{"produto": "Leite Integral 1L", "preco_centavos": 499},
+      {"produto": "Leite integral 1l", "preco_centavos": 499},
+      {"produto": "Café Moído 500g", "preco_centavos": 1890}]');
+  assert (v ->> 'itens')::int = 2, 'item repetido na mesma nota entra uma vez';
+  v := public.enviar_nota_fiscal(pg_temp.chave('44444444000191', 8002), null, 'Mercearia Quatro', 'Rua Quatro, 4',
+    '[{"produto": "Leite Integral 1L", "preco_centavos": 499},
+      {"produto": "Café Moído 500g", "preco_centavos": 1990}]');
+  assert (v ->> 'itens')::int = 1, 'mesmo dia e preço não entra de novo; preço diferente entra';
+  v := public.enviar_nota_fiscal(pg_temp.chave('44444444000191', 8003, public.hoje() - 1), null, 'Mercearia Quatro',
+    'Rua Quatro, 4', '[{"produto": "Leite Integral 1L", "preco_centavos": 499}]', public.hoje() - 1);
+  assert (v ->> 'itens')::int = 1, 'outro dia entra';
+  -- Busca: um card por produto neste local — o lançamento mais recente.
+  assert (select count(*) from public.buscar_cotacoes('leite integral 1l') where pdv_nome = 'Mercearia Quatro') = 1;
+  assert (select data_nf from public.buscar_cotacoes('leite integral 1l') where pdv_nome = 'Mercearia Quatro') = public.hoje();
+  assert (select preco_centavos from public.buscar_cotacoes('cafe moido 500g') where pdv_nome = 'Mercearia Quatro') = 1990;
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from public.cotacoes where substring(chave_acesso_nf from 7 for 14) = '44444444000191'
+          and produto_busca in ('leite integral 1l', 'cafe moido 500g')) = 4,
+    'no banco ficam os diferentes (dias ou preços)';
+  assert (select count(*) from public.historico_precos
+          where cnpj = '44444444000191' and produto in ('Leite Integral 1L', 'Café Moído 500g')) = 4;
+end $$;
+
 \echo 'OK — todos os testes do banco passaram'

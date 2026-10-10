@@ -198,6 +198,18 @@ Para ninguém cadastrar uma empresa que não é sua:
 - **Dados do PDV editáveis** (`atualizar_pdv`, `atualizar_loja`): nome de exibição, site, endereço,
   telefone e WhatsApp. O WhatsApp da loja passa a ser o contato do card de preço.
 
+## Lançamentos repetidos (migração `20261010001700`)
+
+- **No banco:** o mesmo produto, no mesmo local, no mesmo dia e pelo mesmo preço é um lançamento só.
+  Os repetidos que já existiam foram apagados (do banco e do histórico, por serem cópias idênticas) e
+  um gatilho ignora os novos repetidos — a nota é aceita normalmente, só o item igual não entra.
+  Dias ou preços diferentes continuam todos guardados.
+- "Local" = loja cadastrada; sem loja, o CNPJ da nota; sem nota, nome + endereço digitados.
+  "Dia" = data da compra na NF (nos outros, o dia do lançamento). O preço oficial do PDV já é um item
+  só por loja e fica de fora.
+- **Na busca:** para cada produto em cada local aparece só o lançamento mais recente (no empate, o
+  preço oficial do PDV).
+
 ## Segurança (resumo)
 
 - Nada é acessível sem login.
