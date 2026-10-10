@@ -27,7 +27,7 @@ Importantes, podem vir logo depois:
 - [ ] Definir o **link de download** usado no compartilhamento.
 
 ## C. Testes no celular (fundador + Claude)
-- [ ] NF pela câmera e pela chave digitada (consulta na Sefaz) e o PDF por e-mail.
+- [ ] NF pela câmera e pela chave digitada (consulta na Sefaz) e o compartilhamento da NF-e em PDF.
 - [ ] Cadastro de PDV → aprovação no Admin → painel do PDV.
 - [ ] Planilha (modelo .csv e Excel), promoção paga e confirmação do pagamento no Admin.
 - [ ] Busca: card, WhatsApp, compartilhar, banner, lançamentos repetidos, "Ver no mapa".

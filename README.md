@@ -18,7 +18,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Modo demonstração (roda sem servidor, com dados fictícios de Petrópolis) | ✅ |
 | Login por WhatsApp | ⏳ botão "em breve" — fluxo técnico ainda não decidido |
 | Lista de compras: várias listas salvas, busca inteligente para adicionar itens, pesquisa com 2 relatórios (num lugar só / item a item), envio pelo WhatsApp | ✅ no app (aba "Lista") |
-| Enviar preços (NF): QR Code ou os 44 números da chave; lê produtos, preços e data na Sefaz no celular; nome fantasia pela Receita (ou sugerido e confirmado); cópia em PDF para o e-mail | ✅ no app |
+| Enviar preços (NF): QR Code ou os 44 números da chave; lê produtos, preços e data na Sefaz no celular; nome fantasia pela Receita (ou sugerido e confirmado); NF-e em PDF para compartilhar | ✅ no app |
 | Histórico permanente de preços (nada se apaga; a busca mostra só os válidos) | ✅ no banco |
 | Banner patrocinado na busca, card de preço novo e envio do card pelo WhatsApp | ✅ no app |
 | Login: ver senha e "Esqueci a senha" (código por e-mail) | ✅ no app |

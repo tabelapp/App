@@ -111,7 +111,7 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
                 EtapaNf.LENDO_SEFAZ -> EtapaLendoSefaz(estado, vm)
                 EtapaNf.FALHA -> EtapaFalha(estado, vm)
                 EtapaNf.CONFIRMACAO -> EtapaConfirmacao(estado, vm)
-                EtapaNf.ENVIADO -> EtapaEnviado(estado, vm, usuario, aoVerNaBusca)
+                EtapaNf.ENVIADO -> EtapaEnviado(estado, vm, aoVerNaBusca)
             }
         }
     }
@@ -374,7 +374,7 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = estado.querPdf, onCheckedChange = vm::alternarPdf)
-            Text("Quero uma cópia em PDF desta nota no meu e-mail")
+            Text("Quero compartilhar esta NF-e em PDF")
         }
 
         estado.erros.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -394,7 +394,7 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
 }
 
 @Composable
-private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuario, aoVerNaBusca: () -> Unit) {
+private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, aoVerNaBusca: () -> Unit) {
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     var gerandoPdf by remember { mutableStateOf(false) }
@@ -411,7 +411,7 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuar
         escopo.launch {
             try {
                 val arquivo = PdfNota.gerar(contexto, pagina.first, pagina.second, "nota-fiscal-${estado.chave.takeLast(8)}.pdf")
-                abrirEmailComPdf(contexto, arquivo, usuario.email, estado)
+                compartilharPdf(contexto, arquivo, estado)
             } catch (e: ErroAmigavel) {
                 erroPdf = e.message
             } finally {
@@ -419,7 +419,7 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuar
             }
         }
     }
-    // Marcou a opção na confirmação: já abre o e-mail com o PDF.
+    // Marcou a opção na confirmação: já abre o compartilhamento do PDF.
     LaunchedEffect(Unit) { if (estado.querPdf) enviarPdf() }
 
     Column(
@@ -445,7 +445,7 @@ private fun EtapaEnviado(estado: EstadoNf, vm: EnviarNfViewModel, usuario: Usuar
         estado.resultadoSugestao?.let { Text(it, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall) }
         OutlinedButton(onClick = ::enviarPdf, enabled = !gerandoPdf, modifier = Modifier.fillMaxWidth()) {
             if (gerandoPdf) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            else Text("Receber cópia em PDF no e-mail")
+            else Text("Compartilhe essa NF-e em PDF")
         }
         erroPdf?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
         Button(onClick = { vm.novaNota(); aoVerNaBusca() }, modifier = Modifier.fillMaxWidth()) {
@@ -475,14 +475,13 @@ private fun BotaoEnviarParaAnalise(vm: EnviarNfViewModel) {
 }
 
 /**
- * Abre o app de e-mail com o PDF da nota anexado, já endereçado ao e-mail da
- * conta. A pessoa só toca em enviar (o Tabelapp não envia e-mails sozinho).
+ * Compartilha o PDF da NF-e: a pessoa escolhe para onde (WhatsApp, e-mail, Drive,
+ * salvar no celular...). O Tabelapp não envia nada sozinho.
  */
-private fun abrirEmailComPdf(contexto: Context, arquivo: File, email: String?, estado: EstadoNf) {
+private fun compartilharPdf(contexto: Context, arquivo: File, estado: EstadoNf) {
     val uri = FileProvider.getUriForFile(contexto, contexto.packageName + ".arquivos", arquivo)
     val envio = Intent(Intent.ACTION_SEND).apply {
         type = "application/pdf"
-        email?.let { putExtra(Intent.EXTRA_EMAIL, arrayOf(it)) }
         putExtra(Intent.EXTRA_SUBJECT, "Nota fiscal - ${estado.pdvNome.ifBlank { "compra" }} - ${Validade.formatar(estado.dataNf)}")
         putExtra(Intent.EXTRA_TEXT, "Cópia da nota fiscal consultada na Sefaz pelo Tabelapp.")
         putExtra(Intent.EXTRA_STREAM, uri)
@@ -490,9 +489,9 @@ private fun abrirEmailComPdf(contexto: Context, arquivo: File, email: String?, e
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     try {
-        contexto.startActivity(Intent.createChooser(envio, "Enviar PDF para o seu e-mail"))
+        contexto.startActivity(Intent.createChooser(envio, "Compartilhar NF-e em PDF"))
     } catch (e: ActivityNotFoundException) {
-        // Sem app de e-mail/compartilhamento: nada a fazer.
+        // Nenhum app para receber o arquivo: nada a fazer.
     }
 }
 

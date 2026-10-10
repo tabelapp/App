@@ -115,9 +115,8 @@ Para ninguém cadastrar uma empresa que não é sua:
   (concorrente, fraude), a sugestão só vale **confirmada**: só sugere quem enviou uma NF daquele CNPJ,
   e o nome entra na busca quando **2 pessoas diferentes** sugerem o mesmo nome ou o **Admin aprova**.
   Até lá, a busca mostra a razão social. Nome confirmado não muda por novas sugestões.
-- **Cópia em PDF:** depois de enviar, o app "imprime" em PDF a mesma página da Sefaz e abre o e-mail
-  da pessoa com o PDF anexado e o endereço da conta já preenchido — ela só toca em enviar. (Enviar
-  sozinho, sem abrir o e-mail, exigiria um serviço de e-mail no servidor.)
+- **NF-e em PDF:** depois de enviar, o app "imprime" em PDF a mesma página da Sefaz e oferece
+  "Compartilhe essa NF-e em PDF": a pessoa escolhe para onde (WhatsApp, e-mail, Drive, salvar no celular).
 
 ## Lista de compras
 

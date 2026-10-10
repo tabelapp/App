@@ -50,7 +50,7 @@ data class EstadoNf(
     /** Como o lugar é conhecido, quando a Receita não traz nome fantasia (só vale confirmado). */
     val nomeSugerido: String = "",
     val resultadoSugestao: String? = null,
-    /** Receber cópia em PDF da nota no e-mail depois de enviar. */
+    /** Compartilhar a NF-e em PDF depois de enviar. */
     val querPdf: Boolean = false,
     /** Por que a leitura não serviu (mostrado na tela de falha). */
     val motivoFalha: String? = null,
