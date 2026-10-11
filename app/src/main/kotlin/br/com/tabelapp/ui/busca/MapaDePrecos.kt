@@ -2,7 +2,7 @@ package br.com.tabelapp.ui.busca
 
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -45,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +52,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import br.com.tabelapp.BuildConfig
+import br.com.tabelapp.R
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Geo
@@ -199,7 +200,7 @@ private fun Mapa(
     }
 }
 
-/** O pino: balão com o preço e uma pontinha embaixo. */
+/** O pino: a lupa da logomarca (a ponta do cabo marca o local) com o preço num balão em cima. */
 @Composable
 private fun EtiquetaPreco(texto: String, maisBarato: Boolean, ativo: Boolean) {
     val fundo = when {
@@ -222,16 +223,11 @@ private fun EtiquetaPreco(texto: String, maisBarato: Boolean, ativo: Boolean) {
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             )
         }
-        Box(
-            Modifier.size(width = 12.dp, height = 7.dp).background(
-                if (maisBarato || ativo) fundo else PretoLupa,
-                GenericShape { tamanho, _ ->
-                    moveTo(0f, 0f)
-                    lineTo(tamanho.width, 0f)
-                    lineTo(tamanho.width / 2, tamanho.height)
-                    close()
-                },
-            )
+        Spacer(Modifier.size(2.dp))
+        Image(
+            painter = painterResource(R.drawable.pino_lupa),
+            contentDescription = null,
+            modifier = if (ativo) Modifier.size(width = 34.dp, height = 51.dp) else Modifier.size(width = 28.dp, height = 42.dp),
         )
     }
 }
