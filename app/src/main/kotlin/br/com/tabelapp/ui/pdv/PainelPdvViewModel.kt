@@ -2,8 +2,8 @@ package br.com.tabelapp.ui.pdv
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LeitorPlanilha
+import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.PrecoPdv
@@ -12,9 +12,12 @@ import br.com.tabelapp.core.RascunhoPreco
 import br.com.tabelapp.core.SaldoCota
 import br.com.tabelapp.core.SimulacaoImportacao
 import br.com.tabelapp.core.Texto
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.core.TipoOperacao
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.PdvRepositorio
+import br.com.tabelapp.erros.Erros
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +25,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 
 data class EstadoPainel(
     val carregando: Boolean = true,
@@ -46,6 +48,8 @@ data class EstadoPainel(
     val pagamentoCriado: PagamentoCriado? = null,
     /** Importação de planilha em andamento (prévia aberta). */
     val planilha: EstadoPlanilha? = null,
+    /** Não deu para registrar o pedido de pacote (rede/instabilidade): diálogo calmo. */
+    val falhaPagamento: Boolean = false,
 ) {
     val loja: LojaPdv? get() = lojas.firstOrNull { it.id == lojaId }
 
@@ -173,8 +177,14 @@ class PainelPdvViewModel(
         aoErro: (String) -> Unit, aoTerminar: () -> Unit,
     ) {
         viewModelScope.launch {
+            val arte = try {
+                arteJpeg?.let { repositorio.enviarArte(pdv.id, it) }
+            } catch (ex: ErroAmigavel) {
+                // A imagem continua escolhida no formulário: é só tentar de novo.
+                aoErro(if (ex.tipo == null) ex.message.orEmpty() else Erros.texto(TipoErro.FALHA_UPLOAD_FOTO))
+                return@launch
+            }
             try {
-                val arte = arteJpeg?.let { repositorio.enviarArte(pdv.id, it) }
                 val codigo = repositorio.criarPromocao(
                     pdv.id, titulo, descricao.ifBlank { null }, link.ifBlank { null }, arte, palavras, visualizacoes,
                 )
@@ -185,7 +195,8 @@ class PainelPdvViewModel(
                 aoTerminar()
                 carregar()
             } catch (ex: ErroAmigavel) {
-                aoErro(ex.message.orEmpty())
+                aoErro(if (ex.tipo == null || ex.tipo == TipoErro.SESSAO_EXPIRADA) ex.message.orEmpty()
+                    else Erros.texto(TipoErro.FALHA_PAGAMENTO))
             }
         }
     }
@@ -209,9 +220,14 @@ class PainelPdvViewModel(
         viewModelScope.launch {
             try {
                 val codigo = repositorio.comprarPacoteOperacoes(pdv.id, lojaId)
-                _estado.update { it.copy(pagamentoCriado = PagamentoCriado(codigo, "+50 operações (valem 30 dias)", 1000)) }
+                _estado.update {
+                    it.copy(falhaPagamento = false, pagamentoCriado = PagamentoCriado(codigo, "+50 operações (valem 30 dias)", 1000))
+                }
             } catch (ex: ErroAmigavel) {
-                _estado.update { it.copy(mensagem = ex.message) }
+                _estado.update {
+                    if (ex.tipo == null || ex.tipo == TipoErro.SESSAO_EXPIRADA) it.copy(mensagem = ex.message)
+                    else it.copy(falhaPagamento = true)
+                }
             }
         }
     }
@@ -296,6 +312,8 @@ class PainelPdvViewModel(
 
     private fun atualizarPlanilha(f: (EstadoPlanilha) -> EstadoPlanilha) =
         _estado.update { e -> e.copy(planilha = e.planilha?.let(f)) }
+
+    fun fecharFalhaPagamento() = _estado.update { it.copy(falhaPagamento = false) }
 
     fun fecharPagamento() = _estado.update { it.copy(pagamentoCriado = null) }
 

@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 interface AuthRepositorio {
     val estado: StateFlow<EstadoSessao>
 
+    /** A sessão terminou sozinha (não foi "Sair"): a tela de login explica com calma. */
+    val sessaoExpirada: StateFlow<Boolean>
+
     suspend fun entrarComEmail(email: String, senha: String)
 
     /** @return true se a conta já está ativa; false se o Supabase pediu confirmação por e-mail. */

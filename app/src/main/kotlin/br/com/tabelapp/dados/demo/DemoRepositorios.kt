@@ -6,13 +6,11 @@ import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Cotacao
-import br.com.tabelapp.core.SugestaoProduto
-import br.com.tabelapp.core.ListaResumo
-import br.com.tabelapp.core.ItemSalvo
-import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.DadosDemo
-import br.com.tabelapp.core.Texto
+import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.ItemSalvo
+import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
@@ -20,33 +18,35 @@ import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
-import br.com.tabelapp.core.PromocaoPdv
-import br.com.tabelapp.core.SimulacaoImportacao
+import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoPdv
+import br.com.tabelapp.core.PromocaoPdv
+import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.RegrasCota
 import br.com.tabelapp.core.SaldoCota
+import br.com.tabelapp.core.SimulacaoImportacao
 import br.com.tabelapp.core.StatusPdv
+import br.com.tabelapp.core.SugestaoProduto
+import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoOperacao
-import br.com.tabelapp.core.PontoGeo
-import br.com.tabelapp.core.RascunhoNf
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
-import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.EstadoSessao
+import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
+import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.util.UUID
 
 /**
  * Modo demonstração: roda sem Supabase configurado, com os dados fictícios
@@ -55,6 +55,7 @@ import java.util.UUID
 class DemoAuthRepositorio : AuthRepositorio {
     private val _estado = MutableStateFlow<EstadoSessao>(EstadoSessao.Deslogado)
     override val estado: StateFlow<EstadoSessao> = _estado.asStateFlow()
+    override val sessaoExpirada: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
     override suspend fun entrarComEmail(email: String, senha: String) {
         delay(300)

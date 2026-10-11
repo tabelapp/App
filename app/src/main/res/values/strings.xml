@@ -1,4 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Tabelapp</string>
+
+    <!--
+      Mensagens de erro: tom calmo, curto, sem culpar o usuário, sem códigos técnicos.
+      Cada tipo (core/Erros.kt → TipoErro) tem erro_<tipo>_titulo e erro_<tipo>_texto;
+      a dica é opcional. O teste core/.../TextosErroTest confere que nenhum tipo fica sem texto.
+    -->
+    <string name="erro_sefaz_indisponivel_titulo">A Sefaz não respondeu agora</string>
+    <string name="erro_sefaz_indisponivel_texto">Isso acontece de vez em quando e não foi culpa sua. O site da Receita do estado limita alguns acessos para se proteger. Sua nota está segura e você não perdeu nada.</string>
+    <string name="erro_sefaz_indisponivel_dica">Tente trocar entre Wi-Fi e dados móveis, ou aguarde alguns minutos.</string>
+
+    <string name="erro_sem_internet_titulo">Você está sem internet</string>
+    <string name="erro_sem_internet_texto">Parece que você está sem internet. Conecte-se e tente de novo. Seus dados não foram perdidos.</string>
+
+    <string name="erro_camera_negada_titulo">Precisamos da câmera</string>
+    <string name="erro_camera_negada_texto">Precisamos da câmera para ler o QR Code. Você pode liberar nas configurações, ou preencher a nota manualmente.</string>
+
+    <string name="erro_qr_invalido_titulo">Não conseguimos ler esse código</string>
+    <string name="erro_qr_invalido_texto">Não conseguimos ler esse código. Tente chegar mais perto, com boa luz, ou preencha manualmente.</string>
+
+    <string name="erro_servidor_instavel_titulo">Uma instabilidade rápida</string>
+    <string name="erro_servidor_instavel_texto">Estamos com uma instabilidade rápida. Tente novamente em instantes.</string>
+
+    <string name="erro_sessao_expirada_titulo">Sua sessão terminou</string>
+    <string name="erro_sessao_expirada_texto">Sua sessão terminou por segurança. Entre de novo para continuar.</string>
+
+    <string name="erro_busca_vazia_titulo">Nada por aqui ainda</string>
+    <string name="erro_busca_vazia_texto">Ainda não encontramos preços para isso. Que tal tentar outro nome, ou ser o primeiro a cadastrar?</string>
+
+    <string name="erro_falha_upload_foto_titulo">A foto não foi enviada</string>
+    <string name="erro_falha_upload_foto_texto">Não conseguimos enviar a foto. Verifique a conexão e tente de novo.</string>
+
+    <string name="erro_falha_envio_nf_titulo">Ainda não foi enviado</string>
+    <string name="erro_falha_envio_nf_texto">Não conseguimos enviar agora, mas seus dados continuam aqui. Tente de novo.</string>
+
+    <string name="erro_falha_pagamento_titulo">O pagamento não foi concluído</string>
+    <string name="erro_falha_pagamento_texto">O pagamento não foi concluído. Nada foi cobrado indevidamente. Tente novamente ou fale com a gente.</string>
+
+    <string name="erro_inesperado_titulo">Algo não saiu como esperado</string>
+    <string name="erro_inesperado_texto">Algo não saiu como esperado, mas já estamos cientes. Tente de novo em instantes.</string>
+
+    <!-- Botões das telas de erro -->
+    <string name="erro_botao_tentar_de_novo">Tentar de novo</string>
+    <string name="erro_botao_preencher_manualmente">Preencher manualmente</string>
+    <string name="erro_botao_abrir_configuracoes">Abrir configurações</string>
+    <string name="erro_botao_entrar_de_novo">Entrar de novo</string>
+    <string name="erro_botao_fale_conosco">Falar com a gente</string>
+    <string name="erro_botao_enviar_precos">Enviar preços de uma nota</string>
+    <string name="erro_botao_voltar_ao_inicio">Voltar ao início</string>
+    <string name="erro_botao_ok">Entendi</string>
+    <string name="erro_aguarde_segundos">Você pode tentar de novo em %1$d s</string>
+    <string name="erro_leitor_indisponivel">Não deu para abrir o leitor de QR Code agora. Tente de novo em instantes, ou digite os 44 números da nota abaixo.</string>
+    <string name="erro_nota_diferente_titulo">Essa não é a mesma nota</string>
+    <string name="erro_nota_diferente_texto">A nota aberta na Sefaz não é a mesma da chave informada. Confira os números e tente de novo.</string>
+    <string name="erro_leitura_nf_titulo">Não conseguimos ler os produtos</string>
+    <string name="erro_leitura_nf_texto">A página da Sefaz abriu, mas não encontramos os produtos dela. Você pode tentar de novo ou consultar pela chave de acesso. Só enviamos preços lidos direto da nota.</string>
 </resources>

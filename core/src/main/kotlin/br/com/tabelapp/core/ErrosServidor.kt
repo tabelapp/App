@@ -51,9 +51,17 @@ object ErrosServidor {
         "arte_invalida" to "Não foi possível usar essa imagem. Tente outra.",
         "promocoes_pendentes_demais" to "Você já tem promoções aguardando pagamento. Conclua ou exclua uma delas.",
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
+        // Mensagens do serviço de login (Supabase Auth).
+        "already registered" to "Este e-mail já tem cadastro. Entre com ele ou use \"Esqueci a senha\".",
+        "Password should be" to "A senha precisa ter pelo menos 6 caracteres.",
+        "Email not confirmed" to "Confirme seu e-mail pelo link que enviamos e depois entre.",
     )
 
-    const val GENERICA = "Algo deu errado. Tente de novo em instantes."
+    const val GENERICA = "Algo não saiu como esperado, mas já estamos cientes. Tente de novo em instantes."
+
+    /** A mensagem traz um código de regra de negócio conhecido (ex.: "nf_ja_enviada")? */
+    fun conhece(mensagemBruta: String?): Boolean =
+        mensagemBruta != null && mensagens.keys.any { mensagemBruta.contains(it) }
 
     /** Procura um código conhecido dentro da mensagem de erro bruta do servidor. */
     fun traduzir(mensagemBruta: String?): String {

@@ -11,10 +11,12 @@ import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.dados.LeitorTexto
 import br.com.tabelapp.dados.PdvRepositorio
+import br.com.tabelapp.erros.Erros
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -205,7 +207,13 @@ class MeuNegocioViewModel(
                 val pdvs = repositorio.meusPdvs()
                 _estado.update { EstadoPdv(etapa = EtapaPdv.SITUACAO, pdvs = pdvs) }
             } catch (ex: ErroAmigavel) {
-                _estado.update { it.copy(enviando = false, erros = listOfNotNull(ex.message)) }
+                // A foto e os dados continuam selecionados; falha de rede vira a mensagem calma do envio da foto.
+                val mensagem = if (ex.tipo == TipoErro.SERVIDOR_INSTAVEL || ex.tipo == TipoErro.INESPERADO) {
+                    Erros.texto(TipoErro.FALHA_UPLOAD_FOTO)
+                } else {
+                    ex.message
+                }
+                _estado.update { it.copy(enviando = false, erros = listOfNotNull(mensagem)) }
             }
         }
     }

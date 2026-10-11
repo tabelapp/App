@@ -83,7 +83,7 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
         // As telas das abas têm a própria barra de topo; aqui só reservamos o espaço da barra de baixo.
         Box(Modifier.fillMaxSize().padding(bottom = margens.calculateBottomPadding())) {
             when (aba) {
-                Aba.BUSCAR -> TelaBusca(container, usuario)
+                Aba.BUSCAR -> TelaBusca(container, usuario, aoEnviarPrecos = { escolhidaNome = Aba.ENVIAR_NF.name })
                 Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { escolhidaNome = Aba.BUSCAR.name })
                 Aba.LISTA -> TelaLista(container, usuario)
                 Aba.MEU_NEGOCIO -> TelaMeuNegocio(container, usuario)

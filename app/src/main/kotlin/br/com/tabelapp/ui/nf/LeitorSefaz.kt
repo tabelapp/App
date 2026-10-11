@@ -1,27 +1,23 @@
 package br.com.tabelapp.ui.nf
 
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.Alignment
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.background
-import android.webkit.WebChromeClient
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -30,10 +26,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import br.com.tabelapp.core.ClassificadorErros
 import br.com.tabelapp.core.LeitorNfce
 import br.com.tabelapp.core.NotaLida
+import br.com.tabelapp.core.PaginaSefaz
+import br.com.tabelapp.core.TipoErro
+import br.com.tabelapp.erros.Erros
+import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -41,12 +46,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.coroutines.resume
 
 private const val INTERVALO_MS = 1_500L
 private const val DESISTIR_APOS_MS = 90_000L
 /** Na consulta pela chave digitada o usuário ainda resolve a verificação da Sefaz: mais tempo. */
 private const val DESISTIR_APOS_MS_MANUAL = 240_000L
+/** A página da Sefaz precisa abrir em até 20 s; depois disso, tela calma (sem insistir sozinho). */
+private const val TEMPO_CARREGAMENTO_MS = 20_000L
 
 /**
  * Consulta pública da NFC-e pela chave de acesso na Sefaz-RJ (é o endereço impresso
@@ -64,6 +70,10 @@ const val URL_CONSULTA_CHAVE_RJ = "https://www.fazenda.rj.gov.br/nfce/consulta"
  * A página fica visível: se a Sefaz pedir alguma verificação ("não sou robô"),
  * o próprio usuário resolve ali. A cada 1,5 s o HTML é conferido; quando os
  * produtos aparecem, [aoLer] é chamado. Depois de 90 s, [aoDesistir].
+ *
+ * O usuário nunca vê página de erro: enquanto a página não é conferida, um aviso
+ * cobre o WebView; falha de rede, HTTP 403/429/5xx, página de bloqueio de IP ou
+ * demora acima de 20 s chamam [aoFalhar] (uma vez só, sem novas tentativas).
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -76,17 +86,26 @@ fun LeitorSefaz(
     aoCapturarHtml: (html: String, url: String?) -> Unit = { _, _ -> },
     /** Entrada manual: chave de 44 números para preencher no formulário de consulta da Sefaz. */
     chaveParaPreencher: String? = null,
-    /** O site da Sefaz não respondeu em nenhum dos endereços (recebe o erro técnico). */
-    aoFalharRede: (String) -> Unit = {},
+    /** A Sefaz falhou: tipo para a mensagem calma + detalhe técnico (só para o log). */
+    aoFalhar: (TipoErro, String) -> Unit = { _, _ -> },
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val aoLerAtual by rememberUpdatedState(aoLer)
     val aoDesistirAtual by rememberUpdatedState(aoDesistir)
     val aoCapturarHtmlAtual by rememberUpdatedState(aoCapturarHtml)
-    val aoFalharRedeAtual by rememberUpdatedState(aoFalharRede)
+    val aoFalharAtual by rememberUpdatedState(aoFalhar)
 
-    // Enquanto a Sefaz não responde, a página fica em branco: mostramos um aviso por cima.
-    var progresso by remember { mutableIntStateOf(0) }
+    // A página só aparece depois de conferida (nunca mostramos a página crua de erro/bloqueio).
+    var paginaConferida by remember { mutableStateOf(false) }
+    var carregouAlguma by remember { mutableStateOf(false) }
+    var falhou by remember { mutableStateOf(false) }
+
+    fun falhar(tipo: TipoErro, detalhe: String) {
+        if (falhou) return
+        falhou = true
+        webView?.stopLoading()
+        aoFalharAtual(tipo, detalhe)
+    }
 
     Box(modifier) {
         AndroidView(
@@ -98,19 +117,35 @@ fun LeitorSefaz(
                     settings.useWideViewPort = true
                     // Alguns portais recusam o "navegador embutido": apresenta-se como o Chrome do celular.
                     settings.userAgentString = settings.userAgentString.replace("; wv", "")
-                    webViewClient = ClienteSefaz { erro -> aoFalharRedeAtual(erro) }
-                    webChromeClient = object : WebChromeClient() {
-                        override fun onProgressChanged(view: WebView, newProgress: Int) {
-                            progresso = newProgress
-                        }
-                    }
+                    webViewClient = ClienteSefaz(
+                        aoComecar = { paginaConferida = false },
+                        aoTerminar = { view ->
+                            // Confere o conteúdo antes de mostrar: bloqueio de IP ou página de erro do navegador.
+                            htmlDaPaginaAsync(view) { html ->
+                                when {
+                                    falhou -> Unit
+                                    html != null && PaginaSefaz.ehBloqueio(html) ->
+                                        falhar(TipoErro.SEFAZ_INDISPONIVEL, "página de bloqueio de IP da Sefaz (${view.url})")
+                                    html != null && PaginaSefaz.ehErroDoNavegador(html) ->
+                                        falhar(ClassificadorErros.deFalhaDePagina(Erros.temInternet()),
+                                            "página de erro do navegador (${view.url})")
+                                    else -> {
+                                        carregouAlguma = true
+                                        paginaConferida = true
+                                    }
+                                }
+                            }
+                        },
+                        aoFalhar = { tipo, detalhe -> falhar(tipo, detalhe) },
+                    )
+                    webChromeClient = WebChromeClient()
                     loadUrl(url)
                     webView = this
                 }
             },
             modifier = Modifier.fillMaxSize(),
         )
-        if (progresso < 100) {
+        if (!paginaConferida) {
             Column(
                 Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -132,14 +167,27 @@ fun LeitorSefaz(
         }
     }
 
+    // A primeira página precisa abrir em até 20 s.
+    LaunchedEffect(url) {
+        delay(TEMPO_CARREGAMENTO_MS)
+        if (!carregouAlguma) {
+            falhar(ClassificadorErros.deFalhaDePagina(Erros.temInternet()), "Sefaz não abriu em ${TEMPO_CARREGAMENTO_MS / 1000} s")
+        }
+    }
+
     LaunchedEffect(url) {
         val inicio = System.currentTimeMillis()
         val limite = if (chaveParaPreencher != null) DESISTIR_APOS_MS_MANUAL else DESISTIR_APOS_MS
         while (System.currentTimeMillis() - inicio < limite) {
             delay(INTERVALO_MS)
+            if (falhou) return@LaunchedEffect
             val wv = webView ?: continue
             chaveParaPreencher?.let { preencherChave(wv, it) }
             val html = htmlDaPagina(wv) ?: continue
+            if (PaginaSefaz.ehBloqueio(html)) {
+                falhar(TipoErro.SEFAZ_INDISPONIVEL, "página de bloqueio de IP da Sefaz (${wv.url})")
+                return@LaunchedEffect
+            }
             aoCapturarHtmlAtual(html, wv.url)
             val nota = withContext(Dispatchers.Default) { runCatching { LeitorNfce.ler(html) }.getOrNull() }
             if (nota != null) {
@@ -147,7 +195,7 @@ fun LeitorSefaz(
                 return@LaunchedEffect
             }
         }
-        aoDesistirAtual()
+        if (!falhou) aoDesistirAtual()
     }
 
     DisposableEffect(Unit) {
@@ -191,6 +239,15 @@ private fun preencherChave(webView: WebView, chave: String) {
     )
 }
 
+/** Mesma leitura do HTML, com retorno por callback (usada no fim do carregamento). */
+private fun htmlDaPaginaAsync(webView: WebView, aoReceber: (String?) -> Unit) {
+    webView.evaluateJavascript("document.documentElement.outerHTML") { resultado ->
+        aoReceber(runCatching {
+            (Json.parseToJsonElement(resultado) as? JsonPrimitive)?.takeIf { it.isString }?.jsonPrimitive?.content
+        }.getOrNull())
+    }
+}
+
 /** HTML atual da página (já com o que o JavaScript da Sefaz montou). */
 private suspend fun htmlDaPagina(webView: WebView): String? = suspendCancellableCoroutine { cont ->
     webView.evaluateJavascript("document.documentElement.outerHTML") { resultado ->
@@ -203,35 +260,25 @@ private suspend fun htmlDaPagina(webView: WebView): String? = suspendCancellable
 }
 
 /**
- * Navegação dentro da Sefaz-RJ, tolerante às falhas do portal:
+ * Navegação dentro da Sefaz-RJ.
  *
  *  - Depois do QR Code, o portal redireciona para páginas em http:// cuja porta
  *    está fechada (ERR_CONNECTION_REFUSED): como os navegadores, abrimos em https.
- *  - Mas há endereços que só respondem em http, ou que cortam a conexão em https
- *    (ERR_CONNECTION_RESET), e o portal tem dois endereços (consultadfe e www4).
- *    Se a página principal falhar, tentamos as outras combinações de endereço e
- *    protocolo antes de desistir — e então avisamos [aoFalhar].
+ *    (É a mesma página no endereço seguro, não uma nova tentativa.)
+ *  - Qualquer falha da página principal (conexão cortada, tempo esgotado, sem
+ *    internet, HTTP 403/429/5xx) vai para [aoFalhar] na hora. Não tentamos de
+ *    novo sozinhos: insistir com a Sefaz piora o bloqueio.
  */
-private class ClienteSefaz(private val aoFalhar: (String) -> Unit) : WebViewClient() {
-
-    private val hostsSefaz = listOf("consultadfe.fazenda.rj.gov.br", "www4.fazenda.rj.gov.br")
-    /** Endereços (exatos) que já falharam: não insistimos neles. */
-    private val falharam = mutableSetOf<String>()
-    private var tentativas = 0
+private class ClienteSefaz(
+    private val aoComecar: () -> Unit,
+    private val aoTerminar: (WebView) -> Unit,
+    private val aoFalhar: (TipoErro, String) -> Unit,
+) : WebViewClient() {
 
     private fun ehSefaz(url: Uri) = (url.host ?: "").endsWith("fazenda.rj.gov.br")
 
-    private fun paraHttps(url: Uri): Uri? {
-        if (url.scheme != "http" || !ehSefaz(url)) return null
-        val seguro = url.buildUpon().scheme("https").build()
-        return seguro.takeIf { it.toString() !in falharam }
-    }
-
-    /** Mesma página nos outros endereços/protocolos da Sefaz, na ordem de tentativa. */
-    private fun alternativas(url: Uri): List<Uri> =
-        (listOfNotNull(url.host) + hostsSefaz).distinct().flatMap { host ->
-            listOf("https", "http").map { esquema -> url.buildUpon().scheme(esquema).authority(host).build() }
-        }.filter { it.toString() != url.toString() && it.toString() !in falharam }
+    private fun paraHttps(url: Uri): Uri? =
+        if (url.scheme == "http" && ehSefaz(url)) url.buildUpon().scheme("https").build() else null
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val seguro = paraHttps(request.url) ?: return false
@@ -239,33 +286,34 @@ private class ClienteSefaz(private val aoFalhar: (String) -> Unit) : WebViewClie
         return true
     }
 
-    // Alguns redirecionamentos não passam pelo método acima: corrige no início do carregamento.
     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+        // Alguns redirecionamentos não passam pelo método acima: corrige no início do carregamento.
         val seguro = paraHttps(Uri.parse(url))
         if (seguro != null) {
             view.stopLoading()
             view.loadUrl(seguro.toString())
             return
         }
+        aoComecar()
         super.onPageStarted(view, url, favicon)
     }
 
-    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-        if (!request.isForMainFrame || !ehSefaz(request.url)) {
-            super.onReceivedError(view, request, error)
-            return
-        }
-        falharam += request.url.toString()
-        val proxima = alternativas(request.url).firstOrNull()
-        if (proxima != null && tentativas < MAX_TENTATIVAS) {
-            tentativas++
-            view.loadUrl(proxima.toString())
-        } else {
-            aoFalhar(error.description?.toString().orEmpty())
-        }
+    override fun onPageFinished(view: WebView, url: String) {
+        super.onPageFinished(view, url)
+        aoTerminar(view)
     }
 
-    private companion object {
-        const val MAX_TENTATIVAS = 6
+    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+        if (!request.isForMainFrame) return
+        aoFalhar(
+            ClassificadorErros.deFalhaDePagina(Erros.temInternet()),
+            "erro de rede ${error.errorCode} ${error.description} em ${request.url}",
+        )
+    }
+
+    override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
+        if (!request.isForMainFrame) return
+        val tipo = ClassificadorErros.deStatusHttpSefaz(errorResponse.statusCode) ?: return
+        aoFalhar(tipo, "HTTP ${errorResponse.statusCode} em ${request.url}")
     }
 }

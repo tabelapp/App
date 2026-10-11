@@ -8,6 +8,7 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Localizacao
@@ -25,6 +26,8 @@ data class EstadoBusca(
     val termoBuscado: String? = null,
     val carregando: Boolean = true,
     val erro: String? = null,
+    /** Tipo do erro (sem internet, instabilidade...) para a tela calma; null = mensagem própria. */
+    val erroTipo: TipoErro? = null,
     val resultados: List<Cotacao> = emptyList(),
     /** Ids destacados como "mais barato" (só quando há uma busca). */
     val maisBaratos: Set<String> = emptySet(),
@@ -96,14 +99,14 @@ class BuscaViewModel(
 
     private fun carregar(termo: String?) {
         carga?.cancel()
-        _estado.update { it.copy(carregando = true, erro = null, termoBuscado = termo) }
+        _estado.update { it.copy(carregando = true, erro = null, erroTipo = null, termoBuscado = termo) }
         carga = viewModelScope.launch {
             try {
                 brutos = cotacoes.buscar(termo, _estado.value.posicao)
                 reaplicarOrdenacao()
                 _estado.update { it.copy(carregando = false) }
             } catch (e: ErroAmigavel) {
-                _estado.update { it.copy(carregando = false, erro = e.message) }
+                _estado.update { it.copy(carregando = false, erro = e.message, erroTipo = e.tipo) }
             }
         }
         viewModelScope.launch {

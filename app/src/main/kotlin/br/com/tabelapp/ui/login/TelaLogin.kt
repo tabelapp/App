@@ -1,9 +1,5 @@
 package br.com.tabelapp.ui.login
 
-import br.com.tabelapp.ui.tema.TabelappTema
-import br.com.tabelapp.ui.tema.FundoClaro
-import br.com.tabelapp.R
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,15 +37,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.R
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.TipoConta
+import br.com.tabelapp.ui.comum.PainelErro
+import br.com.tabelapp.ui.tema.FundoClaro
+import br.com.tabelapp.ui.tema.TabelappTema
 import kotlinx.coroutines.launch
 
 @Composable
@@ -122,6 +125,9 @@ fun TelaLogin(container: AppContainer) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text("Quem pesquisa economiza", style = MaterialTheme.typography.titleMedium)
+                // A sessão terminou sozinha: explica com calma (o que estava preenchido continua no app).
+                val sessaoExpirada by container.auth.sessaoExpirada.collectAsStateWithLifecycle()
+                if (sessaoExpirada) PainelErro(TipoErro.SESSAO_EXPIRADA, principal = null, compacto = true)
                 if (container.modoDemo) {
                     Text(
                         "Modo demonstração: dados fictícios de Petrópolis. Qualquer e-mail e senha funcionam.",

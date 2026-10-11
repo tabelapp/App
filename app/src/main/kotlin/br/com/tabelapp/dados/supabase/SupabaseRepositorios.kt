@@ -4,12 +4,11 @@ import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cotacao
-import br.com.tabelapp.core.SugestaoProduto
-import br.com.tabelapp.core.ListaResumo
-import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.ItemSalvo
+import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
@@ -17,23 +16,25 @@ import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
-import br.com.tabelapp.core.PromocaoPdv
-import br.com.tabelapp.core.SimulacaoImportacao
-import br.com.tabelapp.core.PrecoPdv
-import br.com.tabelapp.core.SaldoCota
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PrecoPdv
+import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoNf
+import br.com.tabelapp.core.SaldoCota
+import br.com.tabelapp.core.SimulacaoImportacao
 import br.com.tabelapp.core.StatusPdv
-import br.com.tabelapp.dados.ConsultaCnpj
+import br.com.tabelapp.core.SugestaoProduto
 import br.com.tabelapp.dados.AuthRepositorio
+import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
-import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.EstadoSessao
+import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.NotaFiscalRepositorio
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.erros.Erros
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
@@ -47,18 +48,17 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
-import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
@@ -75,14 +75,13 @@ internal suspend fun <T> traduzindoErros(bloco: suspend () -> T): T =
         bloco()
     } catch (e: CancellationException) {
         throw e
-    } catch (e: RestException) {
-        throw ErroAmigavel(ErrosServidor.traduzir(e.message), e)
-    } catch (e: IOException) {
-        throw ErroAmigavel("Sem conexão com a internet. Tente de novo.", e)
     } catch (e: ErroAmigavel) {
         throw e
+    } catch (e: RestException) {
+        throw Erros.doServidor(e, e.statusCode)
     } catch (e: Exception) {
-        throw ErroAmigavel(ErrosServidor.traduzir(e.message), e)
+        // Rede, instabilidade ou erro inesperado: o usuário vê só a mensagem calma.
+        throw Erros.doServidor(e)
     }
 
 private fun instante(texto: String): Instant =
@@ -106,12 +105,25 @@ class SupabaseAuthRepositorio(
     private val _estado = MutableStateFlow<EstadoSessao>(EstadoSessao.Carregando)
     override val estado: StateFlow<EstadoSessao> = _estado.asStateFlow()
 
+    private val _sessaoExpirada = MutableStateFlow(false)
+    override val sessaoExpirada: StateFlow<Boolean> = _sessaoExpirada.asStateFlow()
+
     init {
         escopo.launch {
             supabase.auth.sessionStatus.collect { status ->
                 when (status) {
-                    is SessionStatus.Authenticated -> carregarPerfil()
-                    is SessionStatus.NotAuthenticated -> _estado.value = EstadoSessao.Deslogado
+                    is SessionStatus.Authenticated -> {
+                        _sessaoExpirada.value = false
+                        carregarPerfil()
+                    }
+                    is SessionStatus.NotAuthenticated -> {
+                        // Estava logado e não tocou em "Sair": a sessão venceu (ex.: senha trocada, token inválido).
+                        if (_estado.value is EstadoSessao.Logado && !status.isSignOut) {
+                            _sessaoExpirada.value = true
+                            Erros.registrar("sessao", "sessão terminou sem sair")
+                        }
+                        _estado.value = EstadoSessao.Deslogado
+                    }
                     // Ao voltar de outro app (ex.: leitor de QR Code) a biblioteca reinicia a sessão:
                     // quem já estava logado continua na tela em que estava (não volta ao "carregando").
                     SessionStatus.Initializing ->

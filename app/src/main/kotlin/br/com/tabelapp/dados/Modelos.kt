@@ -25,5 +25,12 @@ sealed interface EstadoSessao {
     data class Logado(val usuario: Usuario) : EstadoSessao
 }
 
-/** Erro já traduzido para o usuário (ver [br.com.tabelapp.core.ErrosServidor]). */
-class ErroAmigavel(mensagem: String, causa: Throwable? = null) : Exception(mensagem, causa)
+/**
+ * Erro já traduzido para o usuário (ver [br.com.tabelapp.core.ErrosServidor]).
+ * [tipo] != null: falha genérica (rede, instabilidade, sessão...) com texto do strings.xml.
+ */
+class ErroAmigavel(
+    mensagem: String,
+    causa: Throwable? = null,
+    val tipo: br.com.tabelapp.core.TipoErro? = null,
+) : Exception(mensagem, causa)

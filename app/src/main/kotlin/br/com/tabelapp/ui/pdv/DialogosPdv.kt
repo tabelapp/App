@@ -47,9 +47,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import br.com.tabelapp.R
 import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.LojaPdv
@@ -136,6 +138,7 @@ fun DialogoPromocao(
     aoFechar: () -> Unit,
 ) {
     val escopo = rememberCoroutineScope()
+    val contexto = LocalContext.current
     var titulo by rememberSaveable { mutableStateOf("") }
     var descricao by rememberSaveable { mutableStateOf("") }
     var link by rememberSaveable { mutableStateOf("") }
@@ -189,7 +192,12 @@ fun DialogoPromocao(
                         Text("$vis visualizações — ${Dinheiro.formatar(valor)}")
                     }
                 }
-                erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                erro?.let {
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = {
+                        WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.FALE_CONOSCO)
+                    }) { Text(stringResource(R.string.erro_botao_fale_conosco)) }
+                }
             }
         },
         confirmButton = {

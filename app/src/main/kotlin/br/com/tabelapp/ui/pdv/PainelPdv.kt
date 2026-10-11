@@ -23,8 +23,8 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -52,20 +52,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.R
+import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoPreco
 import br.com.tabelapp.core.RegrasCota
 import br.com.tabelapp.core.SaldoCota
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.core.Validade
+import br.com.tabelapp.ui.comum.AcaoErro
+import br.com.tabelapp.ui.comum.DialogoErro
+import br.com.tabelapp.ui.comum.WhatsApp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -241,6 +249,21 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             aoComprarPacote = vm::comprarPacote,
             aoConferirDeNovo = vm::refazerSimulacao,
             aoFechar = vm::fecharPlanilha,
+        )
+    }
+
+    if (estado.falhaPagamento) {
+        DialogoErro(
+            TipoErro.FALHA_PAGAMENTO,
+            aoFechar = vm::fecharFalhaPagamento,
+            principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), {
+                vm.fecharFalhaPagamento()
+                vm.comprarPacote()
+            }),
+            secundario = AcaoErro(stringResource(R.string.erro_botao_fale_conosco), {
+                vm.fecharFalhaPagamento()
+                WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.FALE_CONOSCO)
+            }),
         )
     }
 

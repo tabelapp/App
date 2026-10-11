@@ -1,32 +1,17 @@
 package br.com.tabelapp.ui.nf
 
-import java.io.File
-import kotlinx.coroutines.launch
-import br.com.tabelapp.dados.PdfNota
-import br.com.tabelapp.dados.ErroAmigavel
-import androidx.core.content.FileProvider
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material3.Checkbox
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.clickable
-import android.content.Intent
-import android.content.Context
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,12 +21,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -56,28 +43,49 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
-import br.com.tabelapp.ui.tema.coresBarraTopo
+import br.com.tabelapp.R
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.core.Validade
+import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.PdfNota
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.ui.comum.AcaoErro
+import br.com.tabelapp.ui.comum.PainelErro
+import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.coresBarraTopo
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Aba "Enviar preços": QR Code (ou chave) do cupom -> leitura na Sefaz -> conferência -> envio. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,7 +128,8 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
 @Composable
 private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
     val contexto = LocalContext.current
-    var textoChave by rememberSaveable { mutableStateOf("") }
+    val textoChave = estado.chaveManual
+    val focoChave = remember { FocusRequester() }
 
     fun abrirLeitor() {
         val opcoes = GmsBarcodeScannerOptions.Builder()
@@ -129,13 +138,8 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
             .build()
         GmsBarcodeScanning.getClient(contexto, opcoes).startScan()
             .addOnSuccessListener { codigo -> vm.qrLido(codigo.rawValue.orEmpty()) }
-            .addOnFailureListener {
-                // Na primeira vez o Google Play baixa o leitor; pode falhar até terminar.
-                vm.erroNoLeitor(
-                    "Não foi possível abrir o leitor de QR Code agora. Tente de novo em instantes " +
-                        "ou digite os 44 números da nota abaixo."
-                )
-            }
+            // Câmera negada, ou leitor ainda sendo baixado pelo Google Play: mensagem calma.
+            .addOnFailureListener { vm.erroNoLeitor(it) }
         // Cancelado pelo usuário: nada a fazer.
     }
 
@@ -164,7 +168,38 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
             Text("Ler QR Code da nota")
         }
 
-        estado.erroInicio?.let { Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
+        if (estado.temQrGuardado) {
+            OutlinedButton(onClick = vm::usarQrGuardado, modifier = Modifier.fillMaxWidth()) {
+                Text("Tentar de novo com o QR Code já lido")
+            }
+        }
+
+        estado.erroInicio?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center) }
+        val preencherManual = AcaoErro(stringResource(R.string.erro_botao_preencher_manualmente), {
+            vm.fecharErroInicio()
+            runCatching { focoChave.requestFocus() }
+        })
+        when (estado.erroInicioTipo) {
+            TipoErro.CAMERA_NEGADA -> PainelErro(
+                TipoErro.CAMERA_NEGADA,
+                principal = AcaoErro(stringResource(R.string.erro_botao_abrir_configuracoes), {
+                    vm.fecharErroInicio()
+                    abrirConfiguracoesDoApp(contexto)
+                }),
+                secundario = preencherManual,
+                compacto = true,
+            )
+            TipoErro.QR_INVALIDO -> PainelErro(
+                TipoErro.QR_INVALIDO,
+                principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), {
+                    vm.fecharErroInicio()
+                    abrirLeitor()
+                }),
+                secundario = preencherManual,
+                compacto = true,
+            )
+            else -> Unit
+        }
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
@@ -176,13 +211,13 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
         )
         OutlinedTextField(
             value = textoChave,
-            onValueChange = { textoChave = it.filter { c -> c.isDigit() }.take(44) },
+            onValueChange = vm::alterarChaveManual,
             label = { Text("Chave de acesso (${textoChave.length}/44)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             // Mostra em grupos de 4, como no cupom, para facilitar a conferência.
             visualTransformation = GruposDeQuatro,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(focoChave),
         )
         OutlinedButton(
             onClick = {
@@ -226,7 +261,7 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             aoDesistir = vm::leituraSefazFalhou,
             aoCapturarHtml = vm::htmlCapturado,
             chaveParaPreencher = estado.chave.takeIf { estado.modoManual },
-            aoFalharRede = vm::sefazFoiDoAr,
+            aoFalhar = vm::sefazFalhou,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -237,43 +272,55 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
 
 @Composable
 private fun EtapaFalha(estado: EstadoNf, vm: EnviarNfViewModel) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Text(
-            "Não consegui ler esta nota na Sefaz",
-            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-        )
-        Text(
-            estado.motivoFalha ?: ("Pode ser instabilidade no site da Sefaz. Tente de novo em instantes. " +
-                "Só enviamos preços lidos direto da nota, por isso não dá para digitar os produtos."),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = vm::tentarDeNovo, modifier = Modifier.fillMaxWidth()) { Text("Tentar de novo") }
-        estado.urlSefaz?.let { url ->
-            val contexto = LocalContext.current
-            OutlinedButton(
-                onClick = {
-                    try {
-                        contexto.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-                    } catch (e: ActivityNotFoundException) {
-                        // Sem navegador: nada a fazer.
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Abrir a nota no navegador") }
+    // Intervalo mínimo entre tentativas: o botão "Tentar de novo" libera após a contagem.
+    var espera by remember { mutableLongStateOf(vm.esperaParaTentarMs()) }
+    LaunchedEffect(estado.falha) {
+        while (true) {
+            espera = vm.esperaParaTentarMs()
+            if (espera <= 0) break
+            delay(250)
         }
-        OutlinedButton(onClick = vm::novaNota, modifier = Modifier.fillMaxWidth()) { Text("Ler outra nota") }
-        if (estado.temPaginaSefaz) {
-            Text(
-                "Ajude a melhorar o Tabelapp: envie a página da Sefaz para analisarmos por que a leitura falhou.",
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
+    }
+    val segundos = ((espera + 999) / 1000).toInt()
+    val tentar = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), vm::tentarDeNovo, habilitado = espera <= 0)
+    val aguarde = if (espera > 0) stringResource(R.string.erro_aguarde_segundos, segundos) else null
+    val manual = AcaoErro(stringResource(R.string.erro_botao_preencher_manualmente), vm::preencherManualmente)
+    val rolagem = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+
+    Column(rolagem, verticalArrangement = Arrangement.Center) {
+        when (estado.falha) {
+            FalhaNf.SEM_INTERNET -> PainelErro(
+                TipoErro.SEM_INTERNET, principal = tentar, secundario = manual, observacao = aguarde,
             )
-            BotaoEnviarParaAnalise(vm)
+            FalhaNf.NOTA_DIFERENTE -> PainelErro(
+                titulo = stringResource(R.string.erro_nota_diferente_titulo),
+                texto = stringResource(R.string.erro_nota_diferente_texto),
+                principal = tentar, secundario = manual, observacao = aguarde,
+            )
+            FalhaNf.LEITURA -> {
+                PainelErro(
+                    titulo = stringResource(R.string.erro_leitura_nf_titulo),
+                    texto = stringResource(R.string.erro_leitura_nf_texto),
+                    principal = tentar, secundario = manual, observacao = aguarde,
+                )
+                if (estado.temPaginaSefaz) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Ajude a melhorar o Tabelapp: envie a página da Sefaz para analisarmos por que a leitura falhou.",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
+                        BotaoEnviarParaAnalise(vm)
+                    }
+                }
+            }
+            // Sefaz fora, bloqueio de IP, HTTP 403/429/5xx ou demora: a tela calma pedida.
+            else -> PainelErro(
+                TipoErro.SEFAZ_INDISPONIVEL, principal = manual, secundario = tentar, observacao = aguarde,
+            )
+        }
+        TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text("Ler outra nota")
         }
     }
 }
@@ -378,13 +425,16 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         }
 
         estado.erros.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
+        estado.avisoEnvio?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        // Falha ao enviar: os dados continuam na tela; o botão de baixo tenta de novo.
+        estado.falhaEnvio?.let { tipo -> PainelErro(tipo, principal = null, compacto = true) }
 
         Button(
             onClick = vm::enviar, enabled = !estado.enviando && estado.erros.isEmpty(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
             if (estado.enviando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            else Text("Enviar nota")
+            else Text(if (estado.falhaEnvio != null) stringResource(R.string.erro_botao_tentar_de_novo) else "Enviar nota")
         }
         OutlinedButton(
             onClick = vm::novaNota, enabled = !estado.enviando,
@@ -506,5 +556,18 @@ private object GruposDeQuatro : VisualTransformation {
             override fun transformedToOriginal(offset: Int): Int = (offset - offset / 5).coerceIn(0, original.length)
         }
         return TransformedText(AnnotatedString(formatado), mapa)
+    }
+}
+
+/** Configurações do app no Android (para liberar a câmera). */
+private fun abrirConfiguracoesDoApp(contexto: Context) {
+    try {
+        contexto.startActivity(
+            Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.fromParts("package", contexto.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (e: ActivityNotFoundException) {
+        // Sem a tela de configurações: nada a fazer.
     }
 }

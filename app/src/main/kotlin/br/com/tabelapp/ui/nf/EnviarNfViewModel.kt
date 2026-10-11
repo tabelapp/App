@@ -4,21 +4,35 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.DadosReceita
+import br.com.tabelapp.core.IntervaloTentativas
 import br.com.tabelapp.core.ItemNota
 import br.com.tabelapp.core.LeitorNfce
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.NotaLida
 import br.com.tabelapp.core.RascunhoNf
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.NotaFiscalRepositorio
+import br.com.tabelapp.erros.Erros
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 enum class EtapaNf { INICIO, LENDO_SEFAZ, CONFIRMACAO, FALHA, ENVIADO }
+
+/** Por que a leitura não serviu (cada caso tem a sua tela calma). */
+enum class FalhaNf {
+    /** A Sefaz não respondeu, bloqueou o acesso ou demorou demais. */
+    SEFAZ_INDISPONIVEL,
+    SEM_INTERNET,
+    /** A página aberta é de outra nota (regra de negócio). */
+    NOTA_DIFERENTE,
+    /** A página abriu, mas os produtos não foram encontrados. */
+    LEITURA,
+}
 
 data class EstadoNf(
     val etapa: EtapaNf = EtapaNf.INICIO,
@@ -35,6 +49,15 @@ data class EstadoNf(
     val dataNf: LocalDate = LocalDate.now(),
     val erros: List<String> = emptyList(),
     val erroInicio: String? = null,
+    /** Erro no início com tela própria (câmera negada, QR ilegível). */
+    val erroInicioTipo: TipoErro? = null,
+    /** Chave digitada na entrada manual (fica guardada; vem preenchida depois de uma falha da Sefaz). */
+    val chaveManual: String = "",
+    /** Há um QR Code lido guardado: dá para tentar de novo sem escanear. */
+    val temQrGuardado: Boolean = false,
+    /** Falha ao enviar (dados continuam aqui): tipo calmo, ou mensagem de regra de negócio. */
+    val falhaEnvio: TipoErro? = null,
+    val avisoEnvio: String? = null,
     val enviando: Boolean = false,
     val itensEnviados: Int = 0,
     /** Já temos a página da Sefaz carregada (dá para mandar para análise se a leitura falhar). */
@@ -53,7 +76,7 @@ data class EstadoNf(
     /** Compartilhar a NF-e em PDF depois de enviar. */
     val querPdf: Boolean = false,
     /** Por que a leitura não serviu (mostrado na tela de falha). */
-    val motivoFalha: String? = null,
+    val falha: FalhaNf? = null,
 ) {
     /** A Receita não informou nome fantasia: o usuário pode sugerir um. */
     val podeSugerirNome: Boolean
@@ -88,6 +111,10 @@ class EnviarNfViewModel(
     val estado: StateFlow<EstadoNf> = _estado.asStateFlow()
 
     private var cnpjConsultado: String? = null
+    /** Último QR Code lido (link + chave): "Tentar de novo" não precisa escanear outra vez. */
+    private var qrGuardado: Pair<String, ChaveAcessoNfe>? = null
+    /** Não insistir com a Sefaz: no mínimo 10 s entre uma tentativa e outra. */
+    private val intervalo = IntervaloTentativas(10_000)
     private var htmlSefaz: String? = null
     private var urlPagina: String? = null
 
@@ -117,29 +144,37 @@ class EnviarNfViewModel(
             else -> null
         }
         if (erro != null || chave == null) {
-            _estado.update { it.copy(erroInicio = erro) }
+            _estado.update { it.copy(erroInicio = erro, erroInicioTipo = null) }
             return
         }
         iniciarLeitura(URL_CONSULTA_CHAVE_RJ, chave, modoManual = true)
     }
+
+    fun alterarChaveManual(texto: String) =
+        _estado.update { it.copy(chaveManual = texto.filter { c -> c.isDigit() }.take(44), erroInicio = null) }
 
     /** Conteúdo lido do QR Code — ou o link do QR colado pelo usuário. */
     fun qrLido(conteudo: String) {
         val texto = conteudo.trim()
         val chave = ChaveAcessoNfe.doQrCode(texto)
         val url = texto.takeIf { it.startsWith("http", ignoreCase = true) }
-        val erro = when {
-            chave == null -> "Não reconheci uma nota fiscal eletrônica (NFC-e) nesse QR Code."
-            !chave.ehDoRioDeJaneiro ->
-                "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ."
-            // Só a chave não basta: a consulta na Sefaz precisa do link completo do QR Code.
-            url == null -> "Use o QR Code do cupom (ou cole o link completo dele)."
-            else -> null
-        }
-        if (erro != null || chave == null || url == null) {
-            _estado.update { it.copy(erroInicio = erro) }
+        if (chave == null || (url == null && chave.ehDoRioDeJaneiro)) {
+            // Ilegível, não é NFC-e, ou só a chave sem o link (a consulta precisa do link completo):
+            // tela calma; se a chave veio, já fica preenchida na entrada manual.
+            Erros.registrar("qr", "QR não reconhecido como NFC-e (tamanho ${texto.length})")
+            _estado.update {
+                it.copy(erroInicioTipo = TipoErro.QR_INVALIDO, erroInicio = null, chaveManual = chave?.digitos ?: it.chaveManual)
+            }
             return
         }
+        if (!chave.ehDoRioDeJaneiro || url == null) {
+            _estado.update {
+                it.copy(erroInicioTipo = null,
+                    erroInicio = "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ.")
+            }
+            return
+        }
+        qrGuardado = url to chave
         iniciarLeitura(url, chave, modoManual = false)
     }
 
@@ -147,24 +182,34 @@ class EnviarNfViewModel(
         cnpjConsultado = null
         htmlSefaz = null
         urlPagina = null
+        intervalo.registrar(System.currentTimeMillis())
         _estado.value = EstadoNf(
             etapa = EtapaNf.LENDO_SEFAZ, urlSefaz = url, chave = chave.digitos, modoManual = modoManual,
-            consultandoReceita = true,
+            consultandoReceita = true, chaveManual = _estado.value.chaveManual, temQrGuardado = qrGuardado != null,
         )
         consultarLojas(chave.cnpjEmitente)
         consultarReceita(chave.cnpjEmitente)
     }
 
-    fun erroNoLeitor(mensagem: String) = _estado.update { it.copy(erroInicio = mensagem) }
+    /** O leitor de QR Code do Google não abriu (câmera negada ou leitor ainda indisponível). */
+    fun erroNoLeitor(erro: Exception) {
+        Erros.registrar("leitor QR", null, erro)
+        val camera = erro.message.orEmpty().contains("permission", ignoreCase = true) ||
+            erro.message.orEmpty().contains("camera", ignoreCase = true)
+        _estado.update {
+            if (camera) it.copy(erroInicioTipo = TipoErro.CAMERA_NEGADA, erroInicio = null)
+            else it.copy(erroInicioTipo = null, erroInicio = Erros.leitorIndisponivel())
+        }
+    }
+
+    fun fecharErroInicio() = _estado.update { it.copy(erroInicioTipo = null, erroInicio = null) }
 
     fun notaLidaNaSefaz(nota: NotaLida) {
         // A página aberta precisa ser a da nota do QR Code / da chave digitada
         // (na entrada manual a pessoa poderia consultar outra nota no meio do caminho).
         val chavesNaPagina = htmlSefaz?.let { runCatching { LeitorNfce.chavesNaPagina(it) }.getOrNull() }.orEmpty()
         if (chavesNaPagina.isNotEmpty() && _estado.value.chave !in chavesNaPagina) {
-            _estado.update {
-                it.copy(etapa = EtapaNf.FALHA, motivoFalha = "A nota aberta na Sefaz não é a mesma da chave informada.")
-            }
+            _estado.update { it.copy(etapa = EtapaNf.FALHA, falha = FalhaNf.NOTA_DIFERENTE) }
             return
         }
         _estado.update { e ->
@@ -178,21 +223,49 @@ class EnviarNfViewModel(
         }
     }
 
-    fun leituraSefazFalhou() = _estado.update { it.copy(etapa = EtapaNf.FALHA) }
-
-    /** O site da Sefaz não respondeu (ex.: ERR_CONNECTION_RESET) em nenhum endereço. */
-    fun sefazFoiDoAr(erroTecnico: String) = _estado.update {
-        it.copy(
-            etapa = EtapaNf.FALHA,
-            motivoFalha = "O site da Sefaz não respondeu" +
-                (if (erroTecnico.isNotBlank()) " ($erroTecnico)" else "") +
-                ". Costuma ser instabilidade da Sefaz: tente de novo em alguns minutos. Se quiser, abra a nota " +
-                "no navegador para ver se o site está no ar.",
-        )
+    /** A página abriu, mas os produtos não apareceram dentro do tempo. */
+    fun leituraSefazFalhou() {
+        Erros.registrar("sefaz", "produtos não encontrados na página (chave ${_estado.value.chave.take(6)}…)")
+        _estado.update { it.copy(etapa = EtapaNf.FALHA, falha = FalhaNf.LEITURA) }
     }
 
-    /** Tenta ler a mesma nota de novo (ex.: a Sefaz estava fora do ar). */
-    fun tentarDeNovo() = _estado.update { it.copy(etapa = EtapaNf.LENDO_SEFAZ, temPaginaSefaz = false, motivoFalha = null) }
+    /**
+     * A Sefaz falhou (rede, bloqueio de IP, HTTP 403/429/5xx, demora). O detalhe técnico
+     * vai só para o log; o usuário vê a tela calma. Nada é repetido automaticamente.
+     */
+    fun sefazFalhou(tipo: TipoErro, detalheTecnico: String) {
+        if (_estado.value.etapa != EtapaNf.LENDO_SEFAZ) return
+        Erros.registrar("sefaz", detalheTecnico)
+        _estado.update {
+            it.copy(etapa = EtapaNf.FALHA,
+                falha = if (tipo == TipoErro.SEM_INTERNET) FalhaNf.SEM_INTERNET else FalhaNf.SEFAZ_INDISPONIVEL)
+        }
+    }
+
+    /** Quanto falta para poder tentar de novo (mínimo de 10 s entre tentativas). */
+    fun esperaParaTentarMs(): Long = intervalo.esperaRestanteMs(System.currentTimeMillis())
+
+    /** Tenta ler a mesma nota de novo — só quando o usuário toca, e respeitando o intervalo. */
+    fun tentarDeNovo() {
+        if (!intervalo.podeTentar(System.currentTimeMillis())) return
+        intervalo.registrar(System.currentTimeMillis())
+        _estado.update { it.copy(etapa = EtapaNf.LENDO_SEFAZ, temPaginaSefaz = false, falha = null) }
+    }
+
+    /** Volta para a entrada manual com a chave da nota já preenchida (o QR lido continua guardado). */
+    fun preencherManualmente() = _estado.update { e ->
+        EstadoNf(chaveManual = e.chave.ifBlank { e.chaveManual }, temQrGuardado = qrGuardado != null)
+    }
+
+    /** Tenta de novo pelo QR Code guardado, sem escanear outra vez. */
+    fun usarQrGuardado() {
+        val (url, chave) = qrGuardado ?: return
+        if (!intervalo.podeTentar(System.currentTimeMillis())) {
+            _estado.update { it.copy(erroInicio = null) }
+            return
+        }
+        iniciarLeitura(url, chave, modoManual = false)
+    }
 
     /** Rede com várias lojas: o usuário escolhe em qual foi a compra (a única escolha permitida). */
     fun escolherLoja(lojaId: String) = _estado.update { e ->
@@ -210,7 +283,7 @@ class EnviarNfViewModel(
             _estado.update { it.copy(erros = erros) }
             return
         }
-        _estado.update { it.copy(enviando = true, erros = emptyList()) }
+        _estado.update { it.copy(enviando = true, erros = emptyList(), falhaEnvio = null, avisoEnvio = null) }
         viewModelScope.launch {
             try {
                 val n = repositorio.enviar(e.rascunho())
@@ -232,12 +305,20 @@ class EnviarNfViewModel(
                     it.copy(enviando = false, etapa = EtapaNf.ENVIADO, itensEnviados = n, resultadoSugestao = sugestao)
                 }
             } catch (ex: ErroAmigavel) {
-                _estado.update { it.copy(enviando = false, erros = listOfNotNull(ex.message)) }
+                // Nada do que foi lido se perde: a tela continua com a nota, pronta para tentar de novo.
+                _estado.update {
+                    when (ex.tipo) {
+                        null -> it.copy(enviando = false, avisoEnvio = ex.message) // regra de negócio (ex.: nota já enviada)
+                        TipoErro.SEM_INTERNET, TipoErro.SESSAO_EXPIRADA -> it.copy(enviando = false, falhaEnvio = ex.tipo)
+                        else -> it.copy(enviando = false, falhaEnvio = TipoErro.FALHA_ENVIO_NF)
+                    }
+                }
             }
         }
     }
 
     fun novaNota() {
+        qrGuardado = null
         cnpjConsultado = null
         htmlSefaz = null
         urlPagina = null

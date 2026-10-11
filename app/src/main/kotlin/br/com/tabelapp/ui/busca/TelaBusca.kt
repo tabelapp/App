@@ -15,16 +15,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Map
@@ -57,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
@@ -66,14 +68,18 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
-import br.com.tabelapp.ui.tema.coresBarraTopo
-import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.R
 import br.com.tabelapp.core.ContatoTabelapp
+import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Mensagens
-import br.com.tabelapp.ui.principal.QuemSomos
-import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.core.Ordenacao
+import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.ui.comum.AcaoErro
+import br.com.tabelapp.ui.comum.PainelErro
+import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.principal.QuemSomos
+import br.com.tabelapp.ui.tema.coresBarraTopo
 import kotlinx.coroutines.launch
 
 /** Altura do cabeçalho da busca, incluindo a barra de status (layout compacto). */
@@ -81,7 +87,7 @@ private val ALTURA_CABECALHO: Dp = 72.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaBusca(container: AppContainer, usuario: Usuario) {
+fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> Unit = {}) {
     val vm: BuscaViewModel = viewModel(key = "busca-${usuario.id}") {
         BuscaViewModel(container.cotacoes, container.preferencias, container.localizacao)
     }
@@ -196,18 +202,18 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                     estado.carregando && estado.resultados.isEmpty() ->
                         CircularProgressIndicator(Modifier.align(Alignment.Center))
 
-                    estado.erro != null -> Column(
-                        Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(estado.erro.orEmpty(), color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = vm::tentarDeNovo) { Text("Tentar de novo") }
-                    }
+                    estado.erro != null -> PainelErro(
+                        tipo = estado.erroTipo ?: TipoErro.SERVIDOR_INSTAVEL,
+                        texto = estado.erro.takeIf { estado.erroTipo == null },
+                        principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), vm::tentarDeNovo),
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    )
 
-                    estado.resultados.isEmpty() -> Text(
-                        if (estado.termoBuscado == null) "Ainda não há preços lançados."
-                        else "Nenhum preço encontrado. Tente outra palavra.",
-                        Modifier.align(Alignment.Center).padding(24.dp),
+                    // Nada encontrado: convite calmo para outra palavra ou para ser o primeiro a cadastrar.
+                    estado.resultados.isEmpty() -> PainelErro(
+                        TipoErro.BUSCA_VAZIA,
+                        principal = AcaoErro(stringResource(R.string.erro_botao_enviar_precos), aoEnviarPrecos),
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                     )
 
                     // Sem espaço no fim da lista: em 390×844 dp cabem 3 cards inteiros e o topo do 4º.
