@@ -35,8 +35,8 @@ import br.com.tabelapp.ui.tema.PretoLupa
 import br.com.tabelapp.ui.tema.VermelhoTabelapp
 import kotlinx.coroutines.delay
 
-/** Altura do banner = cabeçalho (64 dp) + campo de busca com margens (72 dp). Pedido do fundador. */
-val ALTURA_BANNER: Dp = 136.dp
+/** Altura do espaço do banner, com as margens (layout compacto da busca, pedido do fundador). */
+val ALTURA_BANNER: Dp = 80.dp
 
 /**
  * Espaço do banner patrocinado, entre o cabeçalho e o campo de busca.
@@ -65,7 +65,7 @@ fun BannerPatrocinado(
         modifier
             .fillMaxWidth()
             .height(ALTURA_BANNER)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable { aoTocar(atual) },
     ) {
@@ -100,15 +100,15 @@ fun BannerPatrocinado(
 @Composable
 private fun BannerTexto(b: Banner) {
     Column(
-        Modifier.fillMaxSize().background(VermelhoTabelapp).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+        Modifier.fillMaxSize().background(VermelhoTabelapp).padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text(b.pdvNome, color = AmareloTabelapp, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+        Text(b.pdvNome, color = AmareloTabelapp, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(b.titulo, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+        Text(b.titulo, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         b.descricao?.let {
-            Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -117,14 +117,15 @@ private fun BannerTexto(b: Banner) {
 @Composable
 private fun AnuncieAqui() {
     Column(
-        Modifier.fillMaxSize().background(AmareloTabelapp).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+        Modifier.fillMaxSize().background(AmareloTabelapp).padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text("Anuncie aqui", color = VermelhoTabelapp, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Anuncie aqui", color = VermelhoTabelapp, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(
-            "Seu comércio em destaque para quem está pesquisando preços em Petrópolis.",
-            color = PretoLupa, style = MaterialTheme.typography.bodyMedium,
+            "Seu comércio em destaque para quem pesquisa preços em Petrópolis.",
+            color = PretoLupa, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
-        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelSmall)
+        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelSmall,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

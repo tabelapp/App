@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -57,6 +59,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +75,9 @@ import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.dados.Usuario
 import kotlinx.coroutines.launch
+
+/** Altura do cabeçalho da busca, incluindo a barra de status (layout compacto). */
+private val ALTURA_CABECALHO: Dp = 72.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,13 +113,16 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
         // A barra de baixo (abas) já cuida da borda inferior da tela.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
+            // Cabeçalho com 72 dp no total, contando a barra de status do celular.
+            val barraDeStatus = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             TopAppBar(
                 title = {
                     Column {
-                        Text("Tabelapp", fontWeight = FontWeight.Bold)
-                        Text("Quem pesquisa economiza", style = MaterialTheme.typography.labelMedium)
+                        Text("Tabelapp", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Quem pesquisa economiza", style = MaterialTheme.typography.labelSmall)
                     }
                 },
+                expandedHeight = (ALTURA_CABECALHO - barraDeStatus).coerceAtLeast(40.dp),
                 colors = coresBarraTopo(),
                 actions = {
                     MenuUsuario(usuario, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
@@ -147,7 +157,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { vm.buscar(); foco.clearFocus() }),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
             )
 
             Row(
@@ -178,7 +188,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                 },
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
             )
 
             Box(Modifier.fillMaxSize()) {
@@ -200,12 +210,14 @@ fun TelaBusca(container: AppContainer, usuario: Usuario) {
                         Modifier.align(Alignment.Center).padding(24.dp),
                     )
 
+                    // Sem espaço no fim da lista: em 390×844 dp cabem 3 cards inteiros e o topo do 4º.
                     else -> LazyColumn(
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(estado.resultados, key = { it.id }) { cotacao ->
+                        itemsIndexed(estado.resultados, key = { _, c -> c.id }) { indice, cotacao ->
                             CartaoCotacao(
+                                alternado = indice % 2 == 1,
                                 cotacao = cotacao,
                                 maisBarato = cotacao.id in estado.maisBaratos,
                                 posicao = estado.posicao,

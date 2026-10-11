@@ -1,7 +1,11 @@
 package br.com.tabelapp.ui.principal
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -22,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
@@ -47,6 +52,9 @@ private fun abasDe(tipo: TipoConta): List<Aba> = when (tipo) {
 }
 
 /** Abas do usuário logado. */
+/** Altura da barra de abas (sem a área dos botões do sistema). */
+private val ALTURA_BARRA_ABAS = 64.dp
+
 @Composable
 fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableState<String>) {
     val abas = abasDe(usuario.tipo)
@@ -58,7 +66,9 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            // Barra de abas com 64 dp (mais a área dos botões do sistema, quando houver).
+            val sistema = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            NavigationBar(Modifier.height(ALTURA_BARRA_ABAS + sistema)) {
                 abas.forEach { a ->
                     NavigationBarItem(
                         selected = aba == a,
