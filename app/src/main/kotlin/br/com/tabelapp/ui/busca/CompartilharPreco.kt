@@ -12,15 +12,16 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import androidx.core.content.FileProvider
+import br.com.tabelapp.R
 import br.com.tabelapp.core.Compartilhamento
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Obs
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.ui.comum.WhatsApp
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
  * Compartilha o "card de preço": uma imagem com produto, preço e local (nas
@@ -45,7 +46,12 @@ object CompartilharPreco {
         }
         val uri = FileProvider.getUriForFile(contexto, contexto.packageName + ".arquivos", arquivo)
         // Direto pelo WhatsApp do usuário (pedido do fundador).
-        WhatsApp.enviarImagem(contexto, uri, Compartilhamento.texto(cotacao))
+        // O texto termina com o aviso: preço de terceiros, sujeito a alteração.
+        val aviso = contexto.getString(
+            if (Compartilhamento.porEstabelecimento(cotacao)) R.string.compartilhar_aviso_estabelecimento
+            else R.string.compartilhar_aviso_usuario
+        )
+        WhatsApp.enviarImagem(contexto, uri, Compartilhamento.texto(cotacao, aviso = aviso))
     }
 
     private fun desenhar(c: Cotacao): Bitmap {

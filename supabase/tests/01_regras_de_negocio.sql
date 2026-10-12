@@ -947,4 +947,61 @@ do $$ begin
           where cnpj = '44444444000191' and produto in ('Leite Integral 1L', 'Café Moído 500g')) = 4;
 end $$;
 
+\echo '== Preço confiável: item de combo e denúncia "Esse preço não confere"'
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare v jsonb;
+begin
+  -- Item marcado como parte de combo no envio da NF.
+  v := public.enviar_nota_fiscal(pg_temp.chave('44444444000191', 8101), null, 'Lanchonete Combo', 'Rua do Combo, 1',
+    '[{"produto": "Pão carne e queijo", "preco_centavos": 400, "parte_de_combo": true},
+      {"produto": "Refrigerante lata", "preco_centavos": 600}]');
+  assert (v ->> 'itens')::int = 2, v::text;
+  assert (select parte_de_combo from public.buscar_cotacoes('pao carne e queijo') where pdv_nome = 'Lanchonete Combo');
+  assert not (select parte_de_combo from public.buscar_cotacoes('refrigerante lata') where pdv_nome = 'Lanchonete Combo');
+  assert (select denuncias from public.buscar_cotacoes('pao carne e queijo') where pdv_nome = 'Lanchonete Combo') = 0;
+  perform set_config('tabelapp.denunciada',
+    (select id::text from public.buscar_cotacoes('pao carne e queijo') where pdv_nome = 'Lanchonete Combo'), false);
+end $$;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare cot uuid := current_setting('tabelapp.denunciada')::uuid;
+begin
+  assert public.denunciar_preco(cot, 'combo_ou_promocao');
+  assert not public.denunciar_preco(cot, 'outro'), 'a mesma pessoa não denuncia duas vezes';
+  assert (select count(*) from public.denuncias_preco) = 1, 'vê só a própria denúncia';
+end $$;
+-- Índice único: nem por insert direto.
+select pg_temp.espera_erro(
+  $q$insert into public.denuncias_preco (cotacao_id) values (current_setting('tabelapp.denunciada')::uuid)$q$,
+  'duplicate key');
+-- Não denuncia em nome de outra pessoa; motivo fora da lista é recusado.
+select pg_temp.espera_erro(
+  $q$insert into public.denuncias_preco (cotacao_id, usuario_id)
+     values (current_setting('tabelapp.denunciada')::uuid, 'e0000000-0000-4000-a000-00000000000e')$q$,
+  'row-level security');
+select pg_temp.espera_erro(
+  $q$select public.denunciar_preco(current_setting('tabelapp.denunciada')::uuid, 'xingamento')$q$, 'check');
+set request.jwt.claim.sub = 'e0000000-0000-4000-a000-00000000000e';
+do $$
+declare cot uuid := current_setting('tabelapp.denunciada')::uuid;
+begin
+  assert (select count(*) from public.denuncias_preco) = 0, 'não lê as denúncias dos outros';
+  assert (select count(*) from public.denuncias_mais_frequentes) = 0, 'visão do Admin não mostra as dos outros';
+  assert public.denunciar_preco(cot, 'preco_mudou');
+  -- A busca mostra só o total (2), nunca quem denunciou.
+  assert (select denuncias from public.buscar_cotacoes('pao carne e queijo') where id = cot) = 2;
+end $$;
+select pg_temp.espera_erro($q$delete from public.denuncias_preco$q$, 'permission denied');
+-- Admin vê as mais denunciadas.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$ begin
+  assert (select denuncias = 2 and combo_ou_promocao = 1 and preco_mudou = 1 and parte_de_combo
+          and pdv_nome = 'Lanchonete Combo'
+          from public.denuncias_mais_frequentes where cotacao_id = current_setting('tabelapp.denunciada')::uuid);
+  assert (select (valor)::text::int from public.configuracao_app where chave = 'denuncias_limite') = 3;
+end $$;
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'

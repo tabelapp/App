@@ -31,7 +31,8 @@ data class PinoMapa(
 
 object MapaPrecos {
 
-    fun pinos(cotacoes: List<Cotacao>): List<PinoMapa> {
+    /** @param idsSelo quem tem o selo "Menor preço lançado" na busca (null = o menor preço do resultado). */
+    fun pinos(cotacoes: List<Cotacao>, idsSelo: Set<String>? = null): List<PinoMapa> {
         val menor = cotacoes.minOfOrNull { it.precoCentavos }
         return cotacoes.groupBy { it.chaveLocal }.map { (chave, itens) ->
             val ordenados = itens.sortedBy { it.precoCentavos }
@@ -42,7 +43,7 @@ object MapaPrecos {
                 endereco = itens.firstNotNullOfOrNull { it.endereco?.takeIf(String::isNotBlank) },
                 local = itens.firstNotNullOfOrNull { it.local },
                 cotacoes = ordenados,
-                maisBarato = ref.precoCentavos == menor,
+                maisBarato = if (idsSelo != null) itens.any { it.id in idsSelo } else ref.precoCentavos == menor,
             )
         }.sortedBy { it.menorPreco }
     }

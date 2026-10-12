@@ -1,12 +1,12 @@
 package br.com.tabelapp.core
 
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import kotlin.math.roundToLong
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 
 /** Um produto da nota: nome e preço unitário (o que vai para a busca). */
 data class ItemNota(
@@ -14,6 +14,8 @@ data class ItemNota(
     val precoCentavos: Long,
     val quantidade: Double = 1.0,
     val unidade: String? = null,
+    /** Marcado por quem envia: item vendido dentro de um combo (valor pode ser rateado). */
+    val parteDeCombo: Boolean = false,
 )
 
 /** O que foi possível ler da página de consulta da NFC-e na Sefaz. */
@@ -188,5 +190,10 @@ data class RascunhoNf(
     fun itensParaEnvio(): List<ItemNota> =
         itens.map { it.copy(produto = it.produto.trim()) }
             .groupBy { Texto.normalizar(it.produto) to it.precoCentavos }
-            .map { (_, repetidos) -> repetidos.first().copy(quantidade = repetidos.sumOf { it.quantidade }) }
+            .map { (_, repetidos) ->
+                repetidos.first().copy(
+                    quantidade = repetidos.sumOf { it.quantidade },
+                    parteDeCombo = repetidos.any { it.parteDeCombo },
+                )
+            }
 }

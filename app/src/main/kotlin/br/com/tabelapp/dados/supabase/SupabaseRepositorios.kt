@@ -3,6 +3,7 @@ package br.com.tabelapp.dados.supabase
 import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
+import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
@@ -64,6 +65,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -263,6 +265,8 @@ private data class CotacaoDto(
     @SerialName("data_nf") val dataNf: String? = null,
     val unidade: String? = null,
     @SerialName("a_partir_de") val aPartirDe: Boolean = false,
+    @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
+    val denuncias: Int = 0,
 ) {
     fun paraCotacao() = Cotacao(
         id = id,
@@ -283,6 +287,8 @@ private data class CotacaoDto(
         dataNf = dataNf?.let(LocalDate::parse),
         unidade = Unidade.deCodigo(unidade),
         aPartirDe = aPartirDe,
+        parteDeCombo = parteDeCombo,
+        denuncias = denuncias,
     )
 
     private fun lerInstante(texto: String): Instant =
@@ -326,7 +332,31 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
             supabase.postgrest.rpc("registrar_visualizacao_promocao", buildJsonObject { put("p_promocao_id", bannerId) })
         }
     }
+
+    override suspend fun configConfianca(): ConfigConfianca {
+        val padrao = ConfigConfianca()
+        val valores = runCatching {
+            supabase.from("configuracao_app").select().decodeList<ConfigDto>().associate { it.chave to it.valor }
+        }.getOrElse { return padrao }
+        fun numero(chave: String) = (valores[chave] as? JsonPrimitive)?.content?.toDoubleOrNull()
+        return ConfigConfianca(
+            fracaoAtipico = numero("preco_atipico_fracao") ?: padrao.fracaoAtipico,
+            minResultados = numero("preco_atipico_min_resultados")?.toInt() ?: padrao.minResultados,
+            toleranciaPdv = numero("selo_tolerancia_pdv") ?: padrao.toleranciaPdv,
+            limiteDenuncias = numero("denuncias_limite")?.toInt() ?: padrao.limiteDenuncias,
+        )
+    }
+
+    override suspend fun denunciar(cotacaoId: String, motivo: String?): Boolean = traduzindoErros {
+        supabase.postgrest.rpc("denunciar_preco", buildJsonObject {
+            put("p_cotacao_id", cotacaoId)
+            put("p_motivo", motivo)
+        }).decodeAs<Boolean>()
+    }
 }
+
+@Serializable
+private data class ConfigDto(val chave: String, val valor: JsonElement)
 
 @Serializable
 private data class BannerDto(
@@ -370,6 +400,7 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
                         addJsonObject {
                             put("produto", item.produto)
                             put("preco_centavos", item.precoCentavos)
+                            if (item.parteDeCombo) put("parte_de_combo", true)
                         }
                     }
                 })

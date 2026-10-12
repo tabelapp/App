@@ -5,6 +5,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
+import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosDemo
 import br.com.tabelapp.core.DadosReceita
@@ -129,6 +130,13 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
     )
 
     override suspend fun registrarVisualizacao(bannerId: String) {}
+
+    override suspend fun configConfianca(): ConfigConfianca = ConfigConfianca()
+
+    override suspend fun denunciar(cotacaoId: String, motivo: String?): Boolean {
+        delay(200)
+        return banco.denuncias.add(cotacaoId)
+    }
 }
 
 /** Guarda em memória o que foi enviado na demonstração (some ao fechar o app). */
@@ -141,6 +149,7 @@ class DemoBanco {
     val lojasEditadas = mutableMapOf<String, LojaPdv>()
     val promocoesDemo = mutableListOf<Pair<String, PromocaoPdv>>()
     val interesses = mutableSetOf<String>()
+    val denuncias = mutableSetOf<String>()
 }
 
 /** Planos da demonstração (no app real vêm da tabela `planos`). */
@@ -399,6 +408,7 @@ class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalReposi
                 telefone = loja?.telefone,
                 local = loja?.local,
                 criadoEm = agora,
+                parteDeCombo = item.parteDeCombo,
             )
         }
         return itens.size

@@ -49,6 +49,10 @@ data class Cotacao(
     val unidade: Unidade = Unidade.UNIDADE,
     /** Preço inicial de serviço ("a partir de R$ 80,00"). */
     val aPartirDe: Boolean = false,
+    /** Item vendido dentro de um combo (marcado por quem enviou a NF): nunca recebe o selo. */
+    val parteDeCombo: Boolean = false,
+    /** Quantas pessoas tocaram em "Esse preço não confere". */
+    val denuncias: Int = 0,
 ) {
     val pdvCadastrado: Boolean get() = lojaId != null
 

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -35,9 +37,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.com.tabelapp.R
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.Destaque
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Obs
@@ -72,15 +77,19 @@ private fun fundoAlternado(escuro: Boolean): Color {
 @Composable
 fun CartaoCotacao(
     cotacao: Cotacao,
-    maisBarato: Boolean,
+    /** Selo "Menor preço lançado", "Parte de combo" ou "Confira na loja" (null = nenhum). */
+    destaque: Destaque?,
     posicao: PontoGeo?,
     aoAbrirPdv: () -> Unit,
     aoCompartilhar: () -> Unit,
     aoAbrirMapa: () -> Unit,
     aoChamarNoWhatsApp: () -> Unit,
+    /** Toque no ⓘ: "Sobre este preço" (origem do preço, combos, denúncia). */
+    aoSobrePreco: () -> Unit,
     alternado: Boolean = false,
 ) {
     val cores = MaterialTheme.colorScheme
+    val maisBarato = destaque == Destaque.MENOR_PRECO
     val pequeno = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)
     Card(
         colors = CardDefaults.cardColors(
@@ -120,20 +129,33 @@ fun CartaoCotacao(
                 )
             }
 
-            // 2. Ponto de venda (link quando cadastrado).
+            // 2. Ponto de venda (link quando cadastrado) e, no fim da linha, o destaque do card.
             val nome = listOfNotNull(cotacao.pdvNome, cotacao.lojaNome).joinToString(" — ")
-            Text(
-                nome,
-                fontSize = 13.sp,
-                lineHeight = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (cotacao.pdvCadastrado) cores.primary else Color.Unspecified,
-                textDecoration = if (cotacao.pdvCadastrado) TextDecoration.Underline else null,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(end = 10.dp)
-                    .then(if (cotacao.pdvCadastrado) Modifier.clickable(onClick = aoAbrirPdv) else Modifier),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 10.dp)) {
+                Text(
+                    nome,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (cotacao.pdvCadastrado) cores.primary else Color.Unspecified,
+                    textDecoration = if (cotacao.pdvCadastrado) TextDecoration.Underline else null,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                        .then(if (cotacao.pdvCadastrado) Modifier.clickable(onClick = aoAbrirPdv) else Modifier),
+                )
+                if (destaque != null) Spacer(Modifier.width(6.dp))
+                val chip = TextStyle(fontSize = 11.sp, lineHeight = 15.sp)
+                when (destaque) {
+                    Destaque.MENOR_PRECO ->
+                        Selo(stringResource(R.string.selo_menor_preco), cores.secondary, cores.onSecondary, chip, negrito = true, largura = 170.dp)
+                    Destaque.PARTE_DE_COMBO ->
+                        Selo(stringResource(R.string.chip_parte_de_combo), cores.surfaceVariant, cores.onSurfaceVariant, chip, largura = 170.dp)
+                    Destaque.CONFIRA_NA_LOJA ->
+                        Selo(stringResource(R.string.chip_confira_na_loja), cores.surfaceVariant, cores.onSurfaceVariant, chip, largura = 170.dp)
+                    null -> Unit
+                }
+            }
 
             // 3. Endereço: toque abre o mapa do celular para chegar até a oferta.
             val endereco = cotacao.endereco?.takeIf { it.isNotBlank() }
@@ -151,12 +173,12 @@ fun CartaoCotacao(
 
             // 4. Selos, data e distância; WhatsApp e compartilhar no canto inferior direito (44 dp de toque).
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
-                if (maisBarato) {
-                    Selo("MAIS BARATO", cores.secondary, cores.onSecondary, pequeno, negrito = true)
-                    Spacer(Modifier.width(4.dp))
-                }
                 Selo(Obs.exibir(cotacao), cores.tertiaryContainer, cores.onTertiaryContainer, pequeno)
-                Spacer(Modifier.width(6.dp))
+                // ⓘ ao lado do chip de origem: "Sobre este preço".
+                IconButton(onClick = aoSobrePreco, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Info, contentDescription = stringResource(R.string.sobre_preco_icone),
+                        tint = cores.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                }
                 val distancia = Geo.distanciaKm(posicao, cotacao.local)?.let(Geo::formatarDistancia)
                 Text(
                     listOfNotNull(Validade.exibir(cotacao), distancia).joinToString(" · "),
@@ -182,8 +204,10 @@ fun CartaoCotacao(
 }
 
 @Composable
-private fun Selo(texto: String, fundo: Color, letra: Color, estilo: TextStyle, negrito: Boolean = false) {
-    Surface(color = fundo, shape = MaterialTheme.shapes.small, modifier = Modifier.widthIn(max = 140.dp)) {
+private fun Selo(
+    texto: String, fundo: Color, letra: Color, estilo: TextStyle, negrito: Boolean = false, largura: Dp = 140.dp,
+) {
+    Surface(color = fundo, shape = MaterialTheme.shapes.small, modifier = Modifier.widthIn(max = largura)) {
         Text(
             texto,
             style = estilo,

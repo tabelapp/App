@@ -92,6 +92,28 @@ Para ninguém cadastrar uma empresa que não é sua:
   usa o valor numérico. NF e encarte usam sempre "unidade".
 - Um produto é identificado pelo **nome normalizado** dentro da loja ("Arroz 5kg" = "ARROZ  5KG").
 
+## Preço confiável (decisão do fundador, 13/10/2026)
+
+Caso real: NF do Burger King com "Pão, carne e queijo" a R$ 4,00 (rateio de um combo de R$ 31) apareceu
+como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio, fidelidade ou balcão.
+
+- **ⓘ em todo card** → "Sobre este preço" (texto diferente para usuário/NF e para estabelecimento), com
+  "Esse preço não confere".
+- **Linha fixa sob o contador** da busca: "Preços informados por terceiros e sujeitos a alteração.
+  Confirme na loja." (uma vez, sem pop-up). O disclaimer da primeira abertura continua.
+- **Selo "MENOR PREÇO LANÇADO"** (era "MAIS BARATO"), na linha do PDV (o card não cresce). Regra no app
+  (`core/SeloPreco.kt`) com parâmetros em `configuracao_app`:
+  - preço **atípico** (< `preco_atipico_fracao` × mediana dos demais resultados, com pelo menos
+    `preco_atipico_min_resultados`) não recebe o selo e mostra "Confira na loja";
+  - prefere **PDV cadastrado** quando o preço dele é igual ou até `selo_tolerancia_pdv` acima;
+  - **item de combo** (marcado no envio da NF, `cotacoes.parte_de_combo`) nunca recebe o selo e mostra
+    "Parte de combo";
+  - com `denuncias_limite` denúncias, mostra "Confira na loja" e perde o selo (nada é apagado).
+- **Denúncia leve** (`denuncias_preco`, uma por pessoa por cotação, motivo opcional). Ninguém lê as dos
+  outros; o Admin vê `denuncias_mais_frequentes`. A busca recebe só o total.
+- **Compartilhar** termina com "Preço informado por usuário/estabelecimento e sujeito a alteração.
+  Confirme na loja. Visto no Tabelapp."
+
 ## Nota Fiscal pelo QR Code (sem digitação — decisão do fundador)
 
 1. O usuário lê o QR Code do cupom com o **leitor do Google Play Services** (tela pronta do Google,

@@ -400,10 +400,24 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${itens.size} produto(s)", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.nf_combo_apoio), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 itens.forEach { item ->
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(item.produto, Modifier.weight(1f))
-                        Text(Dinheiro.formatar(item.precoCentavos), fontWeight = FontWeight.SemiBold)
+                    Column {
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(item.produto, Modifier.weight(1f))
+                            Text(Dinheiro.formatar(item.precoCentavos), fontWeight = FontWeight.SemiBold)
+                        }
+                        // Opção discreta: item vendido dentro de combo nunca recebe o selo de menor preço.
+                        Row(
+                            Modifier.clickable { vm.alternarCombo(item) },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = item.parteDeCombo, onCheckedChange = { vm.alternarCombo(item) },
+                                modifier = Modifier.size(32.dp))
+                            Text(stringResource(R.string.nf_combo_pergunta), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

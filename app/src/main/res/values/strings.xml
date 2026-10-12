@@ -96,4 +96,28 @@
     <string name="item_a_partir_de">Preço “a partir de” (bom para serviços)</string>
     <string name="item_novo_no_catalogo">Item novo: ocupa 1 lugar no catálogo.</string>
     <string name="item_atualizacao_livre">Atualização: sempre livre.</string>
+    <!-- Preço confiável: avisos, selo e denúncia -->
+    <string name="selo_menor_preco">MENOR PREÇO LANÇADO</string>
+    <string name="chip_confira_na_loja">Confira na loja</string>
+    <string name="chip_parte_de_combo">Parte de combo</string>
+    <string name="sobre_preco_icone">Sobre este preço</string>
+    <string name="sobre_preco_titulo">Sobre este preço</string>
+    <string name="sobre_preco_usuario">Este valor foi informado por um usuário a partir de uma nota fiscal e pode ter sido praticado em uma promoção, combo ou condição específica do estabelecimento. Os preços podem mudar sem aviso e seguem a política de cada loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_estabelecimento">Preço informado pelo próprio estabelecimento. Pode mudar sem aviso, conforme a política da loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_entendi">Entendi</string>
+    <string name="sobre_preco_nao_confere">Esse preço não confere</string>
+    <string name="aviso_resultados">Preços informados por terceiros e sujeitos a alteração. Confirme na loja.</string>
+    <string name="denuncia_titulo">O que não confere?</string>
+    <string name="denuncia_texto">Escolha um motivo, se quiser, e envie. Isso nos ajuda a revisar este preço.</string>
+    <string name="denuncia_motivo_combo">Era de combo ou promoção</string>
+    <string name="denuncia_motivo_preco_mudou">Preço mudou</string>
+    <string name="denuncia_motivo_produto_errado">Produto errado</string>
+    <string name="denuncia_motivo_outro">Outro</string>
+    <string name="denuncia_enviar">Enviar</string>
+    <string name="denuncia_cancelar">Cancelar</string>
+    <string name="denuncia_obrigado">Obrigado! Isso ajuda a manter os preços confiáveis.</string>
+    <string name="nf_combo_pergunta">Faz parte de combo?</string>
+    <string name="nf_combo_apoio">Se o item foi vendido dentro de um combo, marque. O valor pode ser diferente do preço avulso.</string>
+    <string name="compartilhar_aviso_usuario">Preço informado por usuário e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
+    <string name="compartilhar_aviso_estabelecimento">Preço informado por estabelecimento e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
 </resources>

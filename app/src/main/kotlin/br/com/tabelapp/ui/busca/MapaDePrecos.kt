@@ -86,10 +86,12 @@ fun MapaDePrecos(
     cotacoes: List<Cotacao>,
     termo: String?,
     geocodificador: Geocodificador,
+    /** Quem tem o selo "Menor preço lançado" na busca (o pino vermelho). */
+    idsSelo: Set<String> = emptySet(),
     mostrarMinhaPosicao: Boolean,
     aoFechar: () -> Unit,
 ) {
-    val pinos = remember(cotacoes) { MapaPrecos.pinos(cotacoes) }
+    val pinos = remember(cotacoes, idsSelo) { MapaPrecos.pinos(cotacoes, idsSelo) }
     val posicoes = remember(cotacoes) { mutableStateMapOf<String, PontoGeo>() }
     var localizando by remember(cotacoes) { mutableStateOf(true) }
     var selecionado by remember { mutableStateOf<String?>(null) }

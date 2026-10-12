@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -61,9 +63,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,6 +75,7 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
 import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.Destaque
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.TipoErro
@@ -96,6 +101,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
     val escopo = rememberCoroutineScope()
     val contexto = LocalContext.current
     var pdvAberto by remember { mutableStateOf<Cotacao?>(null) }
+    var sobrePreco by remember { mutableStateOf<Cotacao?>(null) }
     var verMapa by remember { mutableStateOf(false) }
 
     // No mapa, mostramos onde a pessoa está: pede a permissão (uma vez) ao abrir. Negar não impede o mapa.
@@ -194,8 +200,22 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                 },
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp),
             )
+            // Aviso permanente e discreto: uma linha só, sob o contador (nunca repetido nos cards).
+            if (estado.resultados.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.aviso_resultados),
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+                )
+            } else {
+                Spacer(Modifier.height(6.dp))
+            }
 
             Box(Modifier.fillMaxSize()) {
                 when {
@@ -225,10 +245,11 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                             CartaoCotacao(
                                 alternado = indice % 2 == 1,
                                 cotacao = cotacao,
-                                maisBarato = cotacao.id in estado.maisBaratos,
+                                destaque = estado.destaques[cotacao.id],
                                 posicao = estado.posicao,
                                 aoAbrirPdv = { pdvAberto = cotacao },
                                 aoCompartilhar = { escopo.launch { CompartilharPreco.compartilhar(contexto, cotacao) } },
+                                aoSobrePreco = { sobrePreco = cotacao },
                                 aoAbrirMapa = { abrirNoMapa(contexto, cotacao) },
                                 aoChamarNoWhatsApp = {
                                     cotacao.telefone?.let { WhatsApp.abrirConversa(contexto, it, Mensagens.interesseNaOferta(cotacao)) }
@@ -259,11 +280,20 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
 
     pdvAberto?.let { c -> DialogoPdv(c, aoFechar = { pdvAberto = null }) }
 
+    sobrePreco?.let { c ->
+        FolhaSobrePreco(
+            cotacao = c,
+            aoDenunciar = { motivo -> vm.denunciar(c, motivo) },
+            aoFechar = { sobrePreco = null },
+        )
+    }
+
     if (verMapa) {
         MapaDePrecos(
             cotacoes = estado.resultados,
             termo = estado.termoBuscado,
             geocodificador = container.geocodificador,
+            idsSelo = estado.destaques.filterValues { it == Destaque.MENOR_PRECO }.keys,
             mostrarMinhaPosicao = container.localizacao.temPermissao(),
             aoFechar = { verMapa = false },
         )

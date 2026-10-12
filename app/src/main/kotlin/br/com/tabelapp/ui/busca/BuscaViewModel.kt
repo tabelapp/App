@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.Busca
+import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.Destaque
 import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.SeloPreco
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
@@ -29,8 +32,8 @@ data class EstadoBusca(
     /** Tipo do erro (sem internet, instabilidade...) para a tela calma; null = mensagem própria. */
     val erroTipo: TipoErro? = null,
     val resultados: List<Cotacao> = emptyList(),
-    /** Ids destacados como "mais barato" (só quando há uma busca). */
-    val maisBaratos: Set<String> = emptySet(),
+    /** Destaque de cada card: selo "Menor preço lançado", "Parte de combo" ou "Confira na loja". */
+    val destaques: Map<String, Destaque> = emptyMap(),
     /** null = ordem padrão (recentes na tela inicial, menor preço na busca). */
     val ordenacao: Ordenacao? = null,
     /** Posição real do usuário, se ele deu permissão. */
@@ -57,9 +60,15 @@ class BuscaViewModel(
     /** Resultado como veio do servidor, antes da ordenação escolhida na tela. */
     private var brutos: List<Cotacao> = emptyList()
     private var carga: Job? = null
+    /** Parâmetros do selo (configuracao_app); padrão até carregar. */
+    private var config = ConfigConfianca()
     private val bannersVistos = mutableSetOf<String>()
 
     init {
+        viewModelScope.launch {
+            config = cotacoes.configConfianca()
+            reaplicarOrdenacao()
+        }
         carregar(null)
     }
 
@@ -91,6 +100,9 @@ class BuscaViewModel(
         if (!bannersVistos.add(banner.id)) return
         viewModelScope.launch { cotacoes.registrarVisualizacao(banner.id) }
     }
+
+    /** "Esse preço não confere": devolve se registrou (false = a pessoa já tinha avisado). */
+    suspend fun denunciar(cotacao: Cotacao, motivo: String?): Boolean = cotacoes.denunciar(cotacao.id, motivo)
 
     fun aceitarDisclaimer() {
         preferencias.disclaimerAceito = true
@@ -126,7 +138,7 @@ class BuscaViewModel(
                 ?: brutos
             e.copy(
                 resultados = ordenados,
-                maisBaratos = if (e.termoBuscado != null) Busca.idsMaisBaratos(brutos) else emptySet(),
+                destaques = SeloPreco.destaques(brutos, comBusca = e.termoBuscado != null, config = config),
             )
         }
     }
