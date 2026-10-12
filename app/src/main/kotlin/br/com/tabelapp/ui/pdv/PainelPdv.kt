@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
@@ -29,9 +31,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -60,20 +65,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
-import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Dinheiro
-import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoPreco
-import br.com.tabelapp.core.RegrasCota
-import br.com.tabelapp.core.SaldoCota
-import br.com.tabelapp.core.TipoErro
+import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.core.Validade
-import br.com.tabelapp.ui.comum.AcaoErro
-import br.com.tabelapp.ui.comum.DialogoErro
-import br.com.tabelapp.ui.comum.WhatsApp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -131,7 +130,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 }
             }
         }
-        item { estado.cota?.let { CartaoCota(it, aoComprar = vm::comprarPacote) } }
+        item { estado.catalogo?.let { CartaoCatalogo(it, aoVerPlanos = vm::abrirPlanos) } }
         item {
             Button(onClick = vm::novoItem, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Add, contentDescription = null)
@@ -154,7 +153,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             }
             Text(
                 "Planilha Excel (.xlsx) ou .csv com as colunas Produto, Preço, Validade e OBS. " +
-                    "Antes de publicar, o app mostra quantas operações vai usar.",
+                    "Antes de publicar, o app mostra o que entra no seu catálogo.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
@@ -246,24 +245,28 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         DialogoPlanilha(
             estado = p,
             aoImportar = vm::importarPlanilha,
-            aoComprarPacote = vm::comprarPacote,
-            aoConferirDeNovo = vm::refazerSimulacao,
+            aoVerPlanos = vm::abrirPlanos,
             aoFechar = vm::fecharPlanilha,
         )
     }
 
-    if (estado.falhaPagamento) {
-        DialogoErro(
-            TipoErro.FALHA_PAGAMENTO,
-            aoFechar = vm::fecharFalhaPagamento,
-            principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), {
-                vm.fecharFalhaPagamento()
-                vm.comprarPacote()
-            }),
-            secundario = AcaoErro(stringResource(R.string.erro_botao_fale_conosco), {
-                vm.fecharFalhaPagamento()
-                WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.FALE_CONOSCO)
-            }),
+    estado.resultadoImportacao?.let { r ->
+        DialogoResultadoImportacao(r, aoVerPlanos = vm::abrirPlanos, aoFechar = vm::fecharResultadoImportacao)
+    }
+
+    // Chegou ao limite do plano: mensagem calma, sem culpa.
+    if (estado.mostrarLimite) {
+        estado.catalogo?.let { c ->
+            DialogoLimite(c, aoVerPlanos = vm::abrirPlanos, aoFechar = vm::fecharLimite)
+        }
+    }
+
+    estado.planos?.let { p ->
+        TelaPlanos(
+            estado = p,
+            planoAtual = estado.catalogo?.plano,
+            aoQuererSerAvisado = vm::quererSerAvisado,
+            aoFechar = vm::fecharPlanos,
         )
     }
 
@@ -295,7 +298,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         EditorPreco(
             rascunho = r,
             novo = estado.editandoId == null,
-            custo = estado.custoDoRascunho?.contaNaCota,
+            itemNovo = estado.rascunhoEhNovo,
             erros = estado.errosEditor,
             salvando = estado.salvando,
             aoMudar = vm::alterarRascunho,
@@ -308,7 +311,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         AlertDialog(
             onDismissRequest = { excluindo = null },
             title = { Text("Excluir ${p.produto}?") },
-            text = { Text("O preço sai da busca. Excluir não gasta operação.") },
+            text = { Text("O preço sai da busca e libera um lugar no seu catálogo.") },
             confirmButton = {
                 TextButton(onClick = {
                     vm.excluir(p)
@@ -357,28 +360,6 @@ private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoExcluir: () ->
 }
 
 @Composable
-private fun CartaoCota(cota: SaldoCota, aoComprar: () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Operações disponíveis: ${cota.restantes}", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
-            Text("Grátis este mês: ${cota.gratisRestantes} de ${RegrasCota.GRATIS_POR_MES}" +
-                if (cota.saldoPacotes > 0) " · pacotes: ${cota.saldoPacotes}" else "")
-            Text(
-                "Criar produto ou aumentar preço usa 1 operação. Baixar preço, mudar OBS/validade e excluir são grátis.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(onClick = aoComprar, modifier = Modifier.fillMaxWidth()) {
-                Text("Comprar +50 operações (R$ 10)")
-            }
-        }
-    }
-}
-
-@Composable
 private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit) {
     Column {
         Row(
@@ -393,7 +374,7 @@ private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit)
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(Dinheiro.formatar(p.precoCentavos), fontWeight = FontWeight.Bold)
+            Text(PrecoExibido.texto(p.precoCentavos, p.unidade, p.aPartirDe), fontWeight = FontWeight.Bold)
             IconButton(onClick = aoExcluir) { Icon(Icons.Default.Delete, contentDescription = "Excluir") }
         }
         HorizontalDivider()
@@ -405,7 +386,7 @@ private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit)
 private fun EditorPreco(
     rascunho: RascunhoPreco,
     novo: Boolean,
-    custo: Boolean?,
+    itemNovo: Boolean?,
     erros: List<String>,
     salvando: Boolean,
     aoMudar: (RascunhoPreco) -> Unit,
@@ -413,11 +394,12 @@ private fun EditorPreco(
     aoFechar: () -> Unit,
 ) {
     var escolhendoData by remember { mutableStateOf(false) }
+    var escolhendoUnidade by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { if (!salvando) aoFechar() },
         title = { Text(if (novo) "Adicionar produto" else "Editar preço") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = rascunho.produto,
                     onValueChange = { aoMudar(rascunho.copy(produto = it.take(200))) },
@@ -435,6 +417,34 @@ private fun EditorPreco(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Unidade do preço (kg, hora, visita...) e "a partir de" para serviços.
+                Box {
+                    OutlinedButton(onClick = { escolhendoUnidade = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("${stringResource(R.string.item_unidade)}: ${rascunho.unidade.rotulo}")
+                    }
+                    DropdownMenu(expanded = escolhendoUnidade, onDismissRequest = { escolhendoUnidade = false }) {
+                        Unidade.entries.forEach { u ->
+                            DropdownMenuItem(
+                                text = { Text(u.rotulo) },
+                                onClick = {
+                                    aoMudar(rascunho.copy(unidade = u))
+                                    escolhendoUnidade = false
+                                },
+                            )
+                        }
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().clickable { aoMudar(rascunho.copy(aPartirDe = !rascunho.aPartirDe)) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = rascunho.aPartirDe, onCheckedChange = { aoMudar(rascunho.copy(aPartirDe = it)) })
+                    Text(stringResource(R.string.item_a_partir_de))
+                }
+                rascunho.precoCentavos?.let {
+                    Text(PrecoExibido.texto(it, rascunho.unidade, rascunho.aPartirDe),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 OutlinedButton(onClick = { escolhendoData = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(rascunho.validade?.let { "Válido até ${Validade.formatar(it)}" } ?: "Validade: 30 dias (tocar para mudar)")
                 }
@@ -444,9 +454,9 @@ private fun EditorPreco(
                     label = { Text("OBS (opcional, ex.: cerveja gelada)") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                when (custo) {
-                    true -> Text("Vai usar 1 operação.", fontWeight = FontWeight.SemiBold)
-                    false -> Text("Grátis (não usa operação).", fontWeight = FontWeight.SemiBold,
+                when (itemNovo) {
+                    true -> Text(stringResource(R.string.item_novo_no_catalogo), style = MaterialTheme.typography.bodySmall)
+                    false -> Text(stringResource(R.string.item_atualizacao_livre), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary)
                     null -> {}
                 }

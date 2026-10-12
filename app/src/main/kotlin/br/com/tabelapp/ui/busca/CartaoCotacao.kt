@@ -28,10 +28,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.tabelapp.core.Cotacao
@@ -39,6 +42,7 @@ import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Obs
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.ui.tema.VermelhoTabelapp
 
@@ -100,8 +104,14 @@ fun CartaoCotacao(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(end = 8.dp),
                 )
+                // "A partir de" e a unidade em letra menor, na mesma linha: o card não cresce.
                 Text(
-                    Dinheiro.formatar(cotacao.precoCentavos),
+                    buildAnnotatedString {
+                        val pequeno = SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        if (cotacao.aPartirDe) withStyle(pequeno) { append(PrecoExibido.A_PARTIR_DE.lowercase() + " ") }
+                        append(Dinheiro.formatar(cotacao.precoCentavos))
+                        withStyle(pequeno) { append(PrecoExibido.sufixo(cotacao.unidade)) }
+                    },
                     fontSize = 20.sp,
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.Bold,

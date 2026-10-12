@@ -7,6 +7,7 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.ItemFora
 import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
@@ -16,14 +17,16 @@ import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
+import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoNf
-import br.com.tabelapp.core.SaldoCota
-import br.com.tabelapp.core.SimulacaoImportacao
+import br.com.tabelapp.core.ResultadoImportacao
+import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.core.SugestaoProduto
+import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
@@ -258,6 +261,8 @@ private data class CotacaoDto(
     val longitude: Double? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("data_nf") val dataNf: String? = null,
+    val unidade: String? = null,
+    @SerialName("a_partir_de") val aPartirDe: Boolean = false,
 ) {
     fun paraCotacao() = Cotacao(
         id = id,
@@ -276,6 +281,8 @@ private data class CotacaoDto(
         local = if (latitude != null && longitude != null) PontoGeo(latitude, longitude) else null,
         criadoEm = lerInstante(createdAt),
         dataNf = dataNf?.let(LocalDate::parse),
+        unidade = Unidade.deCodigo(unidade),
+        aPartirDe = aPartirDe,
     )
 
     private fun lerInstante(texto: String): Instant =
@@ -407,16 +414,21 @@ private data class LojaPdvDto(
 )
 
 @Serializable
-private data class SimulacaoDto(
+private data class ImportacaoDto(
     val criados: Int = 0,
     val aumentados: Int = 0,
     val diminuidos: Int = 0,
     val inalterados: Int = 0,
-    val operacoes: Int = 0,
-    val restantes: Int = 0,
-    @SerialName("cabe_na_cota") val cabeNaCota: Boolean = true,
-    @SerialName("pacotes_necessarios") val pacotesNecessarios: Int = 0,
-)
+    @SerialName("fora_do_limite") val foraDoLimite: Int = 0,
+    @SerialName("itens_fora") val itensFora: List<ItemForaDto> = emptyList(),
+    val limite: Int = 0,
+    @SerialName("plano_nome") val planoNome: String = "",
+) {
+    fun paraResultado() = ResultadoImportacao(
+        criados, aumentados, diminuidos, inalterados, foraDoLimite,
+        itensFora.map { ItemFora(it.linha, it.produto) }, limite, planoNome,
+    )
+}
 
 @Serializable
 private data class PromocaoDto(
@@ -455,13 +467,35 @@ private data class PrecoPdvDto(
     @SerialName("preco_centavos") val precoCentavos: Long,
     val validade: String,
     val obs: String? = null,
+    val unidade: String? = null,
+    @SerialName("a_partir_de") val aPartirDe: Boolean = false,
 )
 
 @Serializable
-private data class CotaDto(
-    @SerialName("gratis_usadas") val gratisUsadas: Int,
-    @SerialName("saldo_pacotes") val saldoPacotes: Int = 0,
+private data class StatusCatalogoDto(
+    val plano: String,
+    @SerialName("plano_nome") val planoNome: String,
+    @SerialName("limite_plano") val limitePlano: Int,
+    @SerialName("plano_efetivo") val planoEfetivo: String,
+    @SerialName("plano_efetivo_nome") val planoEfetivoNome: String,
+    val limite: Int,
+    @SerialName("itens_ativos") val itensAtivos: Int,
+    val disponiveis: Int,
+    @SerialName("fundador_ate") val fundadorAte: String? = null,
+    @SerialName("aviso_fundador_dias") val avisoFundadorDias: Int = 7,
 )
+
+@Serializable
+private data class PlanoDto(
+    val codigo: String,
+    val nome: String,
+    @SerialName("limite_itens") val limiteItens: Int,
+    @SerialName("preco_referencia_centavos") val precoReferenciaCentavos: Long? = null,
+    val ordem: Int = 0,
+)
+
+@Serializable
+private data class ItemForaDto(val linha: Int, val produto: String)
 
 @Serializable
 private data class NomeSugeridoDto(
@@ -547,28 +581,22 @@ class SupabasePdvRepositorio(
         }
     }
 
-    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): SimulacaoImportacao =
-        traduzindoErros {
-            val d = supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
-                put("p_pdv_id", pdvId)
-                put("p_loja_id", lojaId)
-                put("p_itens", itensPlanilha(linhas))
-                put("p_fonte", "pdv_excel")
-                put("p_simular", true)
-            }).decodeAs<SimulacaoDto>()
-            SimulacaoImportacao(d.criados, d.aumentados, d.diminuidos, d.inalterados, d.operacoes, d.restantes,
-                d.cabeNaCota, d.pacotesNecessarios)
-        }
-
-    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): Int =
+    private suspend fun planilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>, simular: Boolean) =
         traduzindoErros {
             supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
                 put("p_pdv_id", pdvId)
                 put("p_loja_id", lojaId)
                 put("p_itens", itensPlanilha(linhas))
                 put("p_fonte", "pdv_excel")
-            }).decodeAs<SimulacaoDto>().operacoes
+                put("p_simular", simular)
+            }).decodeAs<ImportacaoDto>().paraResultado()
         }
+
+    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>) =
+        planilha(pdvId, lojaId, linhas, simular = true)
+
+    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>) =
+        planilha(pdvId, lojaId, linhas, simular = false)
 
     override suspend fun promocoes(pdvId: String): List<PromocaoPdv> = traduzindoErros {
         supabase.postgrest.rpc("minhas_promocoes", buildJsonObject { put("p_pdv_id", pdvId) })
@@ -605,13 +633,6 @@ class SupabasePdvRepositorio(
             .decodeAs<String>() == "excluida"
     }
 
-    override suspend fun comprarPacoteOperacoes(pdvId: String, lojaId: String): String = traduzindoErros {
-        supabase.postgrest.rpc("comprar_pacote_operacoes", buildJsonObject {
-            put("p_pdv_id", pdvId)
-            put("p_loja_id", lojaId)
-        }).decodeAs<String>()
-    }
-
     override suspend fun pagamentosPendentes(): List<PagamentoPendente> = traduzindoErros {
         supabase.postgrest.rpc("pagamentos_pendentes").decodeList<PagamentoPendenteDto>().map {
             PagamentoPendente(it.id, it.tipo, it.pdvNome, it.descricao, it.quantidade, it.valorCentavos,
@@ -634,22 +655,39 @@ class SupabasePdvRepositorio(
             put("p_pdv_id", pdvId)
             put("p_loja_id", lojaId)
         }).decodeList<PrecoPdvDto>().map {
-            PrecoPdv(it.id, it.lojaId, it.produto, it.precoCentavos, LocalDate.parse(it.validade), it.obs)
+            PrecoPdv(it.id, it.lojaId, it.produto, it.precoCentavos, LocalDate.parse(it.validade), it.obs,
+                Unidade.deCodigo(it.unidade), it.aPartirDe)
         }
     }
 
-    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota = traduzindoErros {
-        val c = supabase.postgrest.rpc("cota_status", buildJsonObject {
+    override suspend fun statusCatalogo(pdvId: String, lojaId: String): StatusCatalogo = traduzindoErros {
+        val d = supabase.postgrest.rpc("status_catalogo", buildJsonObject {
             put("p_pdv_id", pdvId)
             put("p_loja_id", lojaId)
-        }).decodeList<CotaDto>().firstOrNull() ?: CotaDto(0, 0)
-        SaldoCota(gratisUsadas = c.gratisUsadas, saldoPacotes = c.saldoPacotes)
+        }).decodeList<StatusCatalogoDto>().first()
+        StatusCatalogo(d.plano, d.planoNome, d.limitePlano, d.planoEfetivo, d.planoEfetivoNome, d.limite, d.itensAtivos,
+            d.disponiveis, d.fundadorAte?.let(LocalDate::parse), d.avisoFundadorDias)
+    }
+
+    override suspend fun planos(): List<Plano> = traduzindoErros {
+        supabase.from("planos").select { filter { eq("ativo", true) } }.decodeList<PlanoDto>()
+            .map { Plano(it.codigo, it.nome, it.limiteItens, it.precoReferenciaCentavos, it.ordem) }
+            .sortedBy { it.ordem }
+    }
+
+    override suspend fun registrarInteresse(pdvId: String, plano: String) = traduzindoErros {
+        supabase.postgrest.rpc("registrar_interesse_plano", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_plano", plano)
+        })
+        Unit
     }
 
     override suspend fun salvarPreco(
         pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
-    ): Int = traduzindoErros {
-        val resposta = supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
+        unidade: Unidade, aPartirDe: Boolean,
+    ) = traduzindoErros {
+        supabase.postgrest.rpc("pdv_salvar_precos", buildJsonObject {
             put("p_pdv_id", pdvId)
             put("p_loja_id", lojaId)
             put("p_itens", buildJsonArray {
@@ -658,10 +696,12 @@ class SupabasePdvRepositorio(
                     put("preco_centavos", precoCentavos)
                     validade?.let { put("validade", it.toString()) }
                     obs?.trim()?.ifEmpty { null }?.let { put("obs", it) }
+                    put("unidade", unidade.codigo)
+                    put("a_partir_de", aPartirDe)
                 }
             })
-        }).decodeAs<JsonObject>()
-        (resposta["operacoes"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        })
+        Unit
     }
 
     override suspend fun excluirPreco(precoId: String) = traduzindoErros {

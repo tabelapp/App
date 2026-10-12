@@ -19,16 +19,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.R
 import br.com.tabelapp.core.LeitorPlanilha
 import java.io.File
 
@@ -94,17 +94,17 @@ fun compartilharModeloPlanilha(contexto: Context) {
     }
 }
 
-/** Prévia da importação: o que muda, quanto custa e os erros por linha. */
+/** Prévia da importação: o que entra, o que ficaria fora do limite do plano e os erros por linha. */
 @Composable
 fun DialogoPlanilha(
     estado: EstadoPlanilha,
     aoImportar: () -> Unit,
-    aoComprarPacote: () -> Unit,
-    aoConferirDeNovo: () -> Unit,
+    aoVerPlanos: () -> Unit,
     aoFechar: () -> Unit,
 ) {
     val sim = estado.simulacao
-    val podeImportar = !estado.processando && sim != null && sim.cabeNaCota && estado.linhas.isNotEmpty()
+    // Importa mesmo com itens de fora: as atualizações e os novos que cabem entram juntos.
+    val podeImportar = !estado.processando && sim != null && sim.importados > 0
     AlertDialog(
         onDismissRequest = { if (!estado.processando) aoFechar() },
         title = { Text("Importar planilha") },
@@ -120,25 +120,13 @@ fun DialogoPlanilha(
                     }
                 }
                 if (sim != null) {
-                    Text("${estado.linhas.size} produto(s) prontos para publicar", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.importacao_previa_entram, sim.importados), fontWeight = FontWeight.Bold)
                     Text("Novos: ${sim.criados} · Preço maior: ${sim.aumentados}")
                     Text("Preço menor: ${sim.diminuidos} · Sem mudança: ${sim.inalterados}")
-                    Text(
-                        "Vai usar ${sim.operacoes} operação(ões). Você tem ${sim.restantes}.",
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (sim.cabeNaCota) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    )
-                    if (!sim.cabeNaCota) {
-                        Text(
-                            "Faltam operações: são necessários ${sim.pacotesNecessarios} pacote(s) de +50 " +
-                                "(${Dinheiro.formatar(sim.pacotesNecessarios * 1000L)}). Você também pode tirar " +
-                                "linhas da planilha — baixar preço e manter o mesmo preço não custam nada.",
-                        )
-                        OutlinedButton(onClick = aoComprarPacote, modifier = Modifier.fillMaxWidth()) {
-                            Text("Comprar +50 operações (R$ 10)")
-                        }
-                        TextButton(onClick = aoConferirDeNovo, modifier = Modifier.fillMaxWidth()) {
-                            Text("Já paguei — conferir de novo")
+                    if (sim.foraDoLimite > 0) {
+                        Text(stringResource(R.string.importacao_previa_fora, sim.foraDoLimite, sim.limite))
+                        TextButton(onClick = aoVerPlanos, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.catalogo_ver_planos))
                         }
                     }
                 }
@@ -160,7 +148,7 @@ fun DialogoPlanilha(
         },
         confirmButton = {
             TextButton(onClick = aoImportar, enabled = podeImportar) {
-                Text(if (sim != null) "Publicar ${estado.linhas.size}" else "Publicar")
+                Text(if (sim != null) "Publicar ${sim.importados}" else "Publicar")
             }
         },
         dismissButton = { TextButton(onClick = aoFechar, enabled = !estado.processando) { Text("Cancelar") } },

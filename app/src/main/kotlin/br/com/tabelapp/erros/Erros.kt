@@ -72,7 +72,7 @@ object Erros {
         if (e is ErroAmigavel) return e
         val tipo = ClassificadorErros.deServidor(e.javaClass.name, e.message, statusHttp, temInternet())
         registrar(onde, "status=$statusHttp tipo=$tipo", e)
-        return if (tipo == null) ErroAmigavel(ErrosServidor.traduzir(e.message), e)
+        return if (tipo == null) ErroAmigavel(ErrosServidor.traduzir(e.message), e, codigo = ErrosServidor.codigo(e.message))
         else ErroAmigavel(texto(tipo), e, tipo)
     }
 }

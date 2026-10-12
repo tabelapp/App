@@ -51,6 +51,8 @@ object ErrosServidor {
         "arte_invalida" to "Não foi possível usar essa imagem. Tente outra.",
         "promocoes_pendentes_demais" to "Você já tem promoções aguardando pagamento. Conclua ou exclua uma delas.",
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
+        "limite_catalogo" to "Você chegou ao limite de itens do seu plano. Seus itens continuam publicados e você pode atualizar os preços quando quiser.",
+        "unidade_invalida" to "Escolha uma unidade da lista.",
         // Mensagens do serviço de login (Supabase Auth).
         "already registered" to "Este e-mail já tem cadastro. Entre com ele ou use \"Esqueci a senha\".",
         "Password should be" to "A senha precisa ter pelo menos 6 caracteres.",
@@ -58,6 +60,10 @@ object ErrosServidor {
     )
 
     const val GENERICA = "Algo não saiu como esperado, mas já estamos cientes. Tente de novo em instantes."
+
+    /** O código de regra de negócio que aparece na mensagem bruta (ex.: "limite_catalogo"). */
+    fun codigo(mensagemBruta: String?): String? =
+        mensagemBruta?.let { m -> mensagens.keys.firstOrNull { m.contains(it) } }
 
     /** A mensagem traz um código de regra de negócio conhecido (ex.: "nf_ja_enviada")? */
     fun conhece(mensagemBruta: String?): Boolean =

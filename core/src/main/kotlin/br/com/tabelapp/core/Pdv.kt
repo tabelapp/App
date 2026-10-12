@@ -50,6 +50,8 @@ data class PrecoPdv(
     val precoCentavos: Long,
     val validade: LocalDate,
     val obs: String?,
+    val unidade: Unidade = Unidade.UNIDADE,
+    val aPartirDe: Boolean = false,
 )
 
 /**
@@ -61,6 +63,9 @@ data class RascunhoPreco(
     val preco: String = "",
     val validade: LocalDate? = null,
     val obs: String = "",
+    /** Unidade do preço (kg, hora, visita...); serviços podem ser "a partir de". */
+    val unidade: Unidade = Unidade.UNIDADE,
+    val aPartirDe: Boolean = false,
 ) {
     val precoCentavos: Long? get() = Dinheiro.parse(preco)?.takeIf { it > 0 }
 
@@ -78,6 +83,8 @@ data class RascunhoPreco(
             preco = Dinheiro.formatar(item.precoCentavos).removePrefix("R$ "),
             validade = item.validade,
             obs = item.obs.orEmpty(),
+            unidade = item.unidade,
+            aPartirDe = item.aPartirDe,
         )
     }
 }
@@ -153,17 +160,6 @@ data class NomeSugerido(
 )
 
 /** Resultado da prévia de uma importação de planilha (função pdv_salvar_precos com simular). */
-data class SimulacaoImportacao(
-    val criados: Int,
-    val aumentados: Int,
-    val diminuidos: Int,
-    val inalterados: Int,
-    val operacoes: Int,
-    val restantes: Int,
-    val cabeNaCota: Boolean,
-    val pacotesNecessarios: Int,
-)
-
 /** Promoção (banner pago) do PDV. */
 data class PromocaoPdv(
     val id: String,

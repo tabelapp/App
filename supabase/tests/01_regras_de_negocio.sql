@@ -466,7 +466,7 @@ begin
   assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id where l.pdv_id = v) = 0;
 end $$;
 
-\echo '== PDV (CNPJ): cota de operações'
+\echo '== PDV (CNPJ): limite por tamanho do catálogo'
 set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 
 -- PDV já aprovado (criado aqui direto no banco, como o Admin faria).
@@ -474,6 +474,15 @@ reset role;
 insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
 values ('10000000-0000-4000-b000-000000000001', 'b0000000-0000-4000-a000-00000000000b', '55555555000191',
         'Mercado do Bruno', false, 'aprovado');
+do $$ begin
+  -- Todo PDV novo começa no plano grátis e, no piloto, ganha 90 dias de parceiro fundador.
+  assert (select plano = 'gratis' and fundador_ate = public.hoje() + 90
+          from public.pdvs where id = '10000000-0000-4000-b000-000000000001');
+end $$;
+-- Para testar o plano grátis: o período de fundador já acabou.
+update public.pdvs set fundador_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+-- Faixa menor só para o teste ficar rápido (as faixas vêm da tabela planos, não do código).
+update public.planos set limite_itens = 3 where codigo = 'gratis';
 set role authenticated;
 insert into public.lojas (id, pdv_id, endereco, bairro, telefone) values
   ('20000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000001', 'Rua A, 1', 'Centro', '(24) 1111-1111'),
@@ -483,6 +492,14 @@ insert into public.lojas (id, pdv_id, endereco, bairro, telefone) values
 select pg_temp.espera_erro(
   $q$insert into public.lojas (pdv_id, endereco) values ('10000000-0000-4000-a000-000000000001', 'Invasão')$q$,
   'row-level security');
+-- Plano e período de fundador não são alterados pelo app.
+select pg_temp.espera_erro(
+  $q$update public.pdvs set plano = 'mercado' where id = '10000000-0000-4000-b000-000000000001'$q$, 'permission denied');
+select pg_temp.espera_erro(
+  $q$update public.pdvs set fundador_ate = '2099-01-01' where id = '10000000-0000-4000-b000-000000000001'$q$,
+  'permission denied');
+select pg_temp.espera_erro($q$update public.planos set limite_itens = 99999$q$, 'permission denied');
+select pg_temp.espera_erro($q$insert into public.configuracao_app values ('x', '1', null)$q$, 'permission denied');
 
 do $$
 declare
@@ -490,55 +507,109 @@ declare
   loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   v jsonb;
-  itens jsonb;
+  r record;
 begin
-  -- Cada loja tem sua própria cota de 50 grátis.
-  assert (select restantes from public.cota_status(pdv, loja1)) = 50;
-  assert (select restantes from public.cota_status(pdv, loja2)) = 50;
+  -- Varejo: cada loja tem o seu limite (aqui 3).
+  select * into r from public.status_catalogo(pdv, loja1);
+  assert r.plano_efetivo = 'gratis' and r.limite = 3 and r.itens_ativos = 0 and r.disponiveis = 3, r::text;
 
-  -- Criar item: conta 1.
+  -- Criar item: ocupa espaço.
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Arroz 5kg", "preco_centavos": 2500}]');
-  assert (v ->> 'criados')::int = 1 and (v ->> 'operacoes')::int = 1 and (v ->> 'restantes')::int = 49, v::text;
+  assert (v ->> 'criados')::int = 1 and (v ->> 'disponiveis')::int = 2, v::text;
 
-  -- Diminuir preço: grátis (o nome pode vir com outra grafia/acentuação).
+  -- Diminuir preço (o nome pode vir com outra grafia), só OBS e aumentar: atualizações.
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "ARROZ  5kg", "preco_centavos": 2400, "obs": "Oferta"}]');
-  assert (v ->> 'diminuidos')::int = 1 and (v ->> 'operacoes')::int = 0, v::text;
+  assert (v ->> 'diminuidos')::int = 1 and (v ->> 'criados')::int = 0, v::text;
   assert (select count(*) from public.cotacoes where loja_id = loja1) = 1, 'upsert não pode duplicar';
   assert (select obs from public.cotacoes where loja_id = loja1) = 'Oferta';
-
-  -- Mesmo preço, só OBS: grátis.
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Arroz 5kg", "preco_centavos": 2400}]');
-  assert (v ->> 'inalterados')::int = 1 and (v ->> 'operacoes')::int = 0, v::text;
-
-  -- Aumentar preço: conta 1.
+  assert (v ->> 'inalterados')::int = 1, v::text;
   v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Arroz 5kg", "preco_centavos": 2600}]');
-  assert (v ->> 'aumentados')::int = 1 and (v ->> 'operacoes')::int = 1, v::text;
+  assert (v ->> 'aumentados')::int = 1, v::text;
 
-  -- Modo varejo: a outra loja tem tabela e cota independentes.
+  -- Enche o catálogo da loja 1 (3 itens).
+  perform public.pdv_salvar_precos(pdv, loja1,
+    '[{"produto": "Feijão 1kg", "preco_centavos": 800}, {"produto": "Óleo 900ml", "preco_centavos": 700}]');
+  select * into r from public.status_catalogo(pdv, loja1);
+  assert r.itens_ativos = 3 and r.disponiveis = 0, r::text;
+
+  -- No limite: criar é recusado...
+  begin
+    perform public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Café 500g", "preco_centavos": 1900}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+  -- ...mas atualizar (subir, baixar, renovar validade, OBS, unidade) nunca é bloqueado.
+  v := public.pdv_salvar_precos(pdv, loja1, format(
+    '[{"produto": "Feijão 1kg", "preco_centavos": 990, "validade": "%s", "obs": "Novo lote", "unidade": "kg"},
+      {"produto": "Óleo 900ml", "preco_centavos": 650}]', public.hoje() + 30)::jsonb);
+  assert (v ->> 'aumentados')::int = 1 and (v ->> 'diminuidos')::int = 1 and (v ->> 'fora_do_limite')::int = 0, v::text;
+  assert (select unidade from public.cotacoes where loja_id = loja1 and produto = 'Feijão 1kg') = 'kg';
+
+  -- Modo varejo: a loja 2 tem o próprio catálogo e o próprio limite.
   v := public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Arroz 5kg", "preco_centavos": 2000}]');
   assert (v ->> 'criados')::int = 1, v::text;
-  assert (select preco_centavos from public.cotacoes where loja_id = loja1) = 2600;
-  assert (select restantes from public.cota_status(pdv, loja1)) = 48;
-  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
+  assert (select itens_ativos from public.status_catalogo(pdv, loja2)) = 1;
 
-  -- Excluir: grátis.
-  perform public.pdv_excluir_item((select id from public.cotacoes where loja_id = loja2));
-  assert (select count(*) from public.cotacoes where loja_id = loja2) = 0;
-  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
+  -- Excluir: sempre permitido e libera espaço.
+  perform public.pdv_excluir_item((select id from public.cotacoes where loja_id = loja1 and produto = 'Óleo 900ml'));
+  assert (select disponiveis from public.status_catalogo(pdv, loja1)) = 1;
+  v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Café 500g", "preco_centavos": 1900}]');
+  assert (v ->> 'criados')::int = 1, v::text;
 
-  -- Planilha com 60 itens novos na loja 1: simulação mostra que precisa de 1 pacote.
-  select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
-    into itens from generate_series(1, 60) g;
-  v := public.pdv_salvar_precos(pdv, loja1, itens, 'pdv_excel', true);
-  assert (v ->> 'simulacao')::boolean and not (v ->> 'cabe_na_cota')::boolean
-     and (v ->> 'operacoes')::int = 60 and (v ->> 'restantes')::int = 48
-     and (v ->> 'pacotes_necessarios')::int = 1, v::text;
-  assert (select count(*) from public.cotacoes where loja_id = loja1) = 1, 'simulação não grava';
-
-  -- A mesma planilha na loja 2 (que tem 49) também não cabe; loja sem cota não é aceita.
-  v := public.pdv_salvar_precos(pdv, loja2, itens, 'pdv_excel', true);
-  assert (v ->> 'restantes')::int = 49, v::text;
 end $$;
+-- Item vencido não conta como ativo; renovar a validade dele nunca é bloqueado.
+reset role;
+update public.cotacoes set validade = public.hoje() - 1
+ where loja_id = '20000000-0000-4000-b000-000000000001' and produto = 'Café 500g';
+set role authenticated;
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
+  v jsonb;
+begin
+  assert (select itens_ativos from public.status_catalogo(pdv, loja1)) = 2;
+  perform public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Açúcar 1kg", "preco_centavos": 500}]');
+  v := public.pdv_salvar_precos(pdv, loja1, '[{"produto": "Café 500g", "preco_centavos": 1900}]');
+  assert (v ->> 'criados')::int = 0 and (v ->> 'inalterados')::int = 1, v::text;
+end $$;
+
+\echo '== Planilha: importa até o limite, sem perder atualizações (tudo ou nada por chamada)'
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  v jsonb;
+  itens jsonb;
+begin
+  -- Loja 2 tem 1 item (Arroz) e espaço para mais 2. Planilha: atualiza o Arroz e traz 4 novos.
+  itens := '[{"produto": "Novo 1", "preco_centavos": 101},
+             {"produto": "Arroz 5kg", "preco_centavos": 2100},
+             {"produto": "Novo 2", "preco_centavos": 102},
+             {"produto": "Novo 3", "preco_centavos": 103},
+             {"produto": "Novo 4", "preco_centavos": 104}]';
+  -- Simulação: mostra o que ficaria de fora e não grava nada.
+  v := public.pdv_salvar_precos(pdv, loja2, itens, 'pdv_excel', true);
+  assert (v ->> 'criados')::int = 2 and (v ->> 'aumentados')::int = 1 and (v ->> 'fora_do_limite')::int = 2
+     and (v ->> 'limite')::int = 3, v::text;
+  assert (v -> 'itens_fora' -> 0 ->> 'produto') = 'Novo 3' and (v -> 'itens_fora' -> 1 ->> 'linha')::int = 5, v::text;
+  assert (select count(*) from public.cotacoes where loja_id = loja2) = 1, 'simulação não grava';
+
+  v := public.pdv_salvar_precos(pdv, loja2, itens, 'pdv_excel');
+  assert (v ->> 'criados')::int = 2 and (v ->> 'fora_do_limite')::int = 2, v::text;
+  assert (select preco_centavos from public.cotacoes where loja_id = loja2 and produto = 'Arroz 5kg') = 2100,
+    'a atualização nunca fica de fora';
+  assert (select count(*) from public.cotacoes where loja_id = loja2) = 3;
+  assert not exists (select 1 from public.cotacoes where loja_id = loja2 and produto in ('Novo 3', 'Novo 4'));
+
+  -- Catálogo cheio: planilha só de atualizações passa inteira.
+  v := public.pdv_salvar_precos(pdv, loja2,
+    '[{"produto": "Novo 1", "preco_centavos": 90}, {"produto": "Novo 2", "preco_centavos": 95}]', 'pdv_excel');
+  assert (v ->> 'diminuidos')::int = 2 and (v ->> 'fora_do_limite')::int = 0, v::text;
+end $$;
+
 -- Histórico (visto como superusuário: no app, só o Admin lê).
 reset role;
 do $$ begin
@@ -548,19 +619,56 @@ do $$ begin
          = array[2500, 2400, 2400, 2600], 'histórico de alterações';
   -- Excluído da tabela, mas guardado no histórico (com o CNPJ do PDV).
   assert exists (select 1 from public.historico_precos h
-                 where h.loja_id = '20000000-0000-4000-b000-000000000002' and h.operacao = 'excluido'
+                 where h.loja_id = '20000000-0000-4000-b000-000000000001' and h.operacao = 'excluido'
                    and h.cnpj = '55555555000191'), 'histórico de exclusão';
+  assert (select unidade from public.historico_precos h where h.produto = 'Feijão 1kg' order by h.id desc limit 1) = 'kg';
+  -- Medição: o log continua (sem bloquear nada) e a visão mensal resume.
+  assert (select criacoes >= 6 and aumentos >= 2 and reducoes >= 2 and exclusoes = 1 from public.uso_pdv_mensal
+          where pdv_id = '10000000-0000-4000-b000-000000000001' and mes = public.competencia_atual());
 end $$;
+
+\echo '== Parceiro fundador: limite do plano mercado; ao acabar, nada some'
+update public.pdvs set fundador_ate = public.hoje() + 10 where id = '10000000-0000-4000-b000-000000000001';
 set role authenticated;
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  v jsonb;
+  r record;
+begin
+  select * into r from public.status_catalogo(pdv, loja2);
+  assert r.plano = 'gratis' and r.plano_efetivo = 'mercado' and r.limite = 3000 and r.limite_plano = 3, r::text;
+  v := public.pdv_salvar_precos(pdv, loja2,
+    '[{"produto": "Novo 3", "preco_centavos": 103}, {"produto": "Novo 4", "preco_centavos": 104}]', 'pdv_excel');
+  assert (v ->> 'criados')::int = 2 and (v ->> 'fora_do_limite')::int = 0, v::text;
+end $$;
+reset role;
+update public.pdvs set fundador_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+set role authenticated;
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  v jsonb;
+  r record;
+begin
+  -- Voltou ao grátis com 5 itens (acima de 3): nada foi despublicado...
+  select * into r from public.status_catalogo(pdv, loja2);
+  assert r.plano_efetivo = 'gratis' and r.itens_ativos = 5 and r.disponiveis = 0, r::text;
+  assert (select count(*) from public.buscar_cotacoes('novo') where loja_id = loja2) = 4;
+  -- ...atualizar continua livre; criar não.
+  v := public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Novo 4", "preco_centavos": 99}]');
+  assert (v ->> 'diminuidos')::int = 1, v::text;
+  begin
+    perform public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Novo 5", "preco_centavos": 105}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+end $$;
 
-select pg_temp.espera_erro(
-  $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
-       (select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
-        from generate_series(1, 60) g), 'pdv_excel')$q$, 'cota_excedida');
-select pg_temp.espera_erro(
-  $q$select * from public.cota_status('10000000-0000-4000-b000-000000000001')$q$, 'loja_invalida');
-
--- Validações de linha (validade máx. 30 dias, duplicado, preço).
+-- Validações de linha (validade máx. 30 dias, duplicado, preço, unidade).
 select pg_temp.espera_erro(
   format($q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
     '20000000-0000-4000-b000-000000000001',
@@ -575,104 +683,77 @@ select pg_temp.espera_erro(
   $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
     '20000000-0000-4000-b000-000000000001', '[{"produto": "Feijão", "preco_centavos": -5}]')$q$,
   'itens_invalidos');
+select pg_temp.espera_erro(
+  $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
+    '20000000-0000-4000-b000-000000000001', '[{"produto": "Feijão", "preco_centavos": 800, "unidade": "tonelada"}]')$q$,
+  'unidade_invalida');
 
--- PDV não pode se dar pacote de graça.
+-- PDV não pode se dar pagamento de graça (a tabela continua, sem uso por enquanto).
 select pg_temp.espera_erro(
   $q$insert into public.pagamentos (usuario_id, pdv_id, loja_id, tipo, quantidade, valor_centavos, status)
      values (auth.uid(), '10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
              'pacote_operacoes', 50, 1000, 'pago')$q$, 'permission denied');
 
-\echo '== Pix pago (+50 operações para a loja 1, válido 30 dias) libera a importação'
-reset role;
-set role service_role;
-insert into public.pagamentos (id, usuario_id, pdv_id, loja_id, tipo, quantidade, valor_centavos)
-values ('f0000000-0000-4000-a000-000000000001', 'b0000000-0000-4000-a000-00000000000b',
-        '10000000-0000-4000-b000-000000000001', '20000000-0000-4000-b000-000000000001',
-        'pacote_operacoes', 50, 1000);
-select public.confirmar_pagamento('f0000000-0000-4000-a000-000000000001', 'mp-123');
-select public.confirmar_pagamento('f0000000-0000-4000-a000-000000000001', 'mp-123'); -- idempotente
-reset role;
-
-do $$ begin
-  assert (select valido_ate::date - pago_em::date from public.pagamentos
-          where id = 'f0000000-0000-4000-a000-000000000001') = 30, 'pacote vale 30 dias';
-end $$;
-
-set role authenticated;
-set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+\echo '== Planos: "Quero ser avisado"'
 do $$
-declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
-  loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
-  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
-  r record;
-  v jsonb;
+declare pdv constant uuid := '10000000-0000-4000-b000-000000000001';
 begin
-  select * into r from public.cota_status(pdv, loja1);
-  assert r.saldo_pacotes = 50 and r.restantes = 98 and r.pacote_vence_em > now() + interval '29 days', r::text;
-  -- O pacote é da loja 1: não ajuda a loja 2.
-  assert (select restantes from public.cota_status(pdv, loja2)) = 49;
-
-  v := public.pdv_salvar_precos(pdv, loja1,
-        (select jsonb_agg(jsonb_build_object('produto', 'Produto ' || g, 'preco_centavos', 100 + g))
-         from generate_series(1, 60) g), 'pdv_excel');
-  assert (v ->> 'operacoes')::int = 60 and (v ->> 'restantes')::int = 38, v::text;
-
-  -- Gastou as 48 grátis primeiro e depois 12 do pacote.
-  select * into r from public.cota_status(pdv, loja1);
-  assert r.gratis_usadas = 50 and r.saldo_pacotes = 38 and r.restantes = 38, r::text;
-  assert (select count(*) from public.operacoes_log
-          where pagamento_id = 'f0000000-0000-4000-a000-000000000001') = 12;
+  assert (select count(*) from public.planos where ativo) = 3;
+  perform public.registrar_interesse_plano(pdv, 'loja');
+  perform public.registrar_interesse_plano(pdv, 'loja'); -- repetir não duplica
+  assert (select count(*) from public.interesse_planos where pdv_id = pdv and plano = 'loja') = 1;
 end $$;
 
-\echo '== Pacote vencido (mais de 30 dias) não vale mais'
+\echo '== Modo rede: um catálogo só (o limite não multiplica pelas lojas)'
 reset role;
-update public.pagamentos set valido_ate = now() - interval '1 minute'
- where id = 'f0000000-0000-4000-a000-000000000001';
-set role authenticated;
-set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
-do $$ begin
-  assert (select restantes from public.cota_status('10000000-0000-4000-b000-000000000001',
-                                                   '20000000-0000-4000-b000-000000000001')) = 0;
-end $$;
-select pg_temp.espera_erro(
-  $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001',
-     '20000000-0000-4000-b000-000000000001', '[{"produto": "Novo", "preco_centavos": 100}]')$q$,
-  'cota_excedida');
-
-\echo '== Modo rede: a rede tem uma cota só, cada alteração replicada conta uma vez'
 update public.pdvs set modo_rede = true where id = '10000000-0000-4000-b000-000000000001';
+delete from public.cotacoes c using public.lojas l
+ where l.id = c.loja_id and l.pdv_id = '10000000-0000-4000-b000-000000000001';
+set role authenticated;
 do $$
 declare
   pdv constant uuid := '10000000-0000-4000-b000-000000000001';
   v jsonb;
 begin
-  assert (select restantes from public.cota_status(pdv)) = 50;
-  v := public.pdv_salvar_precos(pdv, null, '[{"produto": "Cerveja Lata", "preco_centavos": 350, "obs": "Gelada"}]');
-  assert (v ->> 'operacoes')::int = 1, v::text;
-  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id
-          where l.pdv_id = pdv and c.produto = 'Cerveja Lata') = 2;
-  assert (select restantes from public.cota_status(pdv)) = 49;
-
-  -- Excluir em modo rede some de todas as lojas.
-  perform public.pdv_excluir_item((select c.id from public.cotacoes c
-                                   where c.produto = 'Cerveja Lata' limit 1));
+  v := public.pdv_salvar_precos(pdv, null,
+    '[{"produto": "Cerveja Lata", "preco_centavos": 350, "obs": "Gelada"},
+      {"produto": "Refrigerante 2L", "preco_centavos": 900}, {"produto": "Água 500ml", "preco_centavos": 250}]');
+  assert (v ->> 'criados')::int = 3, v::text;
+  -- Replicado nas 2 lojas (6 linhas), mas conta 3 itens no catálogo da rede.
+  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id where l.pdv_id = pdv) = 6;
+  assert (select itens_ativos = 3 and disponiveis = 0 from public.status_catalogo(pdv));
+  begin
+    perform public.pdv_salvar_precos(pdv, null, '[{"produto": "Suco 1L", "preco_centavos": 700}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+  -- Excluir em modo rede some de todas as lojas e libera espaço.
+  perform public.pdv_excluir_item((select c.id from public.cotacoes c where c.produto = 'Cerveja Lata' limit 1));
   assert (select count(*) from public.cotacoes where produto = 'Cerveja Lata') = 0;
-  assert (select restantes from public.cota_status(pdv)) = 49;
+  assert (select disponiveis from public.status_catalogo(pdv)) = 1;
 end $$;
+reset role;
+update public.planos set limite_itens = 30 where codigo = 'gratis';
+set role authenticated;
 
-\echo '== Outro usuário não usa a cota/tabela do PDV alheio'
+\echo '== Outro usuário não usa o catálogo do PDV alheio'
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 select pg_temp.espera_erro(
   $q$select public.pdv_salvar_precos('10000000-0000-4000-b000-000000000001', null,
      '[{"produto": "Invasão", "preco_centavos": 1}]')$q$, 'sem_permissao');
-select pg_temp.espera_erro($q$select * from public.cota_status('10000000-0000-4000-b000-000000000001')$q$,
+select pg_temp.espera_erro($q$select * from public.status_catalogo('10000000-0000-4000-b000-000000000001')$q$,
   'sem_permissao');
 select pg_temp.espera_erro(
-  $q$select public.pdv_excluir_item((select id from public.cotacoes where produto = 'Arroz 5kg'))$q$,
+  $q$select public.pdv_excluir_item((select id from public.cotacoes where produto = 'Refrigerante 2L' limit 1))$q$,
   'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select public.registrar_interesse_plano('10000000-0000-4000-b000-000000000001', 'mercado')$q$,
+  'row-level security');
 do $$ begin
   assert (select count(*) from public.operacoes_log) = 0, 'log de operações é privado';
+  assert (select count(*) from public.uso_pdv_mensal) = 0, 'medição é privada';
+  assert (select count(*) from public.interesse_planos) = 0, 'interesse é privado';
   assert (select count(*) from public.encartes_pendentes) = 3, 'CPF vê só os próprios encartes';
 end $$;
 
@@ -789,7 +870,7 @@ begin
   perform public.atualizar_loja(loja, 'Loja Centro', 'Rua A, 10', 'Centro', 'Petrópolis', '(24) 1111-1111', '(24) 99999-0000');
   assert (select whatsapp = '2499999-0000' or whatsapp = '24999990000' from public.minhas_lojas(pdv) where id = loja), 'whatsapp só números';
   -- O contato do card passa a ser o WhatsApp da loja.
-  assert (select telefone from public.buscar_cotacoes('arroz 5kg') where loja_id = loja) = '24999990000';
+  assert (select telefone from public.buscar_cotacoes('refrigerante 2l') where loja_id = loja) = '24999990000';
 
   pag := public.criar_promocao(pdv, 'Semana do arroz', 'Arroz com desconto', 'https://exemplo.invalid/arroz',
                                null, array['arroz', ' '], 250);
@@ -798,7 +879,6 @@ begin
           from public.minhas_promocoes(pdv) where titulo = 'Semana do arroz');
   assert (select count(*) from public.promocoes_para_busca('arroz tio joao')) = 0, 'sem pagamento não aparece';
   perform set_config('tabelapp.pag', pag::text, false);
-  perform set_config('tabelapp.pagop', public.comprar_pacote_operacoes(pdv, loja)::text, false);
 end $$;
 select pg_temp.espera_erro(
   $q$select public.criar_promocao('10000000-0000-4000-b000-000000000001', 'X', null, null, null, null, 300)$q$,
@@ -813,9 +893,8 @@ select pg_temp.espera_erro($q$select public.admin_confirmar_pagamento(current_se
 -- Admin vê os pendentes e confirma.
 set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 do $$ begin
-  assert (select count(*) from public.pagamentos_pendentes()) >= 2;
+  assert (select count(*) from public.pagamentos_pendentes()) >= 1;
   perform public.admin_confirmar_pagamento(current_setting('tabelapp.pag')::uuid);
-  perform public.admin_confirmar_pagamento(current_setting('tabelapp.pagop')::uuid);
 end $$;
 set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 do $$

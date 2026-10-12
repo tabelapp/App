@@ -56,4 +56,44 @@
     <string name="erro_nota_diferente_texto">A nota aberta na Sefaz não é a mesma da chave informada. Confira os números e tente de novo.</string>
     <string name="erro_leitura_nf_titulo">Não conseguimos ler os produtos</string>
     <string name="erro_leitura_nf_texto">A página da Sefaz abriu, mas não encontramos os produtos dela. Você pode tentar de novo ou consultar pela chave de acesso. Só enviamos preços lidos direto da nota.</string>
+    <!-- Catálogo do PDV: limite por número de itens ativos (tabela planos no banco) -->
+    <string name="catalogo_limite_titulo">Seu catálogo chegou ao limite</string>
+    <string name="catalogo_limite_texto">Você chegou ao limite de %1$d itens do plano %2$s. Seus itens continuam publicados e você pode atualizar os preços quando quiser. Para adicionar mais, veja os planos.</string>
+    <string name="catalogo_ver_planos">Ver planos</string>
+    <string name="catalogo_agora_nao">Agora não</string>
+    <string name="catalogo_resumo">Catálogo: %1$d de %2$d itens</string>
+    <string name="catalogo_plano">Plano %1$s</string>
+    <string name="catalogo_explicacao">Atualizar preço, validade e OBS é sempre livre e ilimitado. O limite conta só os itens publicados ao mesmo tempo, e excluir um item libera espaço.</string>
+    <string name="catalogo_acima_do_limite">Você tem mais itens do que o plano %1$s permite (%2$d). Nada sai do ar: você só não consegue adicionar itens novos por enquanto.</string>
+
+    <!-- Parceiro fundador (piloto Petrópolis) -->
+    <string name="fundador_faixa">Parceiro fundador: catálogo liberado até %1$s</string>
+    <string name="fundador_faltam_dias">Seu período de parceiro fundador termina em %1$d dia(s), em %2$s. Depois disso, o limite passa a ser de %3$d itens do plano %4$s. Nada do que já está publicado sai do ar.</string>
+    <string name="fundador_ultimo_dia">Hoje é o último dia do seu período de parceiro fundador. A partir de amanhã, o limite passa a ser de %1$d itens do plano %2$s. Nada do que já está publicado sai do ar.</string>
+
+    <!-- Tela de planos (sem cobrança por enquanto) -->
+    <string name="planos_titulo">Planos</string>
+    <string name="planos_intro">Atualizar preços é sempre livre e ilimitado em todos os planos. O que muda é quantos itens você pode ter publicados ao mesmo tempo.</string>
+    <string name="planos_ainda_sem_cobranca">Os planos pagos ainda não estão disponíveis. Toque em “Quero ser avisado” e falamos com você assim que estiverem.</string>
+    <string name="plano_limite_itens">Até %1$d itens ativos</string>
+    <string name="plano_gratis">Grátis</string>
+    <string name="plano_preco_em_breve">Preço em breve</string>
+    <string name="plano_preco_referencia">Preço de referência: %1$s</string>
+    <string name="plano_atual">Seu plano</string>
+    <string name="plano_quero_ser_avisado">Quero ser avisado</string>
+    <string name="planos_anotado">Anotado. Avisaremos assim que os planos estiverem disponíveis.</string>
+    <string name="planos_fechar">Fechar</string>
+
+    <!-- Importação da planilha com o limite do catálogo -->
+    <string name="importacao_importados">%1$d itens importados.</string>
+    <string name="importacao_fora">%1$d ficaram de fora porque o plano permite até %2$d itens.</string>
+    <string name="importacao_previa_entram">Vão entrar %1$d itens (novos e atualizados).</string>
+    <string name="importacao_previa_fora">%1$d itens novos ficariam de fora porque o plano permite até %2$d itens. As atualizações de preço entram todas.</string>
+    <string name="importacao_baixar_fora">Baixar a lista dos que ficaram de fora</string>
+
+    <!-- Editor de item: unidade e “a partir de” (serviços, MEIs) -->
+    <string name="item_unidade">Unidade do preço</string>
+    <string name="item_a_partir_de">Preço “a partir de” (bom para serviços)</string>
+    <string name="item_novo_no_catalogo">Item novo: ocupa 1 lugar no catálogo.</string>
+    <string name="item_atualizacao_livre">Atualização: sempre livre.</string>
 </resources>

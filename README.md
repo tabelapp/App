@@ -11,7 +11,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Parte | Situação |
 |---|---|
 | Banco de dados (todas as tabelas da seção 7) | ✅ pronto e testado |
-| Regras no banco: cota de 50 operações por loja, pacotes de 30 dias, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, encarte de usuário (suspenso), promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
+| Regras no banco: limite por tamanho do catálogo (planos), parceiro fundador, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, encarte de usuário (suspenso), promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
 | Login por e-mail e Google, cadastro CPF/CNPJ | ✅ no app |
 | Cores e ícone da logomarca (amarelo, vermelho, lupa com cifrão) | ✅ no app |
 | Tela de busca: últimos preços, busca, 5 ordenações, destaque do mais barato, regra do OBS, PDV clicável, pop-up de aviso | ✅ no app |
@@ -25,7 +25,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Envio de encarte pelo usuário | ⏸️ suspenso (decisão do fundador: a leitura automática deixava o envio vulnerável). Aba fora do app e função bloqueada no banco; código de leitura guardado no `core` |
 | Cadastro do PDV (conta CNPJ): consulta do CNPJ na Receita, foto do alvará conferida pelo app, análise do Admin | ✅ no app (aba "Meu negócio") |
 | Admin: fila de cadastros de PDV (ver alvará, aprovar, rejeitar com motivo) | ✅ no app (aba "Admin") |
-| Área do PDV aprovado: tabela de preços (incluir, editar, excluir, validade, OBS) e saldo de operações | ✅ no app |
+| Área do PDV aprovado: tabela de preços (incluir, editar, excluir, validade, OBS) e limite do catálogo / planos | ✅ no app |
 | Área do PDV: planilha, várias lojas, promoções, Pix | ⏳ banco pronto, falta a tela e o provedor de Pix |
 
 ## Como o projeto está organizado
@@ -39,7 +39,7 @@ docs/       Decisões técnicas e premissas assumidas
 ```
 
 - **Backend: [Supabase](https://supabase.com)** (Postgres + login + armazenamento de fotos). Não há
-  servidor próprio para manter: as regras (cota, validade, permissões) ficam no banco, em funções SQL e
+  servidor próprio para manter: as regras (limite do catálogo, validade, permissões) ficam no banco, em funções SQL e
   políticas de segurança (RLS). Detalhes em [`docs/DECISOES.md`](docs/DECISOES.md).
 - **App:** Kotlin + Jetpack Compose, Android 8.0 ou mais novo.
 
@@ -90,7 +90,7 @@ secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` do repositório; `GOOGLE_WEB_CLIENT
 ## Testes
 
 ```bash
-./gradlew :core:test          # regras de negócio (OBS, cota, ordenação, lista de compras, NF, planilha...)
+./gradlew :core:test          # regras de negócio (OBS, catálogo/unidades, ordenação, lista de compras, NF, planilha...)
 scripts/testar-banco.sh       # migrações + seed + testes de regras e permissões no Postgres
 ```
 
@@ -103,7 +103,7 @@ A CI do GitHub roda os dois e compila o APK a cada push.
 
 1. Testar o login e a busca com um projeto Supabase real.
 2. ✅ QR Code testado com notas reais.
-3. Área do PDV: importação de planilha com prévia da cota, cadastro de mais lojas, Pix dos pacotes.
+3. Área do PDV: cadastro de mais lojas; cobrança dos planos (quando decidida).
 4. Admin: moderação (remover preços errados, suspender PDV).
 5. Relatório "no mapa" da lista de compras (precisa de chave da API de mapas).
 6. Pix via Mercado Pago (Edge Function + webhook chamando `confirmar_pagamento`).

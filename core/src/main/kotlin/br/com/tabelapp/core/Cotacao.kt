@@ -45,6 +45,10 @@ data class Cotacao(
     val criadoEm: Instant,
     /** Data da compra (emissão da NF). Só existe em preço de Nota Fiscal. */
     val dataNf: LocalDate? = null,
+    /** Unidade do preço (kg, hora...). NF e encarte usam sempre "unidade". */
+    val unidade: Unidade = Unidade.UNIDADE,
+    /** Preço inicial de serviço ("a partir de R$ 80,00"). */
+    val aPartirDe: Boolean = false,
 ) {
     val pdvCadastrado: Boolean get() = lojaId != null
 

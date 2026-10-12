@@ -9,7 +9,7 @@ para interpretação. Os itens marcados com **⚠️ confirmar** são premissas 
 |---|---|
 | **Kotlin + Jetpack Compose** (Android nativo, minSdk 26 / Android 8.0) | Plataforma decidida no briefing. Compose é o padrão atual do Android. Android 8+ cobre praticamente todos os aparelhos em uso. |
 | **Supabase** (Postgres + Auth + Storage) | Sem servidor próprio para manter. Login Google/e-mail pronto (e SMS/WhatsApp OTP via provedores no futuro). Postgres permite colocar as regras de cota e permissões no próprio banco. Plano gratuito cobre o piloto. |
-| Regras de negócio **no banco** (funções SQL + RLS) | O app não consegue burlar a cota nem gravar preço direto: toda escrita em `cotacoes` passa por funções que validam. |
+| Regras de negócio **no banco** (funções SQL + RLS) | O app não consegue burlar o limite do catálogo nem gravar preço direto: toda escrita em `cotacoes` passa por funções que validam. |
 | Módulo **`core`** em Kotlin puro | Regras de apresentação e cálculo (OBS, ordenação, lista de compras, chave de NF, planilha) testáveis sem emulador. |
 | Sem Hilt / sem navigation-compose por enquanto | Menos dependências e menos coisa para aprender; dá para adicionar quando o app crescer. |
 | Dinheiro em **centavos** (inteiro) | Evita erro de arredondamento (R$ 0,10 + R$ 0,20 ≠ R$ 0,30 em ponto flutuante). |
@@ -64,23 +64,33 @@ Para ninguém cadastrar uma empresa que não é sua:
   dá para automatizar no servidor (OCR na nuvem, ex.: Google Cloud Vision) e/ou exigir uma prova
   mais forte (Pix de R$ 1 feito da conta bancária da empresa, que traz o CNPJ de quem pagou).
 
-## Cota de operações do PDV (confirmado pelo fundador)
+## Limite do catálogo do PDV (decisão do fundador, 12/10/2026 — substituiu a cota de 50 operações)
 
-- **Cada loja tem 50 operações grátis por mês** (mês no fuso de São Paulo). Só **criar item** e
-  **aumentar preço** contam. Diminuir preço, excluir e editar só OBS/validade são sempre grátis.
-- **Pacote de +50 operações (R$ 10) vale 30 dias a partir do pagamento** e é comprado para uma loja
-  específica. O consumo usa primeiro as grátis do mês, depois o pacote que vence antes. Cada operação
-  registra de onde saiu (`operacoes_log.pagamento_id`).
+- **Limite = itens ATIVOS** (não excluídos e dentro da validade). Varejo: por loja. **Rede: o catálogo
+  único da rede** (não multiplica pelo número de lojas).
+- **Só criar item novo** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
+  **nunca contam e nunca são bloqueados**; excluir libera espaço. Item vencido não conta, e renovar a
+  validade dele é atualização (nunca bloqueada).
+- Faixas na tabela **`planos`** (gratis 30 · loja 300 · mercado 3000), parâmetros em
+  **`configuracao_app`** — ajuste por SQL, sem publicar app. Todo PDV começa no **grátis**.
+- **Parceiro fundador (piloto):** `pdvs.fundador_ate` = cadastro + 90 dias (`fundador_dias`); até lá vale
+  o plano `fundador_plano` (mercado). PDVs que já existiam ganharam 90 dias a partir da migração.
+  Ao acabar, **nada sai do ar**: só não dá para criar itens novos acima do limite. O app avisa 7 dias
+  antes (`fundador_aviso_dias`) e no último dia.
+- **Planilha:** importa as atualizações e os itens novos até o espaço disponível, na ordem da planilha,
+  numa transação só; devolve quantos e quais ficaram de fora (o app oferece baixar a lista).
+- **Cobrança: nenhuma por enquanto.** "Ver planos" mostra as faixas e "Quero ser avisado" grava em
+  `interesse_planos`. A tabela `pagamentos` ficou intacta (dúvida sobre as regras da Google Play); os
+  pacotes de banner continuam iguais. O pacote de +50 operações foi removido do app e do banco
+  (`comprar_pacote_operacoes`).
+- A verificação é **no banco** (`pdv_salvar_precos`, erro `limite_catalogo`): versões antigas do app não
+  burlam. `cota_status()` ficou só para apps antigos (mostra o limite do catálogo).
+- **Medição:** `operacoes_log` continua registrando criar/subir/baixar/editar/excluir, sem bloquear nada;
+  a visão `uso_pdv_mensal` resume por PDV e mês (+ itens ativos hoje).
+- **Serviços (MEIs):** `cotacoes.unidade` (unidade, kg, litro, metro, m2, hora, visita, diaria, servico;
+  padrão unidade) e `a_partir_de`. No card: "a partir de R$ 80,00 / hora" na linha do preço; a ordenação
+  usa o valor numérico. NF e encarte usam sempre "unidade".
 - Um produto é identificado pelo **nome normalizado** dentro da loja ("Arroz 5kg" = "ARROZ  5KG").
-  Mudar o nome de um produto equivale a excluir o antigo (grátis) e criar um novo (conta 1).
-- **⚠️ confirmar — modo rede:** a rede inteira funciona como uma loja só: **uma cota de 50** (e pacotes
-  comprados para a rede), e cada alteração replicada para todas as lojas conta **1**. Para decidir se é
-  aumento, compara com o **maior** preço atual entre as lojas. Se preferir que a rede tenha 50 × número
-  de lojas, é uma mudança pequena em `cota_status()`.
-- Trocar o PDV entre modo rede e varejo no meio do mês começa a contar na carteira do novo modo.
-- Importação de planilha é **tudo ou nada**: o app primeiro chama `pdv_salvar_precos(..., p_simular := true)`,
-  que devolve quantas operações a importação vai custar, o saldo da loja e quantos pacotes faltam. Se
-  não couber, o app mostra o Pix antes; se tentar gravar sem saldo, o banco recusa (`cota_excedida`).
 
 ## Nota Fiscal pelo QR Code (sem digitação — decisão do fundador)
 
@@ -184,7 +194,7 @@ Para ninguém cadastrar uma empresa que não é sua:
   (usa a chave secreta, nunca no app). O webhook chama `confirmar_pagamento`, que é idempotente.
 - **Pagamento manual (até o Pix automático)** — migração `20261010001600`: o PDV cria a promoção
   (`criar_promocao`: título, texto, link, imagem, palavras-chave, pacote de 100/250/500 visualizações por
-  R$ 10/25/50) ou pede +50 operações (`comprar_pacote_operacoes`, R$ 10). Fica um pagamento `pendente`
+  R$ 10/25/50). Fica um pagamento `pendente`
   (provedor `manual`, máx. 5 em aberto); o app abre o WhatsApp do Tabelapp com o código do pedido. O Admin
   confere o Pix e toca em "Pago" (`admin_confirmar_pagamento` → `confirmar_pagamento`). O banner tocado
   abre o link do anunciante.
@@ -192,7 +202,7 @@ Para ninguém cadastrar uma empresa que não é sua:
   do ar ("pausada") e fica no histórico financeiro.
 - **Planilha do PDV:** Excel (.xlsx) ou .csv (Produto, Preço, Validade, OBS), lida no celular
   (`LeitorPlanilha`), validada linha a linha (`Planilha.validar`); antes de gravar, a prévia mostra
-  novos/aumentos/baixas e quantas operações vai usar (`pdv_salvar_precos` com `p_simular`). Linhas com
+  novos/aumentos/baixas e o que ficaria fora do limite do plano (`pdv_salvar_precos` com `p_simular`). Linhas com
   erro ficam de fora. O app oferece um modelo .csv.
 - **Dados do PDV editáveis** (`atualizar_pdv`, `atualizar_loja`): nome de exibição, site, endereço,
   telefone e WhatsApp. O WhatsApp da loja passa a ser o contato do card de preço.
@@ -214,7 +224,8 @@ Para ninguém cadastrar uma empresa que não é sua:
 - Nada é acessível sem login.
 - Preços são visíveis para qualquer usuário logado, mas só são gravados pelas funções do banco.
 - Listas, pagamentos e encartes enviados: cada um vê só os seus.
-- `operacoes_log` e `cota_status`: só o dono do PDV (e o Admin).
+- `operacoes_log`, `status_catalogo` e `uso_pdv_mensal`: só o dono do PDV (e o Admin). `planos` e
+  `configuracao_app`: só leitura no app. `interesse_planos`: o PDV insere e vê só o próprio.
 - Colunas sensíveis (tipo de usuário → admin, contadores de visualização, status de pagamento) não
   podem ser alteradas pelo app.
 

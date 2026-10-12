@@ -11,7 +11,7 @@ object Compartilhamento {
 
     fun texto(cotacao: Cotacao, link: String = LINK_APP): String = buildString {
         append("Olha esse preço! 👀\n")
-        append("${cotacao.produto}: ${Dinheiro.formatar(cotacao.precoCentavos)}")
+        append("${cotacao.produto}: ${PrecoExibido.texto(cotacao)}")
         append(" em ${listOfNotNull(cotacao.pdvNome, cotacao.lojaNome).joinToString(" — ")}")
         cotacao.endereco?.let { append(" ($it)") }
         append("\n\nQuem pesquisa economiza. Pesquise mais preços com o Tabelapp:\n")

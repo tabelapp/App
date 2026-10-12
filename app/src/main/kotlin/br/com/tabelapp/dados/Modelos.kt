@@ -33,4 +33,6 @@ class ErroAmigavel(
     mensagem: String,
     causa: Throwable? = null,
     val tipo: br.com.tabelapp.core.TipoErro? = null,
+    /** Código da regra de negócio do banco (ex.: "limite_catalogo"), quando houver. */
+    val codigo: String? = null,
 ) : Exception(mensagem, causa)

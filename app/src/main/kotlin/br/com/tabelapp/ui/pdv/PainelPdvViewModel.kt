@@ -6,14 +6,14 @@ import br.com.tabelapp.core.LeitorPlanilha
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.Planilha
+import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoPreco
-import br.com.tabelapp.core.SaldoCota
-import br.com.tabelapp.core.SimulacaoImportacao
+import br.com.tabelapp.core.ResultadoImportacao
+import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoErro
-import br.com.tabelapp.core.TipoOperacao
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.erros.Erros
@@ -32,7 +32,8 @@ data class EstadoPainel(
     val lojas: List<LojaPdv> = emptyList(),
     val lojaId: String? = null,
     val precos: List<PrecoPdv> = emptyList(),
-    val cota: SaldoCota? = null,
+    /** Tamanho do catálogo, limite do plano e período de fundador. */
+    val catalogo: StatusCatalogo? = null,
     val filtro: String = "",
     /** Item aberto no editor; [editandoId] null = produto novo. */
     val rascunho: RascunhoPreco? = null,
@@ -48,38 +49,50 @@ data class EstadoPainel(
     val pagamentoCriado: PagamentoCriado? = null,
     /** Importação de planilha em andamento (prévia aberta). */
     val planilha: EstadoPlanilha? = null,
-    /** Não deu para registrar o pedido de pacote (rede/instabilidade): diálogo calmo. */
-    val falhaPagamento: Boolean = false,
+    /** Chegou ao limite do plano ao tentar criar item: mensagem calma com "Ver planos". */
+    val mostrarLimite: Boolean = false,
+    /** Tela "Ver planos" aberta (null = fechada). */
+    val planos: EstadoPlanos? = null,
+    /** Resumo da última importação de planilha (mostrado até o PDV fechar). */
+    val resultadoImportacao: ResultadoImportacao? = null,
 ) {
     val loja: LojaPdv? get() = lojas.firstOrNull { it.id == lojaId }
 
     val precosFiltrados: List<PrecoPdv>
         get() = if (filtro.isBlank()) precos else precos.filter { Texto.casaBusca(it.produto, filtro) }
 
-    /** Quanto o que está no editor vai custar na cota (null = ainda sem preço válido). */
-    val custoDoRascunho: TipoOperacao?
+    /** O que está no editor é item novo (ocupa lugar no catálogo)? null = ainda sem nome. */
+    val rascunhoEhNovo: Boolean?
         get() {
             val r = rascunho ?: return null
-            val novo = r.precoCentavos ?: return null
-            val atual = precos.firstOrNull { Texto.normalizar(it.produto) == Texto.normalizar(r.produto) }
-            return TipoOperacao.classificar(atual?.precoCentavos, novo)
+            if (r.produto.isBlank()) return null
+            return precos.none { Texto.normalizar(it.produto) == Texto.normalizar(r.produto) }
         }
 }
 
-/** Prévia da planilha: linhas válidas, erros e quanto vai custar na cota. */
+/** Tela de planos: faixas da tabela `planos` e os interesses já registrados. */
+data class EstadoPlanos(
+    val carregando: Boolean = true,
+    val lista: List<Plano> = emptyList(),
+    val interessados: Set<String> = emptySet(),
+    val enviando: String? = null,
+    val erro: String? = null,
+)
+
+/** Prévia da planilha: linhas válidas, erros e o que ficaria fora do limite do plano. */
 data class EstadoPlanilha(
     val nomeArquivo: String,
     val processando: Boolean = true,
     val linhas: List<Planilha.Linha> = emptyList(),
     val erros: List<Planilha.ErroLinha> = emptyList(),
-    val simulacao: SimulacaoImportacao? = null,
+    val simulacao: ResultadoImportacao? = null,
     val erro: String? = null,
 )
 
-/** Pedido de pagamento recém-criado (promoção ou pacote), até o Pix automático. */
+/** Pedido de pagamento recém-criado (promoção/banner), até o Pix automático. */
 data class PagamentoCriado(val codigo: String, val descricao: String, val valorCentavos: Long)
 
-/** Painel do PDV aprovado: tabela de preços oficial, saldo de operações, cadastro e promoções. */
+/** Painel do PDV aprovado: tabela de preços oficial, limite do catálogo, cadastro e promoções. */
 class PainelPdvViewModel(
     private val repositorio: PdvRepositorio,
     private val pdv: MeuPdv,
@@ -103,10 +116,11 @@ class PainelPdvViewModel(
                     return@launch
                 }
                 val precos = repositorio.precos(pdv.id, lojaId)
-                val cota = repositorio.cota(pdv.id, lojaId)
+                val catalogo = repositorio.statusCatalogo(pdv.id, lojaId)
                 val promocoes = repositorio.promocoes(pdv.id)
                 _estado.update {
-                    it.copy(carregando = false, lojas = lojas, lojaId = lojaId, precos = precos, cota = cota, promocoes = promocoes)
+                    it.copy(carregando = false, lojas = lojas, lojaId = lojaId, precos = precos, catalogo = catalogo,
+                        promocoes = promocoes)
                 }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
@@ -121,7 +135,13 @@ class PainelPdvViewModel(
 
     fun alterarFiltro(t: String) = _estado.update { it.copy(filtro = t) }
 
-    fun novoItem() = _estado.update { it.copy(rascunho = RascunhoPreco(), editandoId = null, errosEditor = emptyList(), mensagem = null) }
+    /** Catálogo cheio: em vez do editor, a mensagem calma do limite (o banco também confere). */
+    fun novoItem() = _estado.update {
+        if (it.catalogo?.noLimite == true) it.copy(mostrarLimite = true, mensagem = null)
+        else it.copy(rascunho = RascunhoPreco(), editandoId = null, errosEditor = emptyList(), mensagem = null)
+    }
+
+    fun fecharLimite() = _estado.update { it.copy(mostrarLimite = false) }
 
     fun editar(item: PrecoPdv) =
         _estado.update { it.copy(rascunho = RascunhoPreco.de(item), editandoId = item.id, errosEditor = emptyList(), mensagem = null) }
@@ -143,16 +163,16 @@ class PainelPdvViewModel(
         _estado.update { it.copy(salvando = true, errosEditor = emptyList()) }
         viewModelScope.launch {
             try {
-                val usadas = repositorio.salvarPreco(pdv.id, lojaId, r.produto, preco, r.validade, r.obs)
-                _estado.update {
-                    it.copy(
-                        salvando = false, rascunho = null, editandoId = null,
-                        mensagem = if (usadas > 0) "Salvo. Usou 1 operação." else "Salvo (sem custo de operação).",
-                    )
-                }
+                repositorio.salvarPreco(pdv.id, lojaId, r.produto, preco, r.validade, r.obs, r.unidade, r.aPartirDe)
+                _estado.update { it.copy(salvando = false, rascunho = null, editandoId = null, mensagem = "Salvo.") }
                 carregar()
             } catch (ex: ErroAmigavel) {
-                _estado.update { it.copy(salvando = false, errosEditor = listOfNotNull(ex.message)) }
+                _estado.update {
+                    // Limite do plano: fecha o editor e mostra a mensagem calma com "Ver planos".
+                    if (ex.codigo == "limite_catalogo") it.copy(salvando = false, rascunho = null, mostrarLimite = true)
+                    else it.copy(salvando = false, errosEditor = listOfNotNull(ex.message))
+                }
+                if (ex.codigo == "limite_catalogo") carregar()
             }
         }
     }
@@ -215,19 +235,33 @@ class PainelPdvViewModel(
         }
     }
 
-    fun comprarPacote() {
-        val lojaId = _estado.value.lojaId ?: return
+    // ------------------------------------------------------------------ planos
+
+    fun abrirPlanos() {
+        _estado.update { it.copy(mostrarLimite = false, planos = EstadoPlanos()) }
         viewModelScope.launch {
             try {
-                val codigo = repositorio.comprarPacoteOperacoes(pdv.id, lojaId)
-                _estado.update {
-                    it.copy(falhaPagamento = false, pagamentoCriado = PagamentoCriado(codigo, "+50 operações (valem 30 dias)", 1000))
+                val lista = repositorio.planos()
+                _estado.update { e -> e.copy(planos = e.planos?.copy(carregando = false, lista = lista)) }
+            } catch (ex: ErroAmigavel) {
+                _estado.update { e -> e.copy(planos = e.planos?.copy(carregando = false, erro = ex.message)) }
+            }
+        }
+    }
+
+    fun fecharPlanos() = _estado.update { it.copy(planos = null) }
+
+    /** "Quero ser avisado": registra o interesse (sem cobrança por enquanto). */
+    fun quererSerAvisado(plano: Plano) {
+        _estado.update { e -> e.copy(planos = e.planos?.copy(enviando = plano.codigo, erro = null)) }
+        viewModelScope.launch {
+            try {
+                repositorio.registrarInteresse(pdv.id, plano.codigo)
+                _estado.update { e ->
+                    e.copy(planos = e.planos?.let { it.copy(enviando = null, interessados = it.interessados + plano.codigo) })
                 }
             } catch (ex: ErroAmigavel) {
-                _estado.update {
-                    if (ex.tipo == null || ex.tipo == TipoErro.SESSAO_EXPIRADA) it.copy(mensagem = ex.message)
-                    else it.copy(falhaPagamento = true)
-                }
+                _estado.update { e -> e.copy(planos = e.planos?.copy(enviando = null, erro = ex.message)) }
             }
         }
     }
@@ -241,7 +275,7 @@ class PainelPdvViewModel(
         }
     }
 
-    /** Lê e confere a planilha escolhida e calcula o custo na cota (nada é gravado ainda). */
+    /** Lê e confere a planilha escolhida e mostra o que entra e o que ficaria fora do limite (nada é gravado ainda). */
     fun abrirPlanilha(bytes: ByteArray, nomeArquivo: String) {
         val lojaId = _estado.value.lojaId ?: return
         _estado.update { it.copy(planilha = EstadoPlanilha(nomeArquivo)) }
@@ -276,31 +310,14 @@ class PainelPdvViewModel(
         }
     }
 
-    /** Recalcula a prévia (ex.: depois de comprar operações). */
-    fun refazerSimulacao() {
-        val p = _estado.value.planilha ?: return
-        val lojaId = _estado.value.lojaId ?: return
-        atualizarPlanilha { it.copy(processando = true) }
-        viewModelScope.launch {
-            cota(lojaId)
-            simular(lojaId, p.linhas, p.erros)
-        }
-    }
-
-    private suspend fun cota(lojaId: String) {
-        runCatching { repositorio.cota(pdv.id, lojaId) }.getOrNull()?.let { c -> _estado.update { it.copy(cota = c) } }
-    }
-
     fun importarPlanilha() {
         val p = _estado.value.planilha ?: return
         val lojaId = _estado.value.lojaId ?: return
         atualizarPlanilha { it.copy(processando = true, erro = null) }
         viewModelScope.launch {
             try {
-                val usadas = repositorio.importarPlanilha(pdv.id, lojaId, p.linhas)
-                _estado.update {
-                    it.copy(planilha = null, mensagem = "Planilha importada: ${p.linhas.size} produto(s), $usadas operação(ões) usada(s).")
-                }
+                val resultado = repositorio.importarPlanilha(pdv.id, lojaId, p.linhas)
+                _estado.update { it.copy(planilha = null, resultadoImportacao = resultado) }
                 carregar()
             } catch (ex: ErroAmigavel) {
                 atualizarPlanilha { it.copy(processando = false, erro = ex.message) }
@@ -313,7 +330,7 @@ class PainelPdvViewModel(
     private fun atualizarPlanilha(f: (EstadoPlanilha) -> EstadoPlanilha) =
         _estado.update { e -> e.copy(planilha = e.planilha?.let(f)) }
 
-    fun fecharFalhaPagamento() = _estado.update { it.copy(falhaPagamento = false) }
+    fun fecharResultadoImportacao() = _estado.update { it.copy(resultadoImportacao = null) }
 
     fun fecharPagamento() = _estado.update { it.copy(pagamentoCriado = null) }
 

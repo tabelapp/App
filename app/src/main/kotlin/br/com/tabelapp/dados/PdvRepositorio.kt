@@ -8,10 +8,12 @@ import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
-import br.com.tabelapp.core.PromocaoPdv
-import br.com.tabelapp.core.SimulacaoImportacao
+import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PrecoPdv
-import br.com.tabelapp.core.SaldoCota
+import br.com.tabelapp.core.PromocaoPdv
+import br.com.tabelapp.core.ResultadoImportacao
+import br.com.tabelapp.core.StatusCatalogo
+import br.com.tabelapp.core.Unidade
 import java.time.LocalDate
 
 /** Cadastro do PDV (conta CNPJ) e a fila de aprovação do Admin. */
@@ -31,11 +33,23 @@ interface PdvRepositorio {
     /** Tabela de preços oficial (modo rede: a mesma em todas as lojas). */
     suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv>
 
-    /** Saldo de operações da loja (ou da rede). */
-    suspend fun cota(pdvId: String, lojaId: String): SaldoCota
+    /** Tamanho do catálogo da loja (ou da rede), limite do plano e período de fundador. */
+    suspend fun statusCatalogo(pdvId: String, lojaId: String): StatusCatalogo
 
-    /** Inclui ou atualiza um item; devolve quantas operações da cota foram usadas (0 ou 1). */
-    suspend fun salvarPreco(pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?): Int
+    /** Planos disponíveis (faixas de itens ativos; sem cobrança por enquanto). */
+    suspend fun planos(): List<Plano>
+
+    /** "Quero ser avisado" quando o plano estiver disponível. */
+    suspend fun registrarInteresse(pdvId: String, plano: String)
+
+    /**
+     * Inclui ou atualiza um item. Atualizar nunca é bloqueado; item novo acima do
+     * limite do plano lança [ErroAmigavel] com codigo "limite_catalogo".
+     */
+    suspend fun salvarPreco(
+        pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
+        unidade: Unidade = Unidade.UNIDADE, aPartirDe: Boolean = false,
+    )
 
     /** Exclui o item (grátis). */
     suspend fun excluirPreco(precoId: String)
@@ -44,9 +58,9 @@ interface PdvRepositorio {
     suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?)
     suspend fun atualizarLoja(loja: LojaPdv)
 
-    /** Planilha: prévia (quanto vai custar na cota) e importação de verdade. */
-    suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): SimulacaoImportacao
-    suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): Int
+    /** Planilha: prévia (o que entra e o que ficaria fora do limite) e importação de verdade. */
+    suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): ResultadoImportacao
+    suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): ResultadoImportacao
 
     // --- Promoções e pacotes ---
     suspend fun promocoes(pdvId: String): List<PromocaoPdv>
@@ -59,8 +73,6 @@ interface PdvRepositorio {
     ): String
     /** Encerra a promoção: true = apagada; false = já tinha pagamento, só saiu do ar (fica no histórico). */
     suspend fun excluirPromocao(promocaoId: String): Boolean
-    /** Pede um pacote de +50 operações (R$ 10); devolve o código do pagamento. */
-    suspend fun comprarPacoteOperacoes(pdvId: String, lojaId: String): String
 
     // --- Admin ---
     suspend fun pagamentosPendentes(): List<PagamentoPendente>

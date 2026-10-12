@@ -39,9 +39,9 @@
 - **Alvará:** pode estar exposto na parede da loja; por isso a aprovação do PDV é sempre humana.
 
 ### Funcionalidades que faltam para o lançamento
-1. **Pix automático** (Mercado Pago ou Efí). Hoje o PDV já cria a promoção e compra pacotes de +50 operações
-   pelo app; o pagamento é combinado pelo WhatsApp do Tabelapp e o **Admin confirma** na aba Admin
-   (o banner entra no ar / as operações são liberadas na hora).
+1. **Pix automático** (Mercado Pago ou Efí) para os banners. Hoje o pagamento é combinado pelo WhatsApp
+   e o **Admin confirma** na aba Admin. **Planos do catálogo:** sem cobrança até decidir as regras da
+   Google Play (`interesse_planos` guarda quem quer ser avisado).
 2. **Área do PDV:** cadastro de mais lojas e troca de modo rede/varejo (editar dados, planilha e promoções já
    estão no app).
 3. Promoção encerrada que já foi paga fica "Pausada" no histórico (não é apagada, por ser registro financeiro);

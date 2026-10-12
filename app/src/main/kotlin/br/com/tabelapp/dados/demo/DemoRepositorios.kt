@@ -8,7 +8,9 @@ import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosDemo
 import br.com.tabelapp.core.DadosReceita
+import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.Fonte
+import br.com.tabelapp.core.ItemFora
 import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
@@ -18,17 +20,18 @@ import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
+import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoNf
-import br.com.tabelapp.core.RegrasCota
-import br.com.tabelapp.core.SaldoCota
-import br.com.tabelapp.core.SimulacaoImportacao
+import br.com.tabelapp.core.ResultadoImportacao
+import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.core.SugestaoProduto
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoOperacao
+import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.CotacoesRepositorio
@@ -134,13 +137,16 @@ class DemoBanco {
     val chavesEnviadas = mutableSetOf<String>()
     val pdvs = mutableListOf<DemoPdv>()
     val precosPdv = mutableListOf<PrecoPdv>()
-    val operacoesUsadas = mutableMapOf<String, Int>()
     var nomeDemoDecidido = false
     val lojasEditadas = mutableMapOf<String, LojaPdv>()
     val promocoesDemo = mutableListOf<Pair<String, PromocaoPdv>>()
-    val pacotesPendentes = mutableMapOf<String, String>()
-    val pacotesPagos = mutableMapOf<String, Int>()
+    val interesses = mutableSetOf<String>()
 }
+
+/** Planos da demonstração (no app real vêm da tabela `planos`). */
+private val planosDemo = listOf(
+    Plano("gratis", "Grátis", 30, 0, 1), Plano("loja", "Loja", 300, null, 2), Plano("mercado", "Mercado", 3000, null, 3),
+)
 
 /**
  * Demonstração do cadastro de PDV: a consulta da Receita devolve dados fictícios
@@ -204,30 +210,49 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         banco.lojasEditadas[loja.id] = loja.copy(endereco = completo, whatsapp = loja.whatsapp?.filter { it.isDigit() })
     }
 
-    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): SimulacaoImportacao {
+    /** Demonstração: plano grátis, sem período de fundador (para ver o limite em ação). */
+    override suspend fun statusCatalogo(pdvId: String, lojaId: String): StatusCatalogo {
+        val ativos = banco.precosPdv.count { it.lojaId == lojaId && !it.validade.isBefore(LocalDate.now()) }
+        val gratis = planosDemo.first()
+        return StatusCatalogo(gratis.codigo, gratis.nome, gratis.limiteItens, gratis.codigo, gratis.nome, gratis.limiteItens,
+            ativos, (gratis.limiteItens - ativos).coerceAtLeast(0), fundadorAte = null)
+    }
+
+    override suspend fun planos(): List<Plano> = planosDemo
+
+    override suspend fun registrarInteresse(pdvId: String, plano: String) {
+        delay(200)
+        banco.interesses += "$pdvId:$plano"
+    }
+
+    private suspend fun planilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>, simular: Boolean): ResultadoImportacao {
         delay(300)
-        val tipos = linhas.map { l ->
+        var livres = statusCatalogo(pdvId, lojaId).disponiveis
+        val tipos = mutableListOf<TipoOperacao>()
+        val fora = mutableListOf<ItemFora>()
+        linhas.forEach { l ->
             val atual = banco.precosPdv.firstOrNull { it.lojaId == lojaId && Texto.normalizar(it.produto) == Texto.normalizar(l.produto) }
-            TipoOperacao.classificar(atual?.precoCentavos, l.precoCentavos)
+            val tipo = TipoOperacao.classificar(atual?.precoCentavos, l.precoCentavos)
+            if (tipo == TipoOperacao.CRIAR_ITEM && livres <= 0) {
+                fora += ItemFora(l.numero, l.produto)
+                return@forEach
+            }
+            if (tipo == TipoOperacao.CRIAR_ITEM) livres--
+            tipos += tipo
+            if (!simular) salvarPreco(pdvId, lojaId, l.produto, l.precoCentavos, l.validade, l.obs)
         }
-        val operacoes = tipos.count { it.contaNaCota }
-        val restantes = cota(pdvId, lojaId).restantes
-        val faltam = (operacoes - restantes).coerceAtLeast(0)
-        return SimulacaoImportacao(
+        return ResultadoImportacao(
             criados = tipos.count { it == TipoOperacao.CRIAR_ITEM }, aumentados = tipos.count { it == TipoOperacao.AUMENTAR_PRECO },
             diminuidos = tipos.count { it == TipoOperacao.DIMINUIR_PRECO }, inalterados = tipos.count { it == TipoOperacao.EDITAR_DADOS },
-            operacoes = operacoes, restantes = restantes, cabeNaCota = faltam == 0,
-            pacotesNecessarios = (faltam + RegrasCota.OPERACOES_POR_PACOTE - 1) / RegrasCota.OPERACOES_POR_PACOTE,
+            foraDoLimite = fora.size, itensFora = fora, limite = planosDemo.first().limiteItens, planoNome = planosDemo.first().nome,
         )
     }
 
-    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): Int {
-        val simulacao = simularPlanilha(pdvId, lojaId, linhas)
-        if (!simulacao.cabeNaCota) throw ErroAmigavel("As operações desta loja não bastam para esta planilha.")
-        var usadas = 0
-        linhas.forEach { usadas += salvarPreco(pdvId, lojaId, it.produto, it.precoCentavos, it.validade, it.obs) }
-        return usadas
-    }
+    override suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>) =
+        planilha(pdvId, lojaId, linhas, simular = true)
+
+    override suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>) =
+        planilha(pdvId, lojaId, linhas, simular = false)
 
     override suspend fun promocoes(pdvId: String): List<PromocaoPdv> = banco.promocoesDemo.filter { it.first == pdvId }.map { it.second }
 
@@ -253,24 +278,13 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         return true
     }
 
-    override suspend fun comprarPacoteOperacoes(pdvId: String, lojaId: String): String {
-        val id = "pag-" + UUID.randomUUID()
-        banco.pacotesPendentes[id] = lojaId
-        return id
-    }
-
     override suspend fun pagamentosPendentes(): List<PagamentoPendente> =
         banco.promocoesDemo.mapNotNull { (_, p) ->
             p.pagamentoPendenteId?.let { PagamentoPendente(it, "pacote_visualizacoes", "PDV demonstração", "Banner: ${p.titulo}",
                 p.visualizacoesPendentes ?: 0, p.valorPendenteCentavos ?: 0, "Você (demonstração)", null, Instant.now()) }
-        } + banco.pacotesPendentes.keys.map {
-            PagamentoPendente(it, "pacote_operacoes", "PDV demonstração", "+50 operações", 50, 1000, "Você (demonstração)", null, Instant.now())
         }
 
     override suspend fun confirmarPagamento(pagamentoId: String) {
-        banco.pacotesPendentes.remove(pagamentoId)?.let { loja ->
-            banco.pacotesPagos[loja] = (banco.pacotesPagos[loja] ?: 0) + RegrasCota.OPERACOES_POR_PACOTE
-        }
         val i = banco.promocoesDemo.indexOfFirst { it.second.pagamentoPendenteId == pagamentoId }
         if (i >= 0) banco.promocoesDemo[i] = banco.promocoesDemo[i].let { (pdv, p) ->
             pdv to p.copy(status = "ativa", visualizacoesContratadas = p.visualizacoesContratadas + (p.visualizacoesPendentes ?: 0),
@@ -279,7 +293,6 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     }
 
     override suspend fun cancelarPagamento(pagamentoId: String) {
-        banco.pacotesPendentes.remove(pagamentoId)
         val i = banco.promocoesDemo.indexOfFirst { it.second.pagamentoPendenteId == pagamentoId }
         if (i >= 0) banco.promocoesDemo[i] = banco.promocoesDemo[i].let { (pdv, p) ->
             pdv to p.copy(pagamentoPendenteId = null, valorPendenteCentavos = null, visualizacoesPendentes = null)
@@ -289,29 +302,22 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     override suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv> =
         banco.precosPdv.filter { it.lojaId == lojaId }.sortedBy { Texto.normalizar(it.produto) }
 
-    override suspend fun cota(pdvId: String, lojaId: String): SaldoCota {
-        val usadas = banco.operacoesUsadas[lojaId] ?: 0
-        val pacote = (banco.pacotesPagos[lojaId] ?: 0) - (usadas - RegrasCota.GRATIS_POR_MES).coerceAtLeast(0)
-        return SaldoCota(gratisUsadas = usadas.coerceAtMost(RegrasCota.GRATIS_POR_MES), saldoPacotes = pacote.coerceAtLeast(0))
-    }
-
     override suspend fun salvarPreco(
         pdvId: String, lojaId: String, produto: String, precoCentavos: Long, validade: LocalDate?, obs: String?,
-    ): Int {
+        unidade: Unidade, aPartirDe: Boolean,
+    ) {
         delay(300)
         val pdv = banco.pdvs.firstOrNull { it.meu.id == pdvId } ?: throw ErroAmigavel("Cadastro não encontrado.")
         if (pdv.meu.status != StatusPdv.APROVADO) throw ErroAmigavel("Seu cadastro ainda não foi aprovado.")
         val atual = banco.precosPdv.firstOrNull { it.lojaId == lojaId && Texto.normalizar(it.produto) == Texto.normalizar(produto) }
-        val conta = TipoOperacao.classificar(atual?.precoCentavos, precoCentavos).contaNaCota
-        val usadas = banco.operacoesUsadas[lojaId] ?: 0
-        if (conta && cota(pdvId, lojaId).restantes <= 0) {
-            throw ErroAmigavel("As operações desta loja acabaram. Compre +50 operações por R\$ 10 via Pix (valem 30 dias).")
+        // Só item novo é conferido contra o limite; atualizar nunca é bloqueado.
+        if (atual == null && statusCatalogo(pdvId, lojaId).noLimite) {
+            throw ErroAmigavel(ErrosServidor.traduzir("limite_catalogo"), codigo = "limite_catalogo")
         }
-        if (conta) banco.operacoesUsadas[lojaId] = usadas + 1
         val item = PrecoPdv(
             id = atual?.id ?: ("pp-" + UUID.randomUUID()), lojaId = lojaId, produto = produto.trim(),
             precoCentavos = precoCentavos, validade = validade ?: Validade.padrao(LocalDate.now()),
-            obs = obs?.trim()?.ifEmpty { null },
+            obs = obs?.trim()?.ifEmpty { null }, unidade = unidade, aPartirDe = aPartirDe,
         )
         banco.precosPdv.removeAll { it.id == item.id }
         banco.precosPdv += item
@@ -322,9 +328,8 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
             obs = item.obs, fonte = Fonte.PDV_MANUAL, lojaId = null, pdvId = null, pdvNome = pdv.meu.nomeFantasia,
             endereco = banco.lojasEditadas[lojaId]?.endereco ?: pdv.pendente.endereco,
             telefone = banco.lojasEditadas[lojaId]?.let { it.whatsapp ?: it.telefone } ?: pdv.pendente.telefone,
-            criadoEm = Instant.now(),
+            criadoEm = Instant.now(), unidade = unidade, aPartirDe = aPartirDe,
         )
-        return if (conta) 1 else 0
     }
 
     override suspend fun excluirPreco(precoId: String) {
