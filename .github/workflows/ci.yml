@@ -54,6 +54,12 @@ jobs:
         with:
           name: tabelapp-demo-apk
           path: saida/demo/*.apk
+      # Confere que a versão da Play Store (release, AAB) compila. Sem assinatura e sem
+      # guardar o arquivo: o pacote de verdade sai pela automação "Versão para a Play Store".
+      - name: Conferir pacote da Play Store (AAB, sem assinatura)
+        env:
+          SUPABASE_URL: ''
+        run: ./gradlew :app:bundleRelease --stacktrace
       # APK ligado ao Supabase de verdade. URL e chave publicável vêm dos secrets do
       # repositório (a chave publicável é feita para ir dentro do app; nunca a secreta).
       - name: Compilar APK ligado ao Supabase

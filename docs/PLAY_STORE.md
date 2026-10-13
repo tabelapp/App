@@ -40,6 +40,10 @@ os mesmos já usados no CI.
 
 ## 3. Gerar a versão
 
+> A automação só aparece em *Actions* depois que o código estiver na branch principal (`main`) do
+> GitHub — o GitHub só mostra o botão "Run workflow" de automações que estão lá. Até lá, o CI de cada
+> envio já confere que o pacote da Play Store compila.
+
 1. GitHub → *Actions → "Versão para a Play Store" → Run workflow*.
 2. Informe o nome da versão (ex.: `1.0.0`) e confirme. O número interno sobe sozinho a cada execução.
 3. Ao terminar, baixe o artefato **tabelapp-play-store**: tem o `.aab` (para a Play Store) e um `.apk`
