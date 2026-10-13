@@ -13,12 +13,18 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,22 +42,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.R
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
+import br.com.tabelapp.core.PrecoDenunciado
+import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.tema.coresBarraTopo
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,8 +74,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 data class EstadoAdmin(
     val carregando: Boolean = true,
@@ -70,6 +83,10 @@ data class EstadoAdmin(
     val erro: String? = null,
     val nomes: List<NomeSugerido> = emptyList(),
     val pagamentos: List<PagamentoPendente> = emptyList(),
+    val denunciados: List<PrecoDenunciado> = emptyList(),
+    val estabelecimentos: List<PdvAdmin> = emptyList(),
+    val buscaPdv: String = "",
+    val buscandoPdv: Boolean = false,
 )
 
 /** Fila de cadastros de PDV esperando análise (só para o Admin). */
@@ -88,7 +105,14 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
                 val lista = repositorio.pendentes()
                 val nomes = repositorio.nomesSugeridos()
                 val pagamentos = repositorio.pagamentosPendentes()
-                _estado.update { it.copy(carregando = false, pendentes = lista, nomes = nomes, pagamentos = pagamentos) }
+                val denunciados = repositorio.precosDenunciados()
+                val estabelecimentos = repositorio.estabelecimentos(_estado.value.buscaPdv)
+                _estado.update {
+                    it.copy(
+                        carregando = false, pendentes = lista, nomes = nomes, pagamentos = pagamentos,
+                        denunciados = denunciados, estabelecimentos = estabelecimentos,
+                    )
+                }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
             }
@@ -136,6 +160,52 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
         }
     }
 
+    /** Preço denunciado: [remover] tira da busca; senão mantém e limpa as denúncias. */
+    fun moderarPreco(p: PrecoDenunciado, remover: Boolean) {
+        _estado.update { it.copy(ocupado = p.cotacaoId, erro = null) }
+        viewModelScope.launch {
+            try {
+                if (remover) repositorio.removerCotacao(p.cotacaoId) else repositorio.manterCotacao(p.cotacaoId)
+                _estado.update { e -> e.copy(ocupado = null, denunciados = e.denunciados.filter { it.cotacaoId != p.cotacaoId }) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(ocupado = null, erro = e.message) }
+            }
+        }
+    }
+
+    fun alterarBuscaPdv(texto: String) {
+        _estado.update { it.copy(buscaPdv = texto.take(60)) }
+    }
+
+    fun buscarPdvs() {
+        _estado.update { it.copy(buscandoPdv = true, erro = null) }
+        viewModelScope.launch {
+            try {
+                val lista = repositorio.estabelecimentos(_estado.value.buscaPdv)
+                _estado.update { it.copy(buscandoPdv = false, estabelecimentos = lista) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(buscandoPdv = false, erro = e.message) }
+            }
+        }
+    }
+
+    fun suspender(pdv: PdvAdmin, motivo: String) = moderarPdv(pdv) { repositorio.suspenderPdv(pdv.id, motivo) }
+
+    fun reativar(pdv: PdvAdmin) = moderarPdv(pdv) { repositorio.reativarPdv(pdv.id) }
+
+    private fun moderarPdv(pdv: PdvAdmin, acao: suspend () -> Unit) {
+        _estado.update { it.copy(ocupado = pdv.id, erro = null) }
+        viewModelScope.launch {
+            try {
+                acao()
+                val lista = repositorio.estabelecimentos(_estado.value.buscaPdv)
+                _estado.update { it.copy(ocupado = null, estabelecimentos = lista) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(ocupado = null, erro = e.message) }
+            }
+        }
+    }
+
     fun aprovar(pdv: PdvPendente) = decidir(pdv) { repositorio.aprovar(pdv.id) }
 
     fun rejeitar(pdv: PdvPendente, motivo: String) = decidir(pdv) { repositorio.rejeitar(pdv.id, motivo) }
@@ -160,6 +230,9 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     var rejeitando by remember { mutableStateOf<PdvPendente?>(null) }
     var confirmando by remember { mutableStateOf<PagamentoPendente?>(null) }
+    var removendo by remember { mutableStateOf<PrecoDenunciado?>(null) }
+    var suspendendo by remember { mutableStateOf<PdvAdmin?>(null) }
+    var reativando by remember { mutableStateOf<PdvAdmin?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -238,6 +311,33 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                         )
                     }
                 }
+                if (!estado.carregando) {
+                    Text(
+                        stringResource(R.string.admin_denunciados_titulo, estado.denunciados.size),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(stringResource(R.string.admin_denunciados_texto), style = MaterialTheme.typography.bodySmall)
+                    if (estado.denunciados.isEmpty()) {
+                        Text(stringResource(R.string.admin_denunciados_vazio), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    estado.denunciados.forEach { p ->
+                        CartaoDenuncia(
+                            p = p,
+                            ocupado = estado.ocupado == p.cotacaoId,
+                            aoRemover = { removendo = p },
+                            aoManter = { vm.moderarPreco(p, remover = false) },
+                        )
+                    }
+                    SecaoEstabelecimentos(
+                        estado = estado,
+                        aoBuscar = vm::alterarBuscaPdv,
+                        aoConfirmarBusca = vm::buscarPdvs,
+                        aoSuspender = { suspendendo = it },
+                        aoReativar = { reativando = it },
+                    )
+                }
                 OutlinedButton(onClick = vm::carregar, modifier = Modifier.fillMaxWidth()) { Text("Atualizar") }
             }
         }
@@ -255,6 +355,64 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                 }) { Text("Confirmar") }
             },
             dismissButton = { TextButton(onClick = { confirmando = null }) { Text("Voltar") } },
+        )
+    }
+
+    removendo?.let { p ->
+        AlertDialog(
+            onDismissRequest = { removendo = null },
+            title = { Text(stringResource(R.string.admin_remover_titulo)) },
+            text = {
+                Text(stringResource(R.string.admin_remover_texto, p.produto, Dinheiro.formatar(p.precoCentavos),
+                    p.pdvNome ?: "—"))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.moderarPreco(p, remover = true)
+                    removendo = null
+                }) { Text(stringResource(R.string.admin_remover)) }
+            },
+            dismissButton = { TextButton(onClick = { removendo = null }) { Text("Cancelar") } },
+        )
+    }
+
+    suspendendo?.let { pdv ->
+        var motivo by remember(pdv.id) { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { suspendendo = null },
+            title = { Text(stringResource(R.string.admin_suspender_titulo, pdv.nomeFantasia)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.admin_suspender_texto), style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = motivo, onValueChange = { motivo = it.take(300) },
+                        label = { Text(stringResource(R.string.admin_suspender_motivo)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.suspender(pdv, motivo)
+                    suspendendo = null
+                }, enabled = motivo.isNotBlank()) { Text(stringResource(R.string.admin_suspender)) }
+            },
+            dismissButton = { TextButton(onClick = { suspendendo = null }) { Text("Cancelar") } },
+        )
+    }
+
+    reativando?.let { pdv ->
+        AlertDialog(
+            onDismissRequest = { reativando = null },
+            title = { Text(stringResource(R.string.admin_reativar_titulo, pdv.nomeFantasia)) },
+            text = { Text(stringResource(R.string.admin_reativar_texto)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.reativar(pdv)
+                    reativando = null
+                }) { Text(stringResource(R.string.admin_reativar)) }
+            },
+            dismissButton = { TextButton(onClick = { reativando = null }) { Text("Cancelar") } },
         )
     }
 
@@ -366,6 +524,123 @@ private fun CartaoPagamento(p: PagamentoPendente, ocupado: Boolean, aoConfirmar:
                 OutlinedButton(onClick = aoCancelar, enabled = !ocupado, modifier = Modifier.weight(1f)) { Text("Cancelar pedido") }
                 Button(onClick = aoConfirmar, enabled = !ocupado, modifier = Modifier.weight(1f)) {
                     if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Pago")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CartaoDenuncia(p: PrecoDenunciado, ocupado: Boolean, aoRemover: () -> Unit, aoManter: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(p.produto, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+                Text(Dinheiro.formatar(p.precoCentavos), style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            Text(
+                listOfNotNull(
+                    p.pdvNome,
+                    stringResource(if (p.oficial) R.string.admin_fonte_oficial else R.string.admin_fonte_cliente),
+                    if (p.parteDeCombo) stringResource(R.string.admin_combo) else null,
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                pluralStringResource(R.plurals.admin_denuncias, p.denuncias, p.denuncias),
+                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error,
+            )
+            val motivos = listOfNotNull(
+                p.comboOuPromocao.takeIf { it > 0 }?.let { stringResource(R.string.admin_motivo_combo, it) },
+                p.precoMudou.takeIf { it > 0 }?.let { stringResource(R.string.admin_motivo_mudou, it) },
+                p.produtoErrado.takeIf { it > 0 }?.let { stringResource(R.string.admin_motivo_produto, it) },
+                p.outros.takeIf { it > 0 }?.let { stringResource(R.string.admin_motivo_outro, it) },
+            )
+            if (motivos.isNotEmpty()) Text(motivos.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = aoManter, enabled = !ocupado, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.admin_manter))
+                }
+                Button(onClick = aoRemover, enabled = !ocupado, modifier = Modifier.weight(1f)) {
+                    if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Text(stringResource(R.string.admin_remover))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecaoEstabelecimentos(
+    estado: EstadoAdmin,
+    aoBuscar: (String) -> Unit,
+    aoConfirmarBusca: () -> Unit,
+    aoSuspender: (PdvAdmin) -> Unit,
+    aoReativar: (PdvAdmin) -> Unit,
+) {
+    Text(stringResource(R.string.admin_estabelecimentos_titulo), fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = 8.dp))
+    Text(stringResource(R.string.admin_estabelecimentos_texto), style = MaterialTheme.typography.bodySmall)
+    OutlinedTextField(
+        value = estado.buscaPdv,
+        onValueChange = aoBuscar,
+        label = { Text(stringResource(R.string.admin_estabelecimentos_busca)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { aoConfirmarBusca() }),
+        trailingIcon = {
+            IconButton(onClick = aoConfirmarBusca, enabled = !estado.buscandoPdv) {
+                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.admin_estabelecimentos_buscar))
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    if (estado.buscandoPdv) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else if (estado.estabelecimentos.isEmpty()) {
+        Text(stringResource(R.string.admin_estabelecimentos_vazio), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    estado.estabelecimentos.forEach { pdv ->
+        val ocupado = estado.ocupado == pdv.id
+        val suspenso = pdv.status == StatusPdv.SUSPENSO
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(pdv.nomeFantasia, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(if (suspenso) R.string.admin_status_suspenso else R.string.admin_status_ativo),
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                        color = if (suspenso) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    listOfNotNull("CNPJ ${Cnpj.formatar(pdv.cnpj)}", pdv.cidade).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    stringResource(R.string.admin_estabelecimento_dono,
+                        listOfNotNull(pdv.donoNome, pdv.donoEmail).joinToString(" — ").ifEmpty { "—" }),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(stringResource(R.string.admin_estabelecimento_itens, pdv.itensPublicados),
+                    style = MaterialTheme.typography.bodySmall)
+                if (suspenso) {
+                    pdv.motivoSuspensao?.let {
+                        Text(stringResource(R.string.pdv_suspenso_motivo, it), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(onClick = { aoReativar(pdv) }, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
+                        if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text(stringResource(R.string.admin_reativar))
+                    }
+                } else {
+                    OutlinedButton(onClick = { aoSuspender(pdv) }, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
+                        if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text(stringResource(R.string.admin_suspender))
+                    }
                 }
             }
         }

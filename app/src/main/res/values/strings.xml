@@ -145,4 +145,47 @@
     <string name="conta_excluir_palavra">EXCLUIR</string>
     <string name="conta_excluir_confirmar">Excluir conta</string>
     <string name="conta_excluir_cancelar">Cancelar</string>
+
+    <!-- Moderação do Admin -->
+    <string name="admin_denunciados_titulo">Preços denunciados (%1$d)</string>
+    <string name="admin_denunciados_texto">Pessoas tocaram em \"Esse preço não confere\". Remover tira o preço da busca (fica no histórico). Manter limpa as denúncias.</string>
+    <string name="admin_denunciados_vazio">Nenhum preço denunciado agora.</string>
+    <plurals name="admin_denuncias">
+        <item quantity="one">%1$d denúncia</item>
+        <item quantity="other">%1$d denúncias</item>
+    </plurals>
+    <string name="admin_motivo_combo">combo/promoção: %1$d</string>
+    <string name="admin_motivo_mudou">preço mudou: %1$d</string>
+    <string name="admin_motivo_produto">produto errado: %1$d</string>
+    <string name="admin_motivo_outro">outro: %1$d</string>
+    <string name="admin_fonte_oficial">preço oficial do estabelecimento</string>
+    <string name="admin_fonte_cliente">enviado por cliente</string>
+    <string name="admin_combo">parte de combo</string>
+    <string name="admin_manter">Manter</string>
+    <string name="admin_remover">Remover</string>
+    <string name="admin_remover_este_preco">Remover este preço (Admin)</string>
+    <string name="admin_remover_titulo">Remover este preço?</string>
+    <string name="admin_remover_texto">%1$s — %2$s em %3$s. O preço sai da busca na hora e fica guardado no histórico como removido.</string>
+    <string name="admin_estabelecimentos_titulo">Estabelecimentos</string>
+    <string name="admin_estabelecimentos_texto">Suspender tira os preços oficiais e os banners da busca, sem apagar nada. O dono vê o motivo em \"Meu negócio\". Reativar devolve tudo como estava.</string>
+    <string name="admin_estabelecimentos_busca">Buscar por nome ou CNPJ</string>
+    <string name="admin_estabelecimentos_buscar">Buscar</string>
+    <string name="admin_estabelecimentos_vazio">Nenhum estabelecimento aprovado encontrado.</string>
+    <string name="admin_estabelecimento_dono">Dono: %1$s</string>
+    <string name="admin_estabelecimento_itens">Itens publicados: %1$d</string>
+    <string name="admin_status_ativo">ATIVO</string>
+    <string name="admin_status_suspenso">SUSPENSO</string>
+    <string name="admin_suspender">Suspender</string>
+    <string name="admin_suspender_titulo">Suspender %1$s?</string>
+    <string name="admin_suspender_texto">Os preços oficiais e os banners saem da busca. Nenhum dado é apagado e você pode reativar depois.</string>
+    <string name="admin_suspender_motivo">Motivo (o dono vai ver)</string>
+    <string name="admin_reativar">Reativar</string>
+    <string name="admin_reativar_titulo">Reativar %1$s?</string>
+    <string name="admin_reativar_texto">Os preços oficiais e os banners voltam para a busca na hora.</string>
+
+    <!-- Estabelecimento suspenso (Meu negócio) -->
+    <string name="pdv_suspenso_titulo">Cadastro suspenso</string>
+    <string name="pdv_suspenso_motivo">Motivo: %1$s</string>
+    <string name="pdv_suspenso_texto">Enquanto o cadastro estiver suspenso, seus preços e banners não aparecem na busca. Nada foi apagado: ao reativar, tudo volta como estava. Fale com a gente para resolver.</string>
+    <string name="pdv_suspenso_fale_conosco">Fale conosco (WhatsApp)</string>
 </resources>

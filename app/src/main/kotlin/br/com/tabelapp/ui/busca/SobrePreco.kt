@@ -2,9 +2,11 @@ package br.com.tabelapp.ui.busca
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,12 +18,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.R
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.ui.comum.AcaoErro
 import br.com.tabelapp.ui.comum.FolhaMensagem
 import kotlinx.coroutines.launch
 
-private enum class EtapaSobrePreco { INFO, DENUNCIA, OBRIGADO }
+private enum class EtapaSobrePreco { INFO, DENUNCIA, OBRIGADO, REMOVER }
 
 /** Motivos da denúncia: código gravado no banco + texto do chip. */
 private val motivos = listOf(
@@ -34,9 +37,15 @@ private val motivos = listOf(
 /**
  * "Sobre este preço" (ⓘ do card): de onde veio o valor e que ele pode mudar.
  * O link "Esse preço não confere" registra uma denúncia leve, com motivo opcional.
+ * [aoRemover] (só para o Admin) mostra "Remover este preço", com confirmação.
  */
 @Composable
-fun FolhaSobrePreco(cotacao: Cotacao, aoDenunciar: suspend (motivo: String?) -> Boolean, aoFechar: () -> Unit) {
+fun FolhaSobrePreco(
+    cotacao: Cotacao,
+    aoDenunciar: suspend (motivo: String?) -> Boolean,
+    aoFechar: () -> Unit,
+    aoRemover: (suspend () -> Unit)? = null,
+) {
     var etapa by remember { mutableStateOf(EtapaSobrePreco.INFO) }
     var motivo by remember { mutableStateOf<String?>(null) }
     var enviando by remember { mutableStateOf(false) }
@@ -52,7 +61,37 @@ fun FolhaSobrePreco(cotacao: Cotacao, aoDenunciar: suspend (motivo: String?) -> 
             principal = AcaoErro(stringResource(R.string.sobre_preco_entendi), aoFechar),
             secundario = AcaoErro(stringResource(R.string.sobre_preco_nao_confere), { etapa = EtapaSobrePreco.DENUNCIA }),
             aoFechar = aoFechar,
-        )
+        ) {
+            if (aoRemover != null) {
+                TextButton(onClick = { etapa = EtapaSobrePreco.REMOVER }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.admin_remover_este_preco), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+
+        EtapaSobrePreco.REMOVER -> FolhaMensagem(
+            titulo = stringResource(R.string.admin_remover_titulo),
+            texto = stringResource(R.string.admin_remover_texto, cotacao.produto, Dinheiro.formatar(cotacao.precoCentavos),
+                cotacao.pdvNome ?: "—"),
+            principal = AcaoErro(stringResource(R.string.admin_remover), {
+                enviando = true
+                erro = null
+                escopo.launch {
+                    try {
+                        aoRemover?.invoke()
+                        aoFechar()
+                    } catch (e: ErroAmigavel) {
+                        erro = e.message
+                    } finally {
+                        enviando = false
+                    }
+                }
+            }, habilitado = !enviando),
+            secundario = AcaoErro(stringResource(R.string.denuncia_cancelar), aoFechar),
+            aoFechar = aoFechar,
+        ) {
+            erro?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
 
         EtapaSobrePreco.DENUNCIA -> FolhaMensagem(
             titulo = stringResource(R.string.denuncia_titulo),

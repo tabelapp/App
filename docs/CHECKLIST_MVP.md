@@ -5,7 +5,8 @@ Essenciais para lançar:
 - [x] **Conta do usuário:** editar nome e **excluir a conta pelo app** ("Minha conta", no menu da busca).
 - [x] **Política de privacidade e termos de uso:** textos em `app/src/main/res/raw/*.md`, no menu, em Minha conta
       e com aceite no cadastro. Páginas web em `docs/site/` (falta publicar).
-- [ ] **Moderação do Admin no app:** remover preço errado e suspender um PDV já aprovado.
+- [x] **Moderação do Admin no app:** preços denunciados (Remover/Manter), "Remover este preço" no ⓘ do card,
+      suspender/reativar um PDV aprovado com motivo (o dono vê em "Meu negócio").
 - [ ] **Coordenadas das lojas cadastradas:** localizar o endereço no cadastro/edição e guardar no banco
       (pino certo no mapa e distância no card).
 - [ ] **Versão para a Play Store:** pacote AAB assinado com a chave de produção, número de versão automático.

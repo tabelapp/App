@@ -16,10 +16,12 @@ import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoNf
@@ -451,6 +453,7 @@ private data class MeuPdvDto(
     @SerialName("created_at") val createdAt: String,
     @SerialName("modo_rede") val modoRede: Boolean = true,
     val site: String? = null,
+    @SerialName("motivo_suspensao") val motivoSuspensao: String? = null,
 )
 
 @Serializable
@@ -560,6 +563,34 @@ private data class NomeSugeridoDto(
 )
 
 @Serializable
+private data class DenunciaDto(
+    @SerialName("cotacao_id") val cotacaoId: String,
+    val produto: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    val fonte: String,
+    @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
+    @SerialName("pdv_nome") val pdvNome: String? = null,
+    val denuncias: Int,
+    @SerialName("combo_ou_promocao") val comboOuPromocao: Int = 0,
+    @SerialName("preco_mudou") val precoMudou: Int = 0,
+    @SerialName("produto_errado") val produtoErrado: Int = 0,
+    val outros: Int = 0,
+)
+
+@Serializable
+private data class PdvAdminDto(
+    val id: String,
+    @SerialName("nome_fantasia") val nomeFantasia: String,
+    val cnpj: String,
+    val status: String,
+    @SerialName("motivo_suspensao") val motivoSuspensao: String? = null,
+    val cidade: String? = null,
+    @SerialName("dono_nome") val donoNome: String? = null,
+    @SerialName("dono_email") val donoEmail: String? = null,
+    @SerialName("itens_publicados") val itensPublicados: Int = 0,
+)
+
+@Serializable
 private data class PdvPendenteDto(
     val id: String,
     val cnpj: String,
@@ -588,7 +619,7 @@ class SupabasePdvRepositorio(
                 id = d.id, cnpj = d.cnpj, razaoSocial = d.razaoSocial, nomeFantasia = d.nomeFantasia,
                 status = StatusPdv.doCodigo(d.status), motivoRejeicao = d.motivoRejeicao,
                 cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara, enviadoEm = instante(d.createdAt),
-                modoRede = d.modoRede, site = d.site,
+                modoRede = d.modoRede, site = d.site, motivoSuspensao = d.motivoSuspensao,
             )
         }
     }
@@ -848,6 +879,54 @@ class SupabasePdvRepositorio(
             put("p_pdv_id", pdvId)
             put("p_motivo", motivo.trim())
         })
+        Unit
+    }
+
+    override suspend fun precosDenunciados(): List<PrecoDenunciado> = traduzindoErros {
+        supabase.from("denuncias_mais_frequentes").select { limit(100) }.decodeList<DenunciaDto>().map {
+            PrecoDenunciado(
+                cotacaoId = it.cotacaoId, produto = it.produto, precoCentavos = it.precoCentavos,
+                pdvNome = it.pdvNome, oficial = it.fonte in setOf("pdv_manual", "pdv_excel"),
+                parteDeCombo = it.parteDeCombo, denuncias = it.denuncias, comboOuPromocao = it.comboOuPromocao,
+                precoMudou = it.precoMudou, produtoErrado = it.produtoErrado, outros = it.outros,
+            )
+        }
+    }
+
+    override suspend fun removerCotacao(cotacaoId: String, motivo: String?) = traduzindoErros {
+        supabase.postgrest.rpc("admin_remover_cotacao", buildJsonObject {
+            put("p_cotacao_id", cotacaoId)
+            put("p_motivo", motivo?.trim())
+        })
+        Unit
+    }
+
+    override suspend fun manterCotacao(cotacaoId: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_manter_cotacao", buildJsonObject { put("p_cotacao_id", cotacaoId) })
+        Unit
+    }
+
+    override suspend fun estabelecimentos(busca: String?): List<PdvAdmin> = traduzindoErros {
+        supabase.postgrest.rpc("admin_pdvs", buildJsonObject { put("p_busca", busca?.trim()?.ifEmpty { null }) })
+            .decodeList<PdvAdminDto>().map {
+                PdvAdmin(
+                    id = it.id, nomeFantasia = it.nomeFantasia, cnpj = it.cnpj, status = StatusPdv.doCodigo(it.status),
+                    motivoSuspensao = it.motivoSuspensao, cidade = it.cidade, donoNome = it.donoNome,
+                    donoEmail = it.donoEmail, itensPublicados = it.itensPublicados,
+                )
+            }
+    }
+
+    override suspend fun suspenderPdv(pdvId: String, motivo: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_suspender_pdv", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_motivo", motivo.trim())
+        })
+        Unit
+    }
+
+    override suspend fun reativarPdv(pdvId: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_reativar_pdv", buildJsonObject { put("p_pdv_id", pdvId) })
         Unit
     }
 }

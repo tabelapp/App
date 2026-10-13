@@ -241,6 +241,18 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
 - **Na busca:** para cada produto em cada local aparece só o lançamento mais recente (no empate, o
   preço oficial do PDV).
 
+## Moderação do Admin (migração `20261013002100`)
+
+- **Preços denunciados** (aba Admin): lista da visão `denuncias_mais_frequentes`, com os motivos.
+  *Remover* apaga o preço da busca — o histórico guarda a linha como "excluido". *Manter* apaga as
+  denúncias daquele preço (ele volta a poder ganhar o selo).
+- **Remover qualquer preço:** para o Admin, o ⓘ do card mostra "Remover este preço", com confirmação.
+- **Suspender um estabelecimento aprovado:** exige motivo. Nada é apagado: os preços oficiais e os
+  banners só deixam de aparecer na busca, e o PDV não consegue publicar enquanto estiver suspenso. O dono
+  vê "Cadastro suspenso" + motivo em "Meu negócio", com botão para falar no WhatsApp. *Reativar* devolve
+  tudo como estava.
+- Toda ação fica registrada na tabela `moderacoes` (só o Admin lê).
+
 ## Segurança (resumo)
 
 - Nada é acessível sem login.

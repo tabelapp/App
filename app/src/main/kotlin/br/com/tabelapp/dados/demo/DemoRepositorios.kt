@@ -19,10 +19,12 @@ import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoNf
@@ -130,7 +132,9 @@ class DemoAuthRepositorio : AuthRepositorio {
 class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositorio {
     override suspend fun buscar(termo: String?, posicao: PontoGeo?): List<Cotacao> {
         delay(250)
+        val suspensos = banco.pdvs.filter { it.meu.status == StatusPdv.SUSPENSO }.map { it.meu.id }.toSet()
         return DadosDemo.buscar(termo, extras = banco.enviados)
+            .filter { it.id !in banco.removidos && it.pdvId !in suspensos }
     }
 
     override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> =
@@ -164,6 +168,8 @@ class DemoBanco {
     val promocoesDemo = mutableListOf<Pair<String, PromocaoPdv>>()
     val interesses = mutableSetOf<String>()
     val denuncias = mutableSetOf<String>()
+    /** Preços removidos pelo Admin na demonstração. */
+    val removidos = mutableSetOf<String>()
 }
 
 /** Planos da demonstração (no app real vêm da tabela `planos`). */
@@ -379,6 +385,68 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     override suspend fun rejeitar(pdvId: String, motivo: String) {
         if (motivo.isBlank()) throw ErroAmigavel("Informe o motivo.")
         mudarStatus(pdvId, StatusPdv.REJEITADO, motivo.trim())
+    }
+
+    override suspend fun precosDenunciados(): List<PrecoDenunciado> {
+        delay(200)
+        return DadosDemo.buscar(null, extras = banco.enviados)
+            .filter { it.id in banco.denuncias && it.id !in banco.removidos }
+            .map {
+                PrecoDenunciado(
+                    cotacaoId = it.id, produto = it.produto, precoCentavos = it.precoCentavos, pdvNome = it.pdvNome,
+                    oficial = it.pdvCadastrado, parteDeCombo = it.parteDeCombo, denuncias = 1, comboOuPromocao = 0,
+                    precoMudou = 0, produtoErrado = 0, outros = 1,
+                )
+            }
+    }
+
+    override suspend fun removerCotacao(cotacaoId: String, motivo: String?) {
+        delay(200)
+        banco.removidos += cotacaoId
+        banco.denuncias -= cotacaoId
+    }
+
+    override suspend fun manterCotacao(cotacaoId: String) {
+        delay(200)
+        banco.denuncias -= cotacaoId
+    }
+
+    override suspend fun estabelecimentos(busca: String?): List<PdvAdmin> {
+        delay(200)
+        val termo = Texto.normalizar(busca.orEmpty())
+        val digitos = busca.orEmpty().filter { it.isDigit() }
+        return banco.pdvs.map { it.meu }
+            .filter { it.status == StatusPdv.APROVADO || it.status == StatusPdv.SUSPENSO }
+            .filter {
+                termo.isEmpty() || Texto.normalizar(it.nomeFantasia).contains(termo) ||
+                    (digitos.isNotEmpty() && it.cnpj.contains(digitos))
+            }
+            .map {
+                PdvAdmin(
+                    id = it.id, nomeFantasia = it.nomeFantasia, cnpj = it.cnpj, status = it.status,
+                    motivoSuspensao = it.motivoSuspensao, cidade = "Petrópolis", donoNome = "Dono (demonstração)",
+                    donoEmail = null, itensPublicados = banco.precosPdv.size,
+                )
+            }
+    }
+
+    override suspend fun suspenderPdv(pdvId: String, motivo: String) {
+        if (motivo.isBlank()) throw ErroAmigavel(ErrosServidor.traduzir("motivo_obrigatorio"))
+        alterarMeu(pdvId) {
+            if (it.status != StatusPdv.APROVADO) throw ErroAmigavel("Estabelecimento não encontrado.")
+            it.copy(status = StatusPdv.SUSPENSO, motivoSuspensao = motivo.trim())
+        }
+    }
+
+    override suspend fun reativarPdv(pdvId: String) = alterarMeu(pdvId) {
+        if (it.status != StatusPdv.SUSPENSO) throw ErroAmigavel("Estabelecimento não encontrado.")
+        it.copy(status = StatusPdv.APROVADO, motivoSuspensao = null)
+    }
+
+    private fun alterarMeu(pdvId: String, mudanca: (MeuPdv) -> MeuPdv) {
+        val i = banco.pdvs.indexOfFirst { it.meu.id == pdvId }
+        if (i < 0) throw ErroAmigavel("Estabelecimento não encontrado.")
+        banco.pdvs[i] = banco.pdvs[i].let { it.copy(meu = mudanca(it.meu)) }
     }
 
     private fun mudarStatus(pdvId: String, status: StatusPdv, motivo: String?) {

@@ -80,6 +80,7 @@ import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.AuthRepositorio
+import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.AcaoErro
 import br.com.tabelapp.ui.comum.DocumentoLegal
@@ -289,6 +290,14 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
             cotacao = c,
             aoDenunciar = { motivo -> vm.denunciar(c, motivo) },
             aoFechar = { sobrePreco = null },
+            aoRemover = if (usuario.tipo == TipoConta.ADMIN) {
+                {
+                    container.pdvs.removerCotacao(c.id)
+                    vm.tirarDosResultados(c.id)
+                }
+            } else {
+                null
+            },
         )
     }
 

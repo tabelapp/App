@@ -15,4 +15,8 @@ object Mensagens {
     fun pagamento(pdvNome: String, descricao: String, valorCentavos: Long, codigo: String): String =
         "Olá! Sou do *$pdvNome* e quero pagar: $descricao — ${Dinheiro.formatar(valorCentavos)}. " +
             "Código do pedido: ${codigo.take(8).uppercase()}"
+
+    /** Dono de estabelecimento suspenso pedindo para conversar sobre a suspensão. */
+    fun suspensao(pdvNome: String, cnpj: String): String =
+        "Olá! Sou do *$pdvNome* (CNPJ ${Cnpj.formatar(cnpj)}) e quero conversar sobre a suspensão do cadastro no Tabelapp."
 }

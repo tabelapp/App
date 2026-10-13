@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -60,10 +61,14 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.R
 import br.com.tabelapp.core.Cnpj
+import br.com.tabelapp.core.ContatoTabelapp
+import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import java.io.File
 
@@ -315,6 +320,24 @@ private fun Situacao(pdvs: List<MeuPdv>, vm: MeuNegocioViewModel, modoDemo: Bool
                             Button(onClick = { vm.novoCadastro(pdv) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Corrigir e enviar de novo")
                             }
+                        }
+                        StatusPdv.SUSPENSO -> {
+                            val contexto = LocalContext.current
+                            Aviso(Icons.Default.Warning, MaterialTheme.colorScheme.error, stringResource(R.string.pdv_suspenso_titulo))
+                            pdv.motivoSuspensao?.let { Text(stringResource(R.string.pdv_suspenso_motivo, it)) }
+                            Text(
+                                stringResource(R.string.pdv_suspenso_texto),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(
+                                onClick = {
+                                    WhatsApp.abrirConversa(
+                                        contexto, ContatoTabelapp.WHATSAPP,
+                                        Mensagens.suspensao(pdv.nomeFantasia, pdv.cnpj),
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(stringResource(R.string.pdv_suspenso_fale_conosco)) }
                         }
                     }
                 }

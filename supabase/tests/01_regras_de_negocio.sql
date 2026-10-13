@@ -1040,4 +1040,77 @@ set role anon;
 select pg_temp.espera_erro($q$select public.excluir_minha_conta()$q$, 'permission denied');
 reset role;
 
+\echo '== Moderação do Admin: preço denunciado, remover preço, suspender e reativar PDV'
+set role authenticated;
+-- Quem não é Admin não modera nada.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro($q$select public.admin_manter_cotacao(current_setting('tabelapp.denunciada')::uuid)$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select public.admin_remover_cotacao(current_setting('tabelapp.denunciada')::uuid)$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select * from public.admin_pdvs()$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select public.admin_suspender_pdv('10000000-0000-4000-a000-000000000001', 'x')$q$, 'sem_permissao');
+do $$ begin
+  assert (select count(*) from public.moderacoes) = 0, 'registro de moderação é só do Admin';
+end $$;
+
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare cot uuid := current_setting('tabelapp.denunciada')::uuid;
+begin
+  -- "Manter": o preço estava certo, as denúncias somem.
+  assert (select denuncias from public.denuncias_mais_frequentes where cotacao_id = cot) >= 1;
+  perform public.admin_manter_cotacao(cot);
+  assert not exists (select 1 from public.denuncias_mais_frequentes where cotacao_id = cot);
+  assert (select denuncias from public.buscar_cotacoes('pao carne e queijo') where id = cot) = 0;
+  -- "Remover": sai da busca, fica no histórico.
+  perform public.admin_remover_cotacao(cot, 'Valor de combo');
+  assert not exists (select 1 from public.cotacoes where id = cot);
+  assert (select acao from public.moderacoes order by id desc limit 1) = 'remover_preco';
+end $$;
+reset role;
+do $$ begin
+  assert exists (select 1 from public.historico_precos
+                 where cotacao_id = current_setting('tabelapp.denunciada')::uuid and operacao = 'excluido');
+end $$;
+
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select pg_temp.espera_erro($q$select public.admin_suspender_pdv('10000000-0000-4000-a000-000000000001', ' ')$q$, 'motivo_obrigatorio');
+do $$
+declare
+  pdv constant uuid := '10000000-0000-4000-a000-000000000001';
+  antes integer;
+begin
+  assert (select status = 'aprovado' from public.admin_pdvs('serra imperial') where id = pdv);
+  assert (select count(*) from public.admin_pdvs('11111111')) = 1, 'busca por CNPJ';
+  select count(*) into antes from public.buscar_cotacoes(null) b join public.lojas l on l.id = b.loja_id where l.pdv_id = pdv;
+  assert antes > 0;
+  perform public.admin_suspender_pdv(pdv, 'Preços fora da realidade');
+  -- Some da busca, mas nada foi apagado.
+  assert (select count(*) from public.buscar_cotacoes(null) b join public.lojas l on l.id = b.loja_id where l.pdv_id = pdv) = 0;
+  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id
+          where l.pdv_id = pdv and c.fonte in ('pdv_manual', 'pdv_excel')) > 0;
+  assert (select status = 'suspenso' and motivo_suspensao = 'Preços fora da realidade' from public.admin_pdvs() where id = pdv);
+end $$;
+-- O dono vê o motivo e não consegue publicar enquanto estiver suspenso.
+set request.jwt.claim.sub = '00000000-0000-4000-a000-000000000001';
+do $$ begin
+  assert (select status = 'suspenso' and motivo_suspensao = 'Preços fora da realidade'
+          from public.meus_pdvs() where id = '10000000-0000-4000-a000-000000000001');
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.pdv_salvar_precos('10000000-0000-4000-a000-000000000001', null, '[{"produto": "Arroz 5kg", "preco_centavos": 100}]')$q$,
+  'pdv_nao_verificado');
+-- Reativar: volta à busca com a tabela que já tinha.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare pdv constant uuid := '10000000-0000-4000-a000-000000000001';
+begin
+  perform public.admin_reativar_pdv(pdv);
+  assert (select count(*) from public.buscar_cotacoes(null) b join public.lojas l on l.id = b.loja_id where l.pdv_id = pdv) > 0;
+  assert (select array_agg(acao order by id) from public.moderacoes)
+         = array['manter_preco', 'remover_preco', 'suspender_pdv', 'reativar_pdv'];
+end $$;
+select pg_temp.espera_erro($q$select public.admin_reativar_pdv('10000000-0000-4000-a000-000000000001')$q$, 'pdv_nao_encontrado');
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'

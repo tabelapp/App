@@ -104,6 +104,12 @@ class BuscaViewModel(
     /** "Esse preço não confere": devolve se registrou (false = a pessoa já tinha avisado). */
     suspend fun denunciar(cotacao: Cotacao, motivo: String?): Boolean = cotacoes.denunciar(cotacao.id, motivo)
 
+    /** Admin removeu o preço: some da lista na hora, sem buscar de novo. */
+    fun tirarDosResultados(cotacaoId: String) {
+        brutos = brutos.filter { it.id != cotacaoId }
+        reaplicarOrdenacao()
+    }
+
     fun aceitarDisclaimer() {
         preferencias.disclaimerAceito = true
         _estado.update { it.copy(mostrarDisclaimer = false) }

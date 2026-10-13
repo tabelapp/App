@@ -6,9 +6,11 @@ import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
+import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.ResultadoImportacao
@@ -87,4 +89,21 @@ interface PdvRepositorio {
     /** Nomes de estabelecimento sugeridos nas NFs, esperando confirmação. */
     suspend fun nomesSugeridos(): List<NomeSugerido>
     suspend fun decidirNome(cnpj: String, nome: String, aprovar: Boolean)
+
+    // --- Moderação (Admin) ---
+    /** Preços com denúncia "Esse preço não confere", os mais denunciados primeiro. */
+    suspend fun precosDenunciados(): List<PrecoDenunciado>
+
+    /** Tira o preço da busca (fica no histórico como excluído). */
+    suspend fun removerCotacao(cotacaoId: String, motivo: String? = null)
+
+    /** O preço está certo: limpa as denúncias dele. */
+    suspend fun manterCotacao(cotacaoId: String)
+
+    /** Estabelecimentos aprovados ou suspensos; [busca] = parte do nome ou do CNPJ. */
+    suspend fun estabelecimentos(busca: String?): List<PdvAdmin>
+
+    /** Suspende (preços oficiais saem da busca; nada é apagado). O dono vê o [motivo]. */
+    suspend fun suspenderPdv(pdvId: String, motivo: String)
+    suspend fun reativarPdv(pdvId: String)
 }

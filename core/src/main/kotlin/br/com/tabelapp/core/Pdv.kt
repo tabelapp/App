@@ -7,7 +7,9 @@ import java.time.LocalDate
 enum class StatusPdv(val codigo: String) {
     PENDENTE("pendente"),
     APROVADO("aprovado"),
-    REJEITADO("rejeitado");
+    REJEITADO("rejeitado"),
+    /** Aprovado e depois suspenso pelo Admin: preços oficiais fora da busca, dados guardados. */
+    SUSPENSO("suspenso");
 
     companion object {
         fun doCodigo(codigo: String?): StatusPdv = entries.firstOrNull { it.codigo == codigo } ?: PENDENTE
@@ -27,6 +29,8 @@ data class MeuPdv(
     /** true = "modo rede": a tabela de preços vale para todas as lojas. */
     val modoRede: Boolean = true,
     val site: String? = null,
+    /** Motivo da suspensão (só quando [status] é SUSPENSO); o dono vê em "Meu negócio". */
+    val motivoSuspensao: String? = null,
 )
 
 /** Uma loja do PDV. [endereco] é o completo (para exibir); os outros campos são para editar. */
@@ -157,6 +161,34 @@ data class NomeSugerido(
     val sugestoes: Int,
     val razaoSocial: String?,
     val endereco: String?,
+)
+
+/** Preço denunciado ("Esse preço não confere"), na fila de moderação do Admin. */
+data class PrecoDenunciado(
+    val cotacaoId: String,
+    val produto: String,
+    val precoCentavos: Long,
+    val pdvNome: String?,
+    val oficial: Boolean,
+    val parteDeCombo: Boolean,
+    val denuncias: Int,
+    val comboOuPromocao: Int,
+    val precoMudou: Int,
+    val produtoErrado: Int,
+    val outros: Int,
+)
+
+/** Estabelecimento aprovado ou suspenso, na lista de moderação do Admin. */
+data class PdvAdmin(
+    val id: String,
+    val nomeFantasia: String,
+    val cnpj: String,
+    val status: StatusPdv,
+    val motivoSuspensao: String?,
+    val cidade: String?,
+    val donoNome: String?,
+    val donoEmail: String?,
+    val itensPublicados: Int,
 )
 
 /** Resultado da prévia de uma importação de planilha (função pdv_salvar_precos com simular). */
