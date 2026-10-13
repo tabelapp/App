@@ -1004,4 +1004,40 @@ do $$ begin
 end $$;
 reset role;
 
+\echo '== Minha conta: editar nome, aceitar termos e excluir a conta pelo app'
+set role authenticated;
+set request.jwt.claim.sub = 'e0000000-0000-4000-a000-00000000000e';
+select pg_temp.espera_erro($q$select public.atualizar_meu_nome(' ')$q$, 'nome_invalido');
+do $$ begin
+  perform public.atualizar_meu_nome('  Eva Souza ');
+  perform public.registrar_aceite_termos('2026-10-13');
+  assert (select nome = 'Eva Souza' and termos_versao = '2026-10-13' and termos_aceitos_em is not null
+          from public.usuarios where id = auth.uid());
+  -- Eva tem uma denúncia (seção anterior): some junto com a conta.
+  assert (select count(*) from public.denuncias_preco) = 1;
+  perform public.excluir_minha_conta();
+end $$;
+reset role;
+do $$ begin
+  assert not exists (select 1 from auth.users where id = 'e0000000-0000-4000-a000-00000000000e');
+  assert not exists (select 1 from public.usuarios where id = 'e0000000-0000-4000-a000-00000000000e');
+  assert not exists (select 1 from public.denuncias_preco where usuario_id = 'e0000000-0000-4000-a000-00000000000e');
+end $$;
+-- Estabelecimento: ao excluir a conta, o PDV e a tabela de preços saem; o histórico fica, anônimo.
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+select public.excluir_minha_conta();
+reset role;
+do $$ begin
+  assert not exists (select 1 from public.pdvs where dono_id = 'b0000000-0000-4000-a000-00000000000b');
+  assert not exists (select 1 from public.cotacoes c join public.lojas l on l.id = c.loja_id
+                     where l.pdv_id = '10000000-0000-4000-b000-000000000001');
+  assert exists (select 1 from public.historico_precos where pdv_id = '10000000-0000-4000-b000-000000000001');
+  assert not exists (select 1 from public.historico_precos where enviado_por = 'b0000000-0000-4000-a000-00000000000b');
+end $$;
+-- Sem login, nada acontece.
+set role anon;
+select pg_temp.espera_erro($q$select public.excluir_minha_conta()$q$, 'permission denied');
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'

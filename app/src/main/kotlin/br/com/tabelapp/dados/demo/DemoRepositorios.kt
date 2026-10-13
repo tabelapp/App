@@ -86,6 +86,20 @@ class DemoAuthRepositorio : AuthRepositorio {
         _estado.value = EstadoSessao.Deslogado
     }
 
+    override suspend fun atualizarNome(nome: String) {
+        delay(200)
+        if (nome.trim().length < 2) throw ErroAmigavel(ErrosServidor.traduzir("nome_invalido"))
+        val atual = (_estado.value as? EstadoSessao.Logado)?.usuario ?: return
+        _estado.value = EstadoSessao.Logado(atual.copy(nome = nome.trim()))
+    }
+
+    override suspend fun registrarAceiteTermos(versao: String) {}
+
+    override suspend fun excluirConta() {
+        delay(400)
+        _estado.value = EstadoSessao.Deslogado
+    }
+
     override suspend fun enviarCodigoSenha(email: String) {
         delay(400)
         if (!email.contains('@')) throw ErroAmigavel("Informe um e-mail válido.")

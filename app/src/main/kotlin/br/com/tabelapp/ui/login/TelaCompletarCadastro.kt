@@ -24,12 +24,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.AppContainer
+import br.com.tabelapp.R
+import br.com.tabelapp.core.Termos
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.ui.comum.AceiteTermos
 import kotlinx.coroutines.launch
 
 /** Primeiro acesso pelo Google: falta o nome e se a pessoa é CPF (pesquisa) ou CNPJ (comércio). */
@@ -39,6 +43,8 @@ fun TelaCompletarCadastro(container: AppContainer, usuario: Usuario) {
     var nome by rememberSaveable { mutableStateOf(usuario.nome.orEmpty()) }
     var tipo by rememberSaveable { mutableStateOf(TipoConta.CPF) }
     var enviando by remember { mutableStateOf(false) }
+    var aceitouTermos by rememberSaveable { mutableStateOf(false) }
+    val textoAceiteObrigatorio = stringResource(R.string.legal_aceite_obrigatorio)
     var erro by remember { mutableStateOf<String?>(null) }
 
     Surface(Modifier.fillMaxSize()) {
@@ -70,18 +76,24 @@ fun TelaCompletarCadastro(container: AppContainer, usuario: Usuario) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            AceiteTermos(aceitouTermos, aoMudar = { aceitouTermos = it; erro = null })
+
             erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             Button(
                 onClick = {
                     if (nome.isBlank()) {
                         erro = "Informe seu nome."
+                    } else if (!aceitouTermos) {
+                        erro = textoAceiteObrigatorio
                     } else {
                         enviando = true
                         escopo.launch {
                             try {
+                                container.preferencias.aceiteTermosPendente = Termos.VERSAO
                                 container.auth.concluirCadastro(nome, tipo)
                             } catch (e: ErroAmigavel) {
+                                container.preferencias.aceiteTermosPendente = null
                                 erro = e.message
                             } finally {
                                 enviando = false

@@ -53,6 +53,7 @@ object ErrosServidor {
         "validade_longa" to "A validade pode ser de no máximo 30 dias a partir de hoje.",
         "limite_catalogo" to "Você chegou ao limite de itens do seu plano. Seus itens continuam publicados e você pode atualizar os preços quando quiser.",
         "unidade_invalida" to "Escolha uma unidade da lista.",
+        "nome_invalido" to "O nome precisa ter entre 2 e 80 letras.",
         // Mensagens do serviço de login (Supabase Auth).
         "already registered" to "Este e-mail já tem cadastro. Entre com ele ou use \"Esqueci a senha\".",
         "Password should be" to "A senha precisa ter pelo menos 6 caracteres.",

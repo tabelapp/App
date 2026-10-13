@@ -79,10 +79,14 @@ import br.com.tabelapp.core.Destaque
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.TipoErro
+import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.AcaoErro
+import br.com.tabelapp.ui.comum.DocumentoLegal
 import br.com.tabelapp.ui.comum.PainelErro
+import br.com.tabelapp.ui.comum.TelaTextoLegal
 import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import kotlinx.coroutines.launch
@@ -137,7 +141,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                 expandedHeight = (ALTURA_CABECALHO - barraDeStatus).coerceAtLeast(40.dp),
                 colors = coresBarraTopo(),
                 actions = {
-                    MenuUsuario(usuario, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
+                    MenuUsuario(usuario, container.auth, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
                 },
             )
         },
@@ -301,11 +305,15 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
 }
 
 @Composable
-private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
+private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> Unit) {
     var aberto by remember { mutableStateOf(false) }
     var quemSomos by remember { mutableStateOf(false) }
+    var minhaConta by remember { mutableStateOf(false) }
+    var documento by remember { mutableStateOf<DocumentoLegal?>(null) }
     val contexto = LocalContext.current
     if (quemSomos) QuemSomos(aoFechar = { quemSomos = false })
+    if (minhaConta) MinhaConta(usuario, auth, aoFechar = { minhaConta = false })
+    documento?.let { TelaTextoLegal(it, aoFechar = { documento = null }) }
     Box {
         IconButton(onClick = { aberto = true }) {
             Icon(Icons.Default.MoreVert, contentDescription = "Menu")
@@ -317,6 +325,7 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             HorizontalDivider()
+            DropdownMenuItem(text = { Text(stringResource(R.string.menu_minha_conta)) }, onClick = { aberto = false; minhaConta = true })
             DropdownMenuItem(text = { Text("Quem somos") }, onClick = { aberto = false; quemSomos = true })
             DropdownMenuItem(
                 text = { Text("Fale conosco (WhatsApp)") },
@@ -324,6 +333,14 @@ private fun MenuUsuario(usuario: Usuario, aoSair: () -> Unit) {
                     aberto = false
                     WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.FALE_CONOSCO)
                 },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.legal_privacidade)) },
+                onClick = { aberto = false; documento = DocumentoLegal.PRIVACIDADE },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.legal_termos)) },
+                onClick = { aberto = false; documento = DocumentoLegal.TERMOS },
             )
             HorizontalDivider()
             DropdownMenuItem(text = { Text("Sair") }, onClick = { aberto = false; aoSair() })

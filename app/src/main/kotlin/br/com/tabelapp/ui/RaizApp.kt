@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,6 +26,16 @@ fun RaizApp(container: AppContainer) {
     val estado by container.auth.estado.collectAsStateWithLifecycle()
     // Aba aberta: guardada aqui (fora das telas que somem durante o "carregando").
     val abaSalva = rememberSaveable { mutableStateOf("BUSCAR") }
+
+    // Conta recém-criada: grava a versão dos Termos aceita no cadastro.
+    val logado = (estado as? EstadoSessao.Logado)?.usuario
+    LaunchedEffect(logado?.id, logado?.cadastroCompleto) {
+        val versao = container.preferencias.aceiteTermosPendente
+        if (logado != null && logado.cadastroCompleto && versao != null) {
+            runCatching { container.auth.registrarAceiteTermos(versao) }
+                .onSuccess { container.preferencias.aceiteTermosPendente = null }
+        }
+    }
 
     when (val e = estado) {
         EstadoSessao.Carregando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

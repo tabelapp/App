@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,9 +48,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
+import br.com.tabelapp.core.Termos
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.TipoConta
+import br.com.tabelapp.ui.comum.AceiteTermos
 import br.com.tabelapp.ui.comum.PainelErro
 import br.com.tabelapp.ui.tema.FundoClaro
 import br.com.tabelapp.ui.tema.TabelappTema
@@ -67,6 +70,8 @@ fun TelaLogin(container: AppContainer) {
     var erro by remember { mutableStateOf<String?>(null) }
     var aviso by remember { mutableStateOf<String?>(null) }
     var esqueciSenha by rememberSaveable { mutableStateOf(false) }
+    var aceitouTermos by rememberSaveable { mutableStateOf(false) }
+    val textoAceiteObrigatorio = stringResource(R.string.legal_aceite_obrigatorio)
 
     val entrarComGoogle = container.auth.lembrarLoginGoogle(aoFalhar = { erro = it })
 
@@ -81,16 +86,23 @@ fun TelaLogin(container: AppContainer) {
             erro = "A senha precisa ter pelo menos 6 caracteres."
             return
         }
+        if (criandoConta && !aceitouTermos) {
+            erro = textoAceiteObrigatorio
+            return
+        }
         enviando = true
         escopo.launch {
             try {
                 if (criandoConta) {
+                    // O aceite é gravado assim que a conta entrar (ver RaizApp).
+                    container.preferencias.aceiteTermosPendente = Termos.VERSAO
                     val ativa = container.auth.cadastrarComEmail(nome, email, senha, tipo)
                     if (!ativa) aviso = "Enviamos um link de confirmação para $email. Confirme e depois entre."
                 } else {
                     container.auth.entrarComEmail(email, senha)
                 }
             } catch (e: ErroAmigavel) {
+                if (criandoConta) container.preferencias.aceiteTermosPendente = null
                 erro = e.message
             } finally {
                 enviando = false
@@ -174,6 +186,7 @@ fun TelaLogin(container: AppContainer) {
                     if (criandoConta) {
                         Text("Como você vai usar o Tabelapp?", style = MaterialTheme.typography.labelLarge)
                         SeletorTipoConta(tipo, aoEscolher = { tipo = it })
+                        AceiteTermos(aceitouTermos, aoMudar = { aceitouTermos = it; erro = null })
                     }
 
                     erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }

@@ -23,6 +23,15 @@ interface AuthRepositorio {
 
     suspend fun sair()
 
+    /** Minha conta: troca o nome exibido. */
+    suspend fun atualizarNome(nome: String)
+
+    /** Guarda a versão dos Termos/Política aceita (no cadastro). */
+    suspend fun registrarAceiteTermos(versao: String)
+
+    /** Exclui a conta e todos os dados ligados a ela (sem volta) e sai do app. */
+    suspend fun excluirConta()
+
     /** "Esqueci a senha": manda um código de 6 números para o e-mail cadastrado. */
     suspend fun enviarCodigoSenha(email: String)
 

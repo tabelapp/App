@@ -111,6 +111,8 @@ class SupabaseAuthRepositorio(
     override val estado: StateFlow<EstadoSessao> = _estado.asStateFlow()
 
     private val _sessaoExpirada = MutableStateFlow(false)
+    /** "Sair" ou "Excluir conta": não é sessão vencida. */
+    @Volatile private var saindoDeProposito = false
     override val sessaoExpirada: StateFlow<Boolean> = _sessaoExpirada.asStateFlow()
 
     init {
@@ -119,11 +121,12 @@ class SupabaseAuthRepositorio(
                 when (status) {
                     is SessionStatus.Authenticated -> {
                         _sessaoExpirada.value = false
+                        saindoDeProposito = false
                         carregarPerfil()
                     }
                     is SessionStatus.NotAuthenticated -> {
                         // Estava logado e não tocou em "Sair": a sessão venceu (ex.: senha trocada, token inválido).
-                        if (_estado.value is EstadoSessao.Logado && !status.isSignOut) {
+                        if (_estado.value is EstadoSessao.Logado && !status.isSignOut && !saindoDeProposito) {
                             _sessaoExpirada.value = true
                             Erros.registrar("sessao", "sessão terminou sem sair")
                         }
@@ -224,7 +227,26 @@ class SupabaseAuthRepositorio(
     }
 
     override suspend fun sair() = traduzindoErros {
+        saindoDeProposito = true
         supabase.auth.signOut()
+    }
+
+    override suspend fun atualizarNome(nome: String) = traduzindoErros {
+        supabase.postgrest.rpc("atualizar_meu_nome", buildJsonObject { put("p_nome", nome.trim()) })
+        carregarPerfil()
+    }
+
+    override suspend fun registrarAceiteTermos(versao: String) = traduzindoErros {
+        supabase.postgrest.rpc("registrar_aceite_termos", buildJsonObject { put("p_versao", versao) })
+        Unit
+    }
+
+    override suspend fun excluirConta() = traduzindoErros {
+        supabase.postgrest.rpc("excluir_minha_conta")
+        // A conta não existe mais no servidor: só limpa a sessão guardada no celular.
+        saindoDeProposito = true
+        runCatching { supabase.auth.clearSession() }
+        _estado.value = EstadoSessao.Deslogado
     }
 
     @Composable

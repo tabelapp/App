@@ -120,4 +120,29 @@
     <string name="nf_combo_apoio">Se o item foi vendido dentro de um combo, marque. O valor pode ser diferente do preço avulso.</string>
     <string name="compartilhar_aviso_usuario">Preço informado por usuário e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
     <string name="compartilhar_aviso_estabelecimento">Preço informado por estabelecimento e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
+    <!-- Minha conta, termos e privacidade -->
+    <string name="legal_termos">Termos de uso</string>
+    <string name="legal_privacidade">Política de privacidade</string>
+    <string name="legal_aceite">Li e aceito os Termos de uso e a Política de privacidade.</string>
+    <string name="legal_aceite_obrigatorio">Para criar a conta, leia e aceite os Termos de uso e a Política de privacidade.</string>
+    <string name="legal_fechar">Fechar</string>
+    <string name="menu_minha_conta">Minha conta</string>
+    <string name="conta_titulo">Minha conta</string>
+    <string name="conta_nome">Seu nome</string>
+    <string name="conta_salvar_nome">Salvar nome</string>
+    <string name="conta_nome_salvo">Nome atualizado.</string>
+    <string name="conta_email">E-mail: %1$s</string>
+    <string name="conta_tipo_pessoa">Conta de pessoa (pesquisa de preços)</string>
+    <string name="conta_tipo_estabelecimento">Conta de estabelecimento</string>
+    <string name="conta_tipo_admin">Conta de administração</string>
+    <string name="conta_documentos">Documentos</string>
+    <string name="conta_excluir">Excluir minha conta</string>
+    <string name="conta_excluir_explicacao">Você pode excluir a sua conta quando quiser. Os preços que você enviou continuam ajudando a cidade, mas sem nenhuma ligação com você.</string>
+    <string name="conta_excluir_titulo">Excluir a sua conta?</string>
+    <string name="conta_excluir_texto">Isso apaga a sua conta, as suas listas de compras e os seus dados pessoais, e não dá para desfazer. Os preços que você enviou ficam no histórico, sem identificar você.</string>
+    <string name="conta_excluir_texto_pdv">Como a sua conta é de estabelecimento, o cadastro da empresa, as lojas, a tabela de preços e as promoções também saem do Tabelapp.</string>
+    <string name="conta_excluir_digite">Para confirmar, digite EXCLUIR</string>
+    <string name="conta_excluir_palavra">EXCLUIR</string>
+    <string name="conta_excluir_confirmar">Excluir conta</string>
+    <string name="conta_excluir_cancelar">Cancelar</string>
 </resources>
