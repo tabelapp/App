@@ -86,6 +86,8 @@ secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` do repositório; `GOOGLE_WEB_CLIENT
    diz se o projeto responde, se a chave está certa e se todas as migrações foram aplicadas.
 9. **Virar Admin** (para aprovar cadastros de PDV na aba "Admin"): no *SQL Editor*,
    `update public.usuarios set tipo = 'admin' where email = 'seu@email';`
+10. **Play Store:** a automação *Actions → "Versão para a Play Store"* gera o AAB assinado e um APK de
+    produção. Chave de envio e secrets: [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md).
 
 ## Testes
 

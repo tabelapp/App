@@ -24,8 +24,10 @@ android {
         applicationId = "br.com.tabelapp"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Na Play Store cada envio precisa de um número maior que o anterior: a CI de
+        // publicação passa VERSAO_CODIGO (contador do GitHub) e VERSAO_NOME (ex.: 1.0.0).
+        versionCode = config("VERSAO_CODIGO").toIntOrNull() ?: 1
+        versionName = config("VERSAO_NOME").ifBlank { "0.1.0" }
 
         buildConfigField("String", "SUPABASE_URL", "\"${config("SUPABASE_URL")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${config("SUPABASE_ANON_KEY")}\"")
@@ -47,12 +49,24 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        // Chave de ENVIO para a Play Store (upload key). Nunca fica no repositório: a CI
+        // monta o arquivo a partir dos secrets ASSINATURA_*. Sem eles, o release sai sem
+        // assinatura (serve só para conferir que compila).
+        if (config("ASSINATURA_ARQUIVO").isNotBlank()) {
+            create("envio") {
+                storeFile = file(config("ASSINATURA_ARQUIVO"))
+                storePassword = config("ASSINATURA_SENHA")
+                keyAlias = config("ASSINATURA_ALIAS")
+                keyPassword = config("ASSINATURA_SENHA_CHAVE").ifBlank { config("ASSINATURA_SENHA") }
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("envio")
         }
     }
 

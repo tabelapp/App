@@ -9,7 +9,9 @@ Essenciais para lançar:
       suspender/reativar um PDV aprovado com motivo (o dono vê em "Meu negócio").
 - [x] **Coordenadas das lojas cadastradas:** o painel do PDV localiza o endereço e grava no banco (loja nova,
       endereço editado, lojas antigas); "Estou na loja" usa o GPS; botão do Admin para as que faltam.
-- [ ] **Versão para a Play Store:** pacote AAB assinado com a chave de produção, número de versão automático.
+- [~] **Versão para a Play Store:** pronto no app — automação "Versão para a Play Store" (AAB + APK de
+      produção, número de versão automático, assinatura pelos secrets ASSINATURA_*). Falta o fundador criar
+      a chave de envio e cadastrar os secrets (`docs/PLAY_STORE.md`).
 
 Importantes, podem vir logo depois:
 - [ ] **Pix automático** (Mercado Pago ou Efí) — hoje o pagamento é manual (WhatsApp + confirmação do Admin).
@@ -24,7 +26,9 @@ Importantes, podem vir logo depois:
       para os usuários; colar o modelo de `docs/EMAIL_SENHA.md`.
 - [ ] **Supabase de produção:** plano pago (não pausa, tem backup) ou rotina que mantenha ativo.
 - [ ] **Google Play Console:** conta de desenvolvedor (US$ 25, uma vez), ficha da loja (ícone, telas,
-      descrição), classificação etária, formulário de segurança de dados.
+      descrição), classificação etária, formulário de segurança de dados (sugestão em `docs/PLAY_STORE.md`).
+- [ ] **Chave de envio** da Play Store + secrets `ASSINATURA_*` no GitHub (`docs/PLAY_STORE.md`); depois,
+      SHA-1 da assinatura do Google no Maps e no login com Google.
 - [ ] **Política de privacidade publicada** num endereço web (exigida pela Play Store): publicar
       `docs/site/privacidade.html` e `termos.html` (responsável e e-mail já preenchidos; depois de mudar os
       textos, rodar `python3 scripts/gerar-paginas-legais.py`). Recomendado: revisão de um advogado.
