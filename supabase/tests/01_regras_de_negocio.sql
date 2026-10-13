@@ -1113,4 +1113,48 @@ end $$;
 select pg_temp.espera_erro($q$select public.admin_reativar_pdv('10000000-0000-4000-a000-000000000001')$q$, 'pdv_nao_encontrado');
 reset role;
 
+\echo '== Coordenadas das lojas: limpar ao mudar o endereço, gravar pelo dono ou Admin'
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-4000-a000-000000000001';
+do $$
+declare loja constant uuid := '20000000-0000-4000-a000-000000000002';
+begin
+  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+  -- Mudou só o telefone: a coordenada fica.
+  perform public.atualizar_loja(loja, 'Loja Valparaíso', 'Rua Coronel Veiga, 1200', 'Valparaíso', null, '(24) 2222-9999', null);
+  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+  -- Mudou o endereço: a coordenada antiga sai (o app localiza de novo).
+  perform public.atualizar_loja(loja, 'Loja Valparaíso', 'Rua Coronel Veiga, 1500', 'Valparaíso', null, '(24) 2222-9999', null);
+  assert (select latitude is null and longitude is null and coordenadas_origem is null
+          from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+  perform public.definir_coordenadas_loja(loja, -22.517, -43.172, 'aparelho');
+  assert (select latitude = -22.517 and longitude = -43.172 and coordenadas_origem = 'aparelho'
+          from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+end $$;
+select pg_temp.espera_erro(
+  $q$select public.definir_coordenadas_loja('20000000-0000-4000-a000-000000000002', 0, 0)$q$, 'coordenada_invalida');
+select pg_temp.espera_erro(
+  $q$select public.definir_coordenadas_loja('20000000-0000-4000-a000-000000000002', -43.17, -22.51)$q$, 'coordenada_invalida');
+select pg_temp.espera_erro(
+  $q$select public.definir_coordenadas_loja('00000000-0000-4000-a000-0000000000ff', -22.5, -43.1)$q$, 'loja_nao_encontrada');
+-- Outra pessoa não mexe na coordenada da loja.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.definir_coordenadas_loja('20000000-0000-4000-a000-000000000002', -22.5, -43.1)$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select * from public.admin_lojas_sem_coordenadas()$q$, 'sem_permissao');
+-- O Admin vê as lojas sem coordenada e grava.
+reset role;
+update public.lojas set latitude = null, longitude = null where id = '20000000-0000-4000-a000-000000000003';
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare loja constant uuid := '20000000-0000-4000-a000-000000000003';
+begin
+  assert exists (select 1 from public.admin_lojas_sem_coordenadas() where id = loja and endereco like 'Avenida Joaquim Rolla%');
+  perform public.definir_coordenadas_loja(loja, -22.5275, -43.2105);
+  assert not exists (select 1 from public.admin_lojas_sem_coordenadas() where id = loja);
+  assert (select latitude = -22.5275 from public.buscar_cotacoes(null) where loja_id = loja limit 1);
+end $$;
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'

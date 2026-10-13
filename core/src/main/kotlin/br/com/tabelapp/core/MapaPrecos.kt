@@ -23,13 +23,19 @@ data class PinoMapa(
 
     /** Endereço para localizar no mapa (o Geocoder precisa da cidade/UF). */
     val enderecoParaBusca: String?
-        get() = endereco?.takeIf { it.isNotBlank() }?.let { e ->
-            val n = Texto.normalizar(e)
-            if (n.contains("petropolis") || Regex("\\brj\\b").containsMatchIn(n)) "$e, Brasil" else "$e, Petrópolis - RJ, Brasil"
-        }
+        get() = endereco?.let { MapaPrecos.enderecoParaGeocoder(it) }
 }
 
 object MapaPrecos {
+
+    /** Endereço completo para o Geocoder (sem cidade, assume Petrópolis - RJ); null = vazio. */
+    fun enderecoParaGeocoder(endereco: String): String? = endereco.takeIf { it.isNotBlank() }?.let { e ->
+        val n = Texto.normalizar(e)
+        if (n.contains("petropolis") || Regex("\\brj\\b").containsMatchIn(n)) "$e, Brasil" else "$e, Petrópolis - RJ, Brasil"
+    }
+
+    /** Coordenada plausível para uma loja (dentro do Brasil; descarta 0,0 e latitude/longitude trocadas). */
+    fun coordenadaValida(p: PontoGeo): Boolean = p.latitude in -34.0..6.0 && p.longitude in -74.0..-28.0
 
     /** @param idsSelo quem tem o selo "Menor preço lançado" na busca (null = o menor preço do resultado). */
     fun pinos(cotacoes: List<Cotacao>, idsSelo: Set<String>? = null): List<PinoMapa> {

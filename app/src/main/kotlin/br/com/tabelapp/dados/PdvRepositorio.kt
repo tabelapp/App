@@ -3,6 +3,7 @@ package br.com.tabelapp.dados
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.LojaPdv
+import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
@@ -10,6 +11,7 @@ import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
+import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
@@ -60,6 +62,9 @@ interface PdvRepositorio {
     suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?)
     suspend fun atualizarLoja(loja: LojaPdv)
 
+    /** Grava o pino da loja no mapa. [peloAparelho] = "Estou na loja" (localização do celular). */
+    suspend fun definirCoordenadas(lojaId: String, ponto: PontoGeo, peloAparelho: Boolean = false)
+
     /** Planilha: prévia (o que entra e o que ficaria fora do limite) e importação de verdade. */
     suspend fun simularPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): ResultadoImportacao
     suspend fun importarPlanilha(pdvId: String, lojaId: String, linhas: List<Planilha.Linha>): ResultadoImportacao
@@ -106,4 +111,7 @@ interface PdvRepositorio {
     /** Suspende (preços oficiais saem da busca; nada é apagado). O dono vê o [motivo]. */
     suspend fun suspenderPdv(pdvId: String, motivo: String)
     suspend fun reativarPdv(pdvId: String)
+
+    /** Lojas ainda sem pino no mapa (o Admin localiza de uma vez). */
+    suspend fun lojasSemCoordenadas(): List<LojaSemLocal>
 }

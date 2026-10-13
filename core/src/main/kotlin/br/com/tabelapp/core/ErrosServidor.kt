@@ -39,6 +39,8 @@ object ErrosServidor {
         "pdv_nao_verificado" to "Seu cadastro ainda não foi aprovado.",
         "pdv_nao_encontrado" to "Cadastro não encontrado (talvez já analisado).",
         "motivo_obrigatorio" to "Informe o motivo.",
+        "coordenada_invalida" to "Não consegui marcar a loja no mapa: a localização parece errada. Tente de novo.",
+        "loja_nao_encontrada" to "Loja não encontrada.",
         "chave_obrigatoria" to "Leia o QR Code ou digite os 44 números da nota.",
         "nf_fora_do_rj" to "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ.",
         "limite_notas" to "Você já enviou muitas notas hoje. Tente de novo amanhã.",

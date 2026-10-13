@@ -7,8 +7,8 @@ Essenciais para lançar:
       e com aceite no cadastro. Páginas web em `docs/site/` (falta publicar).
 - [x] **Moderação do Admin no app:** preços denunciados (Remover/Manter), "Remover este preço" no ⓘ do card,
       suspender/reativar um PDV aprovado com motivo (o dono vê em "Meu negócio").
-- [ ] **Coordenadas das lojas cadastradas:** localizar o endereço no cadastro/edição e guardar no banco
-      (pino certo no mapa e distância no card).
+- [x] **Coordenadas das lojas cadastradas:** o painel do PDV localiza o endereço e grava no banco (loja nova,
+      endereço editado, lojas antigas); "Estou na loja" usa o GPS; botão do Admin para as que faltam.
 - [ ] **Versão para a Play Store:** pacote AAB assinado com a chave de produção, número de versão automático.
 
 Importantes, podem vir logo depois:

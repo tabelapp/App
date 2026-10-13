@@ -3,6 +3,7 @@ package br.com.tabelapp.core
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -31,5 +32,16 @@ class MapaPrecosTest {
         assertEquals("Rua 2, Centro, Petrópolis - RJ, Brasil",
             MapaPrecos.pinos(listOf(c("a", 1, "X", "Rua 2, Centro, Petrópolis - RJ")))[0].enderecoParaBusca)
         assertNull(MapaPrecos.pinos(listOf(c("a", 1, "X", " ")))[0].enderecoParaBusca)
+    }
+
+    @Test fun `loja usa o mesmo endereco completo para o mapa`() {
+        val loja = LojaPdv("l1", null, "Rua do Imperador, 500, Centro, Petrópolis - RJ", null)
+        assertEquals("Rua do Imperador, 500, Centro, Petrópolis - RJ, Brasil", loja.enderecoParaMapa)
+    }
+
+    @Test fun `coordenada da loja precisa estar no Brasil`() {
+        assertTrue(MapaPrecos.coordenadaValida(PontoGeo(-22.5058, -43.1790)))
+        assertFalse(MapaPrecos.coordenadaValida(PontoGeo(0.0, 0.0)))
+        assertFalse(MapaPrecos.coordenadaValida(PontoGeo(-43.17, -22.5)), "latitude e longitude trocadas")
     }
 }

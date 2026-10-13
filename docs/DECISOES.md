@@ -253,6 +253,19 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
   tudo como estava.
 - Toda ação fica registrada na tabela `moderacoes` (só o Admin lê).
 
+## Coordenadas das lojas (migração `20261013002200`)
+
+- O app localiza o endereço da loja no próprio aparelho (Geocoder do Android, sem chave e sem custo) e
+  grava a coordenada em `lojas` pela função `definir_coordenadas_loja` (dono do PDV ou Admin; só aceita
+  ponto dentro do Brasil).
+- Quando: ao abrir o painel do PDV (cobre loja recém-aprovada, endereço editado e lojas antigas). Mudou o
+  endereço sem coordenada nova? O banco apaga a antiga (pino errado é pior que nenhum) e o painel localiza
+  de novo.
+- Endereço não encontrado: o dono toca em **"Estou na loja"** e a localização do celular vira o pino
+  (`coordenadas_origem = 'aparelho'`). Pode usar também para ajustar um pino impreciso.
+- Admin: botão **"Localizar lojas sem pino"** (função `admin_lojas_sem_coordenadas`).
+- Com coordenada gravada, o mapa usa o ponto exato e a busca calcula a distância no card.
+
 ## Segurança (resumo)
 
 - Nada é acessível sem login.

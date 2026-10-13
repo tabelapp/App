@@ -13,6 +13,7 @@ import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
+import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
@@ -467,7 +468,13 @@ private data class LojaPdvDto(
     val cidade: String? = null,
     val uf: String? = null,
     val whatsapp: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    @SerialName("coordenadas_origem") val coordenadasOrigem: String? = null,
 )
+
+@Serializable
+private data class LojaSemLocalDto(val id: String, val nome: String? = null, val endereco: String)
 
 @Serializable
 private data class ImportacaoDto(
@@ -628,8 +635,28 @@ class SupabasePdvRepositorio(
         supabase.postgrest.rpc("minhas_lojas", buildJsonObject { put("p_pdv_id", pdvId) })
             .decodeList<LojaPdvDto>()
             .map {
-                LojaPdv(it.id, it.nome, it.endereco, it.telefone, it.logradouro.orEmpty(), it.bairro, it.cidade, it.uf, it.whatsapp)
+                LojaPdv(
+                    it.id, it.nome, it.endereco, it.telefone, it.logradouro.orEmpty(), it.bairro, it.cidade, it.uf, it.whatsapp,
+                    local = if (it.latitude != null && it.longitude != null) PontoGeo(it.latitude, it.longitude) else null,
+                    localPeloAparelho = it.coordenadasOrigem == "aparelho",
+                )
             }
+    }
+
+    override suspend fun definirCoordenadas(lojaId: String, ponto: PontoGeo, peloAparelho: Boolean) = traduzindoErros {
+        supabase.postgrest.rpc("definir_coordenadas_loja", buildJsonObject {
+            put("p_loja_id", lojaId)
+            put("p_lat", ponto.latitude)
+            put("p_lng", ponto.longitude)
+            put("p_origem", if (peloAparelho) "aparelho" else "endereco")
+        })
+        Unit
+    }
+
+    override suspend fun lojasSemCoordenadas(): List<LojaSemLocal> = traduzindoErros {
+        supabase.postgrest.rpc("admin_lojas_sem_coordenadas").decodeList<LojaSemLocalDto>().map {
+            LojaSemLocal(it.id, it.nome, it.endereco)
+        }
     }
 
     override suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?) = traduzindoErros {

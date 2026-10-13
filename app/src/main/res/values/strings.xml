@@ -188,4 +188,18 @@
     <string name="pdv_suspenso_motivo">Motivo: %1$s</string>
     <string name="pdv_suspenso_texto">Enquanto o cadastro estiver suspenso, seus preços e banners não aparecem na busca. Nada foi apagado: ao reativar, tudo volta como estava. Fale com a gente para resolver.</string>
     <string name="pdv_suspenso_fale_conosco">Fale conosco (WhatsApp)</string>
+
+    <!-- Pino da loja no mapa -->
+    <string name="loja_mapa_ok">Loja no mapa (pelo endereço)</string>
+    <string name="loja_mapa_ok_aparelho">Loja no mapa (pela localização do celular)</string>
+    <string name="loja_mapa_ajustar">Ajustar</string>
+    <string name="loja_mapa_localizando">Localizando a loja no mapa…</string>
+    <string name="loja_mapa_sem_pino">A loja ainda não está no mapa.</string>
+    <string name="loja_mapa_nao_achou">Não encontramos este endereço no mapa. Confira o endereço em \"Editar dados\" ou, estando na loja, marque pelo celular.</string>
+    <string name="loja_mapa_estou_titulo">Marcar a loja pelo celular?</string>
+    <string name="loja_mapa_estou_texto">Vamos usar a sua localização atual como o ponto da loja no mapa. Faça isso só quando estiver dentro da loja.</string>
+    <string name="loja_mapa_estou_confirmar">Estou na loja</string>
+    <string name="admin_mapa_titulo">Lojas no mapa</string>
+    <string name="admin_mapa_texto">Coloca no mapa as lojas cadastradas que ainda não têm pino, localizando o endereço de cada uma.</string>
+    <string name="admin_mapa_botao">Localizar lojas sem pino</string>
 </resources>

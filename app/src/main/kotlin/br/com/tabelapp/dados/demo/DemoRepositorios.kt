@@ -16,6 +16,8 @@ import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
+import br.com.tabelapp.core.LojaSemLocal
+import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
@@ -236,8 +238,27 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     override suspend fun atualizarLoja(loja: LojaPdv) {
         if (loja.logradouro.isBlank()) throw ErroAmigavel("Informe o endereço.")
         val completo = listOfNotNull(loja.logradouro, loja.bairro, loja.cidade).filter { it.isNotBlank() }.joinToString(", ")
-        banco.lojasEditadas[loja.id] = loja.copy(endereco = completo, whatsapp = loja.whatsapp?.filter { it.isDigit() })
+        val antes = lojas(loja.id.removePrefix("loja-")).firstOrNull()
+        // Mudou o endereço: o pino antigo sai (o painel localiza de novo), como no banco.
+        val mudouEndereco = antes == null || antes.endereco != completo
+        banco.lojasEditadas[loja.id] = loja.copy(
+            endereco = completo, whatsapp = loja.whatsapp?.filter { it.isDigit() },
+            local = if (mudouEndereco) null else antes?.local,
+            localPeloAparelho = if (mudouEndereco) false else antes?.localPeloAparelho == true,
+        )
     }
+
+    override suspend fun definirCoordenadas(lojaId: String, ponto: PontoGeo, peloAparelho: Boolean) {
+        if (!MapaPrecos.coordenadaValida(ponto)) throw ErroAmigavel(ErrosServidor.traduzir("coordenada_invalida"))
+        val atual = lojas(lojaId.removePrefix("loja-")).firstOrNull() ?: throw ErroAmigavel("Loja não encontrada.")
+        banco.lojasEditadas[lojaId] = atual.copy(local = ponto, localPeloAparelho = peloAparelho)
+    }
+
+    override suspend fun lojasSemCoordenadas(): List<LojaSemLocal> =
+        banco.pdvs.filter { it.meu.status == StatusPdv.APROVADO }
+            .flatMap { lojas(it.meu.id) }
+            .filter { it.local == null }
+            .map { LojaSemLocal(it.id, it.nome, it.endereco) }
 
     /** Demonstração: plano grátis, sem período de fundador (para ver o limite em ação). */
     override suspend fun statusCatalogo(pdvId: String, lojaId: String): StatusCatalogo {

@@ -1,5 +1,6 @@
 package br.com.tabelapp.ui.pdv
 
+import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -66,6 +69,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.PrecoPdv
@@ -80,13 +84,19 @@ import java.time.ZoneOffset
 /** Área do PDV aprovado: cadastro, saldo de operações, tabela de preços oficial e promoções. */
 @Composable
 fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
-    val vm: PainelPdvViewModel = viewModel(key = "painel-${pdv.id}") { PainelPdvViewModel(container.pdvs, pdv) }
+    val vm: PainelPdvViewModel = viewModel(key = "painel-${pdv.id}") {
+        PainelPdvViewModel(container.pdvs, pdv, container.geocodificador, container.localizacao)
+    }
     val estado by vm.estado.collectAsStateWithLifecycle()
     val contexto = LocalContext.current
     var excluindo by remember { mutableStateOf<PrecoPdv?>(null) }
     var excluindoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var editandoCadastro by remember { mutableStateOf(false) }
     var criandoPromocao by remember { mutableStateOf(false) }
+    var confirmandoLocal by remember { mutableStateOf(false) }
+    val pedirLocalizacao = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        vm.usarLocalizacaoDoCelular()
+    }
     val seletorPlanilha = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) lerArquivoPlanilha(contexto, uri)?.let { (bytes, nome) -> vm.abrirPlanilha(bytes, nome) }
     }
@@ -116,6 +126,12 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                         Text(contatos.joinToString(" · "), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    SituacaoNoMapa(
+                        loja = l,
+                        localizando = l.id in estado.localizando,
+                        naoAchada = l.id in estado.naoAchadas,
+                        aoEstouNaLoja = { confirmandoLocal = true },
+                    )
                 }
                 if (!pdv.modoRede && estado.lojas.size > 1) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -214,6 +230,24 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         items(estado.promocoes, key = { "promo-" + it.id }) { p ->
             CartaoPromocao(p, aoPagar = { vm.pagarPromocao(p) }, aoExcluir = { excluindoPromocao = p })
         }
+    }
+
+    if (confirmandoLocal) {
+        AlertDialog(
+            onDismissRequest = { confirmandoLocal = false },
+            title = { Text(stringResource(R.string.loja_mapa_estou_titulo)) },
+            text = { Text(stringResource(R.string.loja_mapa_estou_texto)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmandoLocal = false
+                    if (container.localizacao.temPermissao()) vm.usarLocalizacaoDoCelular()
+                    else pedirLocalizacao.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    )
+                }) { Text(stringResource(R.string.loja_mapa_estou_confirmar)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmandoLocal = false }) { Text("Cancelar") } },
+        )
     }
 
     if (editandoCadastro) {
@@ -497,6 +531,39 @@ private fun EditorPreco(
             dismissButton = { TextButton(onClick = { escolhendoData = false }) { Text("Cancelar") } },
         ) {
             DatePicker(state = estadoData)
+        }
+    }
+}
+
+/** Se a loja já tem pino no mapa; sem pino, o dono pode marcar pela localização do celular. */
+@Composable
+private fun SituacaoNoMapa(loja: LojaPdv, localizando: Boolean, naoAchada: Boolean, aoEstouNaLoja: () -> Unit) {
+    when {
+        loja.local != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(
+                stringResource(if (loja.localPeloAparelho) R.string.loja_mapa_ok_aparelho else R.string.loja_mapa_ok),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = aoEstouNaLoja) {
+                Text(stringResource(R.string.loja_mapa_ajustar), style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        localizando -> Text(stringResource(R.string.loja_mapa_localizando), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else -> Column {
+            Text(
+                stringResource(if (naoAchada) R.string.loja_mapa_nao_achou else R.string.loja_mapa_sem_pino),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+            )
+            OutlinedButton(onClick = aoEstouNaLoja, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.loja_mapa_estou_confirmar))
+            }
         }
     }
 }

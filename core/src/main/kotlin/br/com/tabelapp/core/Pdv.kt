@@ -44,7 +44,17 @@ data class LojaPdv(
     val cidade: String? = null,
     val uf: String? = null,
     val whatsapp: String? = null,
-)
+    /** Coordenada gravada (pino no mapa); null = ainda não localizada. */
+    val local: PontoGeo? = null,
+    /** true = o dono usou "Estou na loja" (localização do celular), não o endereço. */
+    val localPeloAparelho: Boolean = false,
+) {
+    /** Endereço completo para o Geocoder. */
+    val enderecoParaMapa: String? get() = MapaPrecos.enderecoParaGeocoder(endereco)
+}
+
+/** Loja ainda sem coordenada, para o Admin localizar de uma vez. */
+data class LojaSemLocal(val id: String, val nome: String?, val endereco: String)
 
 /** Um item da tabela de preços oficial do PDV. */
 data class PrecoPdv(

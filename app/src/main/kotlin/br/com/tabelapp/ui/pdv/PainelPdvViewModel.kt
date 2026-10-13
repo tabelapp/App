@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.tabelapp.core.LeitorPlanilha
 import br.com.tabelapp.core.LojaPdv
+import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
@@ -15,6 +16,8 @@ import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.Geocodificador
+import br.com.tabelapp.dados.Localizacao
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.erros.Erros
 import java.time.LocalDate
@@ -55,6 +58,10 @@ data class EstadoPainel(
     val planos: EstadoPlanos? = null,
     /** Resumo da última importação de planilha (mostrado até o PDV fechar). */
     val resultadoImportacao: ResultadoImportacao? = null,
+    /** Lojas sendo localizadas no mapa agora. */
+    val localizando: Set<String> = emptySet(),
+    /** Lojas cujo endereço o mapa não achou (o dono pode usar "Estou na loja"). */
+    val naoAchadas: Set<String> = emptySet(),
 ) {
     val loja: LojaPdv? get() = lojas.firstOrNull { it.id == lojaId }
 
@@ -96,6 +103,8 @@ data class PagamentoCriado(val codigo: String, val descricao: String, val valorC
 class PainelPdvViewModel(
     private val repositorio: PdvRepositorio,
     private val pdv: MeuPdv,
+    private val geocodificador: Geocodificador? = null,
+    private val localizacao: Localizacao? = null,
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(EstadoPainel(nomeFantasia = pdv.nomeFantasia, site = pdv.site))
@@ -122,6 +131,7 @@ class PainelPdvViewModel(
                     it.copy(carregando = false, lojas = lojas, lojaId = lojaId, precos = precos, catalogo = catalogo,
                         promocoes = promocoes)
                 }
+                localizarLojasSemPino(lojas)
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(carregando = false, erro = e.message) }
             }
@@ -173,6 +183,60 @@ class PainelPdvViewModel(
                     else it.copy(salvando = false, errosEditor = listOfNotNull(ex.message))
                 }
                 if (ex.codigo == "limite_catalogo") carregar()
+            }
+        }
+    }
+
+    /**
+     * Loja sem pino no mapa (cadastro novo, endereço editado ou loja antiga): localiza
+     * o endereço no aparelho e grava a coordenada, sem incomodar o dono. Não achou?
+     * O painel mostra o aviso com "Estou na loja".
+     */
+    private fun localizarLojasSemPino(lojas: List<LojaPdv>) {
+        val g = geocodificador ?: return
+        val pendentes = lojas.filter { it.local == null && it.id !in _estado.value.localizando }
+        if (pendentes.isEmpty()) return
+        _estado.update { it.copy(localizando = it.localizando + pendentes.map { l -> l.id }) }
+        viewModelScope.launch {
+            for (loja in pendentes) {
+                val ponto = loja.enderecoParaMapa?.let { g.localizar(it) }?.takeIf { MapaPrecos.coordenadaValida(it) }
+                try {
+                    if (ponto != null) repositorio.definirCoordenadas(loja.id, ponto)
+                    _estado.update { e ->
+                        e.copy(
+                            localizando = e.localizando - loja.id,
+                            naoAchadas = if (ponto == null) e.naoAchadas + loja.id else e.naoAchadas - loja.id,
+                            lojas = e.lojas.map { if (it.id == loja.id && ponto != null) it.copy(local = ponto) else it },
+                        )
+                    }
+                } catch (e: ErroAmigavel) {
+                    Erros.registrar("localizar loja", e.message, e)
+                    _estado.update { it.copy(localizando = it.localizando - loja.id) }
+                }
+            }
+        }
+    }
+
+    /** "Estou na loja": usa a localização atual do celular como pino da loja. */
+    fun usarLocalizacaoDoCelular() {
+        val lojaId = _estado.value.lojaId ?: return
+        val ponto = localizacao?.ultimaConhecida()
+        if (ponto == null || !MapaPrecos.coordenadaValida(ponto)) {
+            _estado.update { it.copy(mensagem = "Não consegui sua localização. Ligue a localização do celular e tente de novo.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repositorio.definirCoordenadas(lojaId, ponto, peloAparelho = true)
+                _estado.update { e ->
+                    e.copy(
+                        naoAchadas = e.naoAchadas - lojaId,
+                        lojas = e.lojas.map { if (it.id == lojaId) it.copy(local = ponto, localPeloAparelho = true) else it },
+                        mensagem = "Pronto: a loja está no mapa no ponto onde você está.",
+                    )
+                }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(mensagem = e.message) }
             }
         }
     }

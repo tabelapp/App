@@ -55,6 +55,7 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvAdmin
@@ -62,6 +63,7 @@ import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.tema.coresBarraTopo
@@ -87,10 +89,16 @@ data class EstadoAdmin(
     val estabelecimentos: List<PdvAdmin> = emptyList(),
     val buscaPdv: String = "",
     val buscandoPdv: Boolean = false,
+    /** "Localizar lojas sem pino": rodando e o resultado da última vez. */
+    val localizandoLojas: Boolean = false,
+    val resultadoLocalizacao: String? = null,
 )
 
 /** Fila de cadastros de PDV esperando análise (só para o Admin). */
-class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
+class AdminViewModel(
+    private val repositorio: PdvRepositorio,
+    private val geocodificador: Geocodificador? = null,
+) : ViewModel() {
     private val _estado = MutableStateFlow(EstadoAdmin())
     val estado: StateFlow<EstadoAdmin> = _estado.asStateFlow()
 
@@ -173,6 +181,39 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
         }
     }
 
+    /** Localiza no aparelho o endereço de cada loja ainda sem pino e grava a coordenada. */
+    fun localizarLojasSemPino() {
+        val g = geocodificador ?: return
+        _estado.update { it.copy(localizandoLojas = true, resultadoLocalizacao = null, erro = null) }
+        viewModelScope.launch {
+            try {
+                val lojas = repositorio.lojasSemCoordenadas()
+                var achadas = 0
+                val faltaram = mutableListOf<String>()
+                for (loja in lojas) {
+                    val ponto = MapaPrecos.enderecoParaGeocoder(loja.endereco)?.let { g.localizar(it) }
+                        ?.takeIf { MapaPrecos.coordenadaValida(it) }
+                    if (ponto != null) {
+                        repositorio.definirCoordenadas(loja.id, ponto)
+                        achadas++
+                    } else {
+                        faltaram += loja.nome ?: loja.endereco
+                    }
+                }
+                val resumo = when {
+                    lojas.isEmpty() -> "Todas as lojas já estão no mapa."
+                    faltaram.isEmpty() -> "$achadas de ${lojas.size} loja(s) colocadas no mapa."
+                    else -> "$achadas de ${lojas.size} loja(s) colocadas no mapa. Endereço não encontrado: " +
+                        faltaram.take(10).joinToString("; ") + (if (faltaram.size > 10) "…" else "") +
+                        ". O dono pode usar \"Estou na loja\" em Meu negócio."
+                }
+                _estado.update { it.copy(localizandoLojas = false, resultadoLocalizacao = resumo) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(localizandoLojas = false, erro = e.message) }
+            }
+        }
+    }
+
     fun alterarBuscaPdv(texto: String) {
         _estado.update { it.copy(buscaPdv = texto.take(60)) }
     }
@@ -226,7 +267,7 @@ class AdminViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaAdmin(container: AppContainer, usuario: Usuario) {
-    val vm: AdminViewModel = viewModel(key = "admin-${usuario.id}") { AdminViewModel(container.pdvs) }
+    val vm: AdminViewModel = viewModel(key = "admin-${usuario.id}") { AdminViewModel(container.pdvs, container.geocodificador) }
     val estado by vm.estado.collectAsStateWithLifecycle()
     var rejeitando by remember { mutableStateOf<PdvPendente?>(null) }
     var confirmando by remember { mutableStateOf<PagamentoPendente?>(null) }
@@ -337,6 +378,20 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                         aoSuspender = { suspendendo = it },
                         aoReativar = { reativando = it },
                     )
+                }
+                if (!estado.carregando) {
+                    Text(stringResource(R.string.admin_mapa_titulo), fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp))
+                    Text(stringResource(R.string.admin_mapa_texto), style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(
+                        onClick = vm::localizarLojasSemPino,
+                        enabled = !estado.localizandoLojas,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (estado.localizandoLojas) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text(stringResource(R.string.admin_mapa_botao))
+                    }
+                    estado.resultadoLocalizacao?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
                 OutlinedButton(onClick = vm::carregar, modifier = Modifier.fillMaxWidth()) { Text("Atualizar") }
             }
