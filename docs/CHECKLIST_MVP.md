@@ -4,7 +4,7 @@
 Essenciais para lançar:
 - [x] **Conta do usuário:** editar nome e **excluir a conta pelo app** ("Minha conta", no menu da busca).
 - [x] **Política de privacidade e termos de uso:** textos em `app/src/main/res/raw/*.md`, no menu, em Minha conta
-      e com aceite no cadastro. Páginas web em `docs/site/` (falta preencher responsável e e-mail e publicar).
+      e com aceite no cadastro. Páginas web em `docs/site/` (falta publicar).
 - [ ] **Moderação do Admin no app:** remover preço errado e suspender um PDV já aprovado.
 - [ ] **Coordenadas das lojas cadastradas:** localizar o endereço no cadastro/edição e guardar no banco
       (pino certo no mapa e distância no card).
@@ -24,9 +24,9 @@ Importantes, podem vir logo depois:
 - [ ] **Supabase de produção:** plano pago (não pausa, tem backup) ou rotina que mantenha ativo.
 - [ ] **Google Play Console:** conta de desenvolvedor (US$ 25, uma vez), ficha da loja (ícone, telas,
       descrição), classificação etária, formulário de segurança de dados.
-- [ ] **Política de privacidade publicada** num endereço web (exigida pela Play Store): preencher
-      `[RESPONSÁVEL]` e `[E-MAIL DE CONTATO]` nos textos, rodar `python3 scripts/gerar-paginas-legais.py` e
-      publicar `docs/site/privacidade.html` e `termos.html`. Recomendado: revisão de um advogado.
+- [ ] **Política de privacidade publicada** num endereço web (exigida pela Play Store): publicar
+      `docs/site/privacidade.html` e `termos.html` (responsável e e-mail já preenchidos; depois de mudar os
+      textos, rodar `python3 scripts/gerar-paginas-legais.py`). Recomendado: revisão de um advogado.
 - [ ] Definir o **link de download** usado no compartilhamento.
 
 ## C. Testes no celular (fundador + Claude)

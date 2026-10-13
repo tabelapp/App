@@ -6,7 +6,7 @@ O Tabelapp reúne preços de produtos e serviços em Petrópolis (RJ) para que a
 
 ## Quem é o responsável
 
-O responsável pelo tratamento dos dados (controlador) é [RESPONSÁVEL — nome completo ou razão social e CPF/CNPJ]. Fale com a gente pelo WhatsApp (24) 98802-9067 ou pelo e-mail [E-MAIL DE CONTATO].
+O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarães da Cunha, criador do Tabelapp. Fale com a gente pelo WhatsApp (24) 98802-9067 ou pelo e-mail tabelapp.economia@gmail.com.
 
 ## Quais dados usamos
 
