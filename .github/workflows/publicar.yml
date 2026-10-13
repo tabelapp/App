@@ -27,7 +27,7 @@ jobs:
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
       MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
-      # 100 + contador desta automação: sempre maior que o anterior.
+      # Contador desta automação (+100 no passo seguinte): sempre maior que o anterior.
       VERSAO_CODIGO: ${{ github.run_number }}
       VERSAO_NOME: ${{ inputs.versao }}
       TEM_CHAVE: ${{ secrets.ASSINATURA_KEYSTORE_BASE64 != '' }}
@@ -59,7 +59,8 @@ jobs:
 
       - name: Sem chave de envio
         if: env.TEM_CHAVE != 'true'
-        run: echo "::warning::Sem a chave de envio (ASSINATURA_*): o AAB sai sem assinatura e a Play Store não aceita. Veja docs/PLAY_STORE.md."
+        run: |
+          echo "::warning::Sem a chave de envio (ASSINATURA_*): o AAB sai sem assinatura e a Play Store não aceita. Veja docs/PLAY_STORE.md."
 
       - name: Testes das regras de negócio
         run: ./gradlew :core:test --stacktrace
