@@ -2,6 +2,7 @@ package br.com.tabelapp.ui.busca
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,16 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.ui.comum.ImagemRemota
-import br.com.tabelapp.ui.tema.AmareloTabelapp
-import br.com.tabelapp.ui.tema.PretoLupa
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.ContornoMarca
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import kotlinx.coroutines.delay
 
 /**
@@ -67,6 +66,8 @@ fun BannerPatrocinado(
             .fillMaxWidth()
             .height(ALTURA_CARTAO)
             .clip(RoundedCornerShape(12.dp))
+            // Contorno amarelo da marca (banner pago ou "Anuncie aqui"), sem preenchimento amarelo.
+            .border(ContornoMarca, RoundedCornerShape(12.dp))
             .clickable { aoTocar(atual) },
     ) {
         Crossfade(targetState = atual, label = "banner") { b ->
@@ -82,13 +83,13 @@ fun BannerPatrocinado(
         }
         if (atual != null) {
             Surface(
-                color = Color.Black.copy(alpha = 0.55f),
+                color = CoresTabelapp.FaixaSobreImagem,
                 shape = RoundedCornerShape(bottomEnd = 8.dp),
                 modifier = Modifier.align(Alignment.TopStart),
             ) {
                 Text(
                     "Patrocinado",
-                    color = Color.White,
+                    color = CoresTabelapp.TextoSobreImagem,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                 )
@@ -100,15 +101,15 @@ fun BannerPatrocinado(
 @Composable
 private fun BannerTexto(b: Banner) {
     Column(
-        Modifier.fillMaxSize().background(VermelhoTabelapp).padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxSize().background(CoresTabelapp.Cartao).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text(b.pdvNome, color = AmareloTabelapp, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+        Text(b.pdvNome, color = CoresTabelapp.Destaque, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(b.titulo, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+        Text(b.titulo, color = CoresTabelapp.TextoPrincipal, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
         b.descricao?.let {
-            Text(it, color = Color.White, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(it, color = CoresTabelapp.TextoSecundario, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -117,15 +118,15 @@ private fun BannerTexto(b: Banner) {
 @Composable
 private fun AnuncieAqui() {
     Column(
-        Modifier.fillMaxSize().background(AmareloTabelapp).padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxSize().background(CoresTabelapp.Cartao).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text("Anuncie aqui", color = VermelhoTabelapp, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Anuncie aqui", color = CoresTabelapp.TextoPrincipal, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
             "Sua marca em destaque para quem está pesquisando preços agora.",
-            color = PretoLupa, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            color = CoresTabelapp.TextoSecundario, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
-        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelMedium,
+        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = CoresTabelapp.TextoSecundario, style = MaterialTheme.typography.labelMedium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

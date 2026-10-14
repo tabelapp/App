@@ -42,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,8 +61,7 @@ import br.com.tabelapp.core.PinoMapa
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.ui.comum.WhatsApp
-import br.com.tabelapp.ui.tema.PretoLupa
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -205,17 +203,14 @@ private fun Mapa(
 /** O pino: a lupa da logomarca (a ponta do cabo marca o local) com o preço num balão em cima. */
 @Composable
 private fun EtiquetaPreco(texto: String, maisBarato: Boolean, ativo: Boolean) {
-    val fundo = when {
-        ativo -> PretoLupa
-        maisBarato -> VermelhoTabelapp
-        else -> Color.White
-    }
-    val letra = if (ativo || maisBarato) Color.White else PretoLupa
+    // Etiqueta escura com preço branco; a selecionada em laranja (destaque), a mais barata com contorno laranja.
+    val fundo = if (ativo) CoresTabelapp.Destaque else CoresTabelapp.Cartao
+    val letra = if (ativo) CoresTabelapp.SobreDestaque else CoresTabelapp.Preco
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = fundo,
-            border = BorderStroke(1.5.dp, if (maisBarato || ativo) fundo else PretoLupa),
+            border = BorderStroke(1.5.dp, if (maisBarato || ativo) CoresTabelapp.Destaque else CoresTabelapp.ContornoSuave),
         ) {
             Text(
                 texto,
@@ -275,8 +270,7 @@ private fun DetalhePino(p: PinoMapa, ponto: PontoGeo?, modifier: Modifier, aoFec
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(c.produto, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium)
-                    Text(Dinheiro.formatar(c.precoCentavos), fontWeight = FontWeight.Bold,
-                        color = if (c.precoCentavos == p.menorPreco && p.maisBarato) VermelhoTabelapp else Color.Unspecified)
+                    Text(Dinheiro.formatar(c.precoCentavos), fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                 }
             }
             if (p.cotacoes.size > 5) {
@@ -334,7 +328,7 @@ private fun SemMapa(pinos: List<PinoMapa>) {
                     Text(p.endereco ?: "Sem endereço", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(p.rotulo, fontWeight = FontWeight.Bold, color = if (p.maisBarato) VermelhoTabelapp else Color.Unspecified)
+                Text(p.rotulo, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
             }
         }
     }

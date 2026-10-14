@@ -285,6 +285,15 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
   obrigatório. No painel, só promoções. `pdvs.tipo` = `loja` | `anunciante`.
 - **Correção:** CNPJ suspenso não pode ser recadastrado (o recadastro apagava o cadastro suspenso).
 
+## Paleta escura (14/10/2026)
+
+- Tema escuro único (não segue o sistema, sem cores dinâmicas do Android 12+). Todas as cores ficam em
+  `ui/tema/Tema.kt` (`CoresTabelapp`); `res/values/colors.xml` espelha as poucas usadas fora do Compose.
+- Preços sempre brancos e em negrito. Amarelo da marca só no título "Tabelapp" da busca e no contorno de
+  2 dp dos dois banners (inclusive "Anuncie aqui") e do card mais barato (regra do selo inalterada).
+- Laranja (`Destaque`) para seleção, links e botões principais. Ícone do app na tela inicial mantém as
+  cores da logomarca.
+
 ## Segurança (resumo)
 
 - Nada é acessível sem login.

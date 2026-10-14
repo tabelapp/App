@@ -74,10 +74,11 @@ import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
-import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.RascunhoPreco
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.core.Validade
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -420,7 +421,8 @@ private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit)
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(PrecoExibido.texto(p.precoCentavos, p.unidade, p.aPartirDe), fontWeight = FontWeight.Bold)
+            Text(PrecoExibido.texto(p.precoCentavos, p.unidade, p.aPartirDe), fontWeight = FontWeight.Bold,
+                color = CoresTabelapp.Preco)
             IconButton(onClick = aoExcluir) { Icon(Icons.Default.Delete, contentDescription = "Excluir") }
         }
         HorizontalDivider()
@@ -489,7 +491,7 @@ private fun EditorPreco(
                 }
                 rascunho.precoCentavos?.let {
                     Text(PrecoExibido.texto(it, rascunho.unidade, rascunho.aPartirDe),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                 }
                 OutlinedButton(onClick = { escolhendoData = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(rascunho.validade?.let { "Válido até ${Validade.formatar(it)}" } ?: "Validade: 30 dias (tocar para mudar)")

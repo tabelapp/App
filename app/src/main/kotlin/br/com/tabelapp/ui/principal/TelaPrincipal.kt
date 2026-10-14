@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import br.com.tabelapp.ui.busca.TelaBusca
 import br.com.tabelapp.ui.lista.TelaLista
 import br.com.tabelapp.ui.nf.TelaEnviarNf
 import br.com.tabelapp.ui.pdv.TelaMeuNegocio
+import br.com.tabelapp.ui.tema.CoresTabelapp
 
 private enum class Aba(val rotulo: String, val icone: ImageVector) {
     BUSCAR("Buscar", Icons.Default.Search),
@@ -68,13 +70,21 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
         bottomBar = {
             // Barra de abas com 64 dp (mais a área dos botões do sistema, quando houver).
             val sistema = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            NavigationBar(Modifier.height(ALTURA_BARRA_ABAS + sistema)) {
+            NavigationBar(Modifier.height(ALTURA_BARRA_ABAS + sistema), containerColor = CoresTabelapp.BarraInferior) {
                 abas.forEach { a ->
                     NavigationBarItem(
                         selected = aba == a,
                         onClick = { escolhidaNome = a.name },
                         icon = { Icon(a.icone, contentDescription = null) },
                         label = { Text(a.rotulo) },
+                        // Aba ativa: ícone e texto em laranja, "pill" em laranja escuro.
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = CoresTabelapp.Destaque,
+                            selectedTextColor = CoresTabelapp.Destaque,
+                            indicatorColor = CoresTabelapp.DestaqueFundo,
+                            unselectedIconColor = CoresTabelapp.IconeNeutro,
+                            unselectedTextColor = CoresTabelapp.IconeNeutro,
+                        ),
                     )
                 }
             }

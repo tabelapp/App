@@ -10,17 +10,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.erros.TratadorDeFalhas
 import br.com.tabelapp.ui.RaizApp
 import br.com.tabelapp.ui.comum.DialogoErro
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.TabelappTema
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Barra de status sobre o amarelo da marca: ícones sempre escuros.
-        enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT))
+        // Tema escuro único: ícones claros na barra de status (sobre o azul do topo) e na de navegação.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(CoresTabelapp.BarraInferior.toArgb()),
+        )
         val container = (application as TabelappApplication).container
         // Reaberto depois de uma falha inesperada: avisa com calma (o detalhe foi para o log interno).
         val voltouDeFalha = intent.getBooleanExtra(TratadorDeFalhas.EXTRA_FALHOU, false)

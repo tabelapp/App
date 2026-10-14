@@ -38,17 +38,18 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -98,6 +99,8 @@ import br.com.tabelapp.ui.comum.TelaTextoLegal
 import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
+import br.com.tabelapp.ui.tema.ContornoNeutro
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import kotlinx.coroutines.launch
 
@@ -155,7 +158,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
             TopAppBar(
                 title = {
                     Column {
-                        Text("Tabelapp", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Tabelapp", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                            color = CoresTabelapp.AmareloMarca)
                         Text("Quem pesquisa economiza", style = MaterialTheme.typography.labelSmall)
                     }
                 },
@@ -405,7 +409,7 @@ private fun BlocoBusca(
 ) {
     var filtrosAbertos by remember { mutableStateOf(false) }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.background,
         shape = MaterialTheme.shapes.medium,
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().height(ALTURA_CARTAO),
     ) {
@@ -430,8 +434,10 @@ private fun BlocoBusca(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { filtrosAbertos = true },
+                        border = ContornoNeutro,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = CoresTabelapp.TextoPrincipal),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         modifier = Modifier.height(36.dp),
                     ) {

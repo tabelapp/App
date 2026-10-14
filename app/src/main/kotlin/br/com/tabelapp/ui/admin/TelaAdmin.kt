@@ -67,6 +67,7 @@ import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.Usuario
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -574,7 +575,7 @@ private fun CartaoPagamento(p: PagamentoPendente, ocupado: Boolean, aoConfirmar:
                 Text(p.pdvNome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f))
                 Text(Dinheiro.formatar(p.valorCentavos), style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
             }
             Text(p.descricao)
             Text("Código ${p.id.take(8).uppercase()} · ${formatoData.format(p.criadoEm.atZone(ZoneId.of("America/Sao_Paulo")))}",
@@ -601,7 +602,7 @@ private fun CartaoDenuncia(p: PrecoDenunciado, ocupado: Boolean, aoRemover: () -
                 Text(p.produto, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f))
                 Text(Dinheiro.formatar(p.precoCentavos), style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
             }
             Text(
                 listOfNotNull(

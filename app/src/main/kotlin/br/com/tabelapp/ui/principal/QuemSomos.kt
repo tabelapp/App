@@ -41,7 +41,6 @@ import br.com.tabelapp.R
 import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.ui.comum.WhatsApp
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
 
 /** "Quem somos": o manifesto do Tabelapp e o contato pelo WhatsApp. */
 @Composable
@@ -64,7 +63,7 @@ fun QuemSomos(aoFechar: () -> Unit) {
                 )
                 Text(
                     "Quem pesquisa economiza.",
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = VermelhoTabelapp,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
                 )
                 Paragrafo(
@@ -170,7 +169,7 @@ private fun ComoUsar() {
 private fun Passo(numero: Int, titulo: String, texto: String) {
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = VermelhoTabelapp)) { append("$numero. $titulo: ") }
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) { append("$numero. $titulo: ") }
             append(texto)
         },
         style = MaterialTheme.typography.bodyMedium,

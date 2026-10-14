@@ -1,6 +1,5 @@
 package br.com.tabelapp.ui.busca
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -49,30 +47,24 @@ import br.com.tabelapp.core.Obs
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.Validade
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.ContornoMarca
+import br.com.tabelapp.ui.tema.CoresTabelapp
 
 /** Altura fixa do card de preço (layout compacto da busca, pedido do fundador). */
 val ALTURA_CARTAO = 124.dp
 
-/** Fundo alternado dos cards (um mais claro, outro mais escuro), no tema claro e no escuro. */
-@Composable
-private fun fundoAlternado(escuro: Boolean): Color {
-    val cores = MaterialTheme.colorScheme
-    return if (cores.surface.luminance() > 0.5f) {
-        if (escuro) Color(0xFFF1ECDC) else Color.White
-    } else {
-        if (escuro) cores.surfaceContainerHigh else cores.surfaceContainerLow
-    }
-}
+/** Fundo alternado dos cards (um tom um pouco mais claro que o outro). */
+private fun fundoAlternado(claro: Boolean): Color = if (claro) CoresTabelapp.CartaoAlternado else CoresTabelapp.Cartao
 
 /**
  * "Card de preço": como um produto e preço aparecem na busca (briefing, seção 2).
  * Layout compacto de altura fixa ([ALTURA_CARTAO]), 4 linhas distribuídas:
- *  1. produto (1 linha) e preço em vermelho;
+ *  1. produto (1 linha) e preço em branco;
  *  2. ponto de venda (link, se cadastrado);
  *  3. endereço (abre o mapa);
  *  4. "mais barato", OBS/NF, data e distância — WhatsApp e compartilhar no canto.
- * [alternado] escurece o fundo de um card sim, outro não.
+ * [alternado] clareia um pouco o fundo de um card sim, outro não. O mais barato da busca
+ * tem o mesmo fundo dos outros e só ganha o contorno amarelo da marca ([ContornoMarca]).
  */
 @Composable
 fun CartaoCotacao(
@@ -93,9 +85,10 @@ fun CartaoCotacao(
     val pequeno = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (maisBarato) cores.primaryContainer else fundoAlternado(alternado),
+            containerColor = fundoAlternado(alternado),
+            contentColor = CoresTabelapp.TextoPrincipal,
         ),
-        border = if (maisBarato) BorderStroke(2.dp, cores.primary) else null,
+        border = if (maisBarato) ContornoMarca else null,
         modifier = Modifier.fillMaxWidth().height(ALTURA_CARTAO),
     ) {
         Column(
@@ -124,7 +117,7 @@ fun CartaoCotacao(
                     fontSize = 20.sp,
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = VermelhoTabelapp,
+                    color = CoresTabelapp.Preco,
                     maxLines = 1,
                 )
             }
@@ -147,8 +140,10 @@ fun CartaoCotacao(
                 if (destaque != null) Spacer(Modifier.width(6.dp))
                 val chip = TextStyle(fontSize = 11.sp, lineHeight = 15.sp)
                 when (destaque) {
+                    // Selo do mais barato: só o texto em amarelo, pequeno, sem fundo nem borda.
                     Destaque.MENOR_PRECO ->
-                        Selo(stringResource(R.string.selo_menor_preco), cores.secondary, cores.onSecondary, chip, negrito = true, largura = 170.dp)
+                        Selo(stringResource(R.string.selo_menor_preco), Color.Transparent, CoresTabelapp.AmareloMarca, chip,
+                            negrito = true, largura = 170.dp)
                     Destaque.PARTE_DE_COMBO ->
                         Selo(stringResource(R.string.chip_parte_de_combo), cores.surfaceVariant, cores.onSurfaceVariant, chip, largura = 170.dp)
                     Destaque.CONFIRA_NA_LOJA ->
@@ -163,7 +158,7 @@ fun CartaoCotacao(
                 endereco?.let { "📍 $it" } ?: "Endereço não informado",
                 fontSize = 12.5.sp,
                 lineHeight = 16.sp,
-                color = if (endereco != null) cores.primary else cores.onSurfaceVariant,
+                color = cores.onSurfaceVariant,
                 textDecoration = if (endereco != null) TextDecoration.Underline else null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -192,11 +187,12 @@ fun CartaoCotacao(
                 if (!cotacao.telefone.isNullOrBlank()) {
                     IconButton(onClick = aoChamarNoWhatsApp, modifier = Modifier.size(44.dp)) {
                         Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chamar no WhatsApp",
-                            tint = Color(0xFF1FA855), modifier = Modifier.size(20.dp))
+                            tint = CoresTabelapp.WhatsApp, modifier = Modifier.size(20.dp))
                     }
                 }
                 IconButton(onClick = aoCompartilhar, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.Share, contentDescription = "Enviar este preço pelo WhatsApp", Modifier.size(20.dp))
+                    Icon(Icons.Default.Share, contentDescription = "Enviar este preço pelo WhatsApp", Modifier.size(20.dp),
+                        tint = CoresTabelapp.IconeNeutro)
                 }
             }
         }

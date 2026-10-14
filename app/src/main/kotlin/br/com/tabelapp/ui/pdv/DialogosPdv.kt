@@ -58,6 +58,7 @@ import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -240,7 +241,7 @@ fun DialogoPagamento(pdvNome: String, pagamento: PagamentoCriado, aoFechar: () -
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(pagamento.descricao, fontWeight = FontWeight.SemiBold)
                 Text("Valor: ${Dinheiro.formatar(pagamento.valorCentavos)}", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                 Text(
                     "Por enquanto o pagamento (Pix) é combinado pelo WhatsApp do Tabelapp. Assim que confirmarmos, " +
                         "seu pedido é ativado automaticamente. Código do pedido: ${pagamento.codigo.take(8).uppercase()}.",

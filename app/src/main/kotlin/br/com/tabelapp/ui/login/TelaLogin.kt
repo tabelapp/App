@@ -54,8 +54,6 @@ import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.ui.comum.AceiteTermos
 import br.com.tabelapp.ui.comum.PainelErro
-import br.com.tabelapp.ui.tema.FundoClaro
-import br.com.tabelapp.ui.tema.TabelappTema
 import kotlinx.coroutines.launch
 
 @Composable
@@ -110,12 +108,12 @@ fun TelaLogin(container: AppContainer) {
         }
     }
 
-    // Sempre claro (mesmo com o celular no modo escuro), para a lupa preta da marca aparecer bem.
-    TabelappTema(escuroAtivo = false) {
+    // O tema (escuro único) já vem do MainActivity; a lupa da marca usa as cores do tema.
+    run {
         if (esqueciSenha) {
             DialogoEsqueciSenha(container.auth, emailInicial = email, aoFechar = { esqueciSenha = false })
         }
-        Surface(Modifier.fillMaxSize(), color = FundoClaro) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 Modifier
                     .safeDrawingPadding()

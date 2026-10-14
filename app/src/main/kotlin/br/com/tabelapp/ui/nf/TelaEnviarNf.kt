@@ -78,7 +78,7 @@ import br.com.tabelapp.dados.PdfNota
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.AcaoErro
 import br.com.tabelapp.ui.comum.PainelErro
-import br.com.tabelapp.ui.tema.VermelhoTabelapp
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
@@ -106,7 +106,7 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
                 actions = {
                     if (estado.etapa != EtapaNf.INICIO && estado.etapa != EtapaNf.ENVIADO) {
                         TextButton(onClick = vm::novaNota) {
-                            Text("Recomeçar", color = VermelhoTabelapp)
+                            Text("Recomeçar", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -403,7 +403,7 @@ private fun EtapaConfirmacao(estado: EstadoNf, vm: EnviarNfViewModel) {
                 itens.forEach { item ->
                     Row(Modifier.fillMaxWidth()) {
                         Text(item.produto, Modifier.weight(1f))
-                        Text(Dinheiro.formatar(item.precoCentavos), fontWeight = FontWeight.SemiBold)
+                        Text(Dinheiro.formatar(item.precoCentavos), fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                     }
                 }
             }

@@ -69,10 +69,11 @@ import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.MelhorPorItem
 import br.com.tabelapp.core.OpcaoPdvUnico
-import br.com.tabelapp.core.TextoLista
 import br.com.tabelapp.core.Texto
+import br.com.tabelapp.core.TextoLista
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -409,7 +410,7 @@ private fun PorPdv(opcoes: List<OpcaoPdvUnico>, totalItens: Int) {
                         Text("${i + 1}º ${o.pdvNome}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold)
                         Text(Dinheiro.formatar(o.totalCentavos), style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                     }
                     Text(
                         listOfNotNull(
@@ -426,7 +427,8 @@ private fun PorPdv(opcoes: List<OpcaoPdvUnico>, totalItens: Int) {
                             Row {
                                 Text("${TextoLista.quantidade(c.item.quantidade)}x ${c.item.produto}", Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodySmall)
-                                Text(Dinheiro.formatar(c.subtotalCentavos), style = MaterialTheme.typography.bodySmall)
+                                Text(Dinheiro.formatar(c.subtotalCentavos), style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                             }
                         }
                         if (o.faltando.isNotEmpty()) {
@@ -451,7 +453,7 @@ private fun PorItem(r: MelhorPorItem) {
                 Column(Modifier.padding(14.dp)) {
                     Text("Total comprando cada item onde está mais barato", style = MaterialTheme.typography.bodySmall)
                     Text(Dinheiro.formatar(r.totalCentavos), style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                     if (r.itens.isNotEmpty()) {
                         Text("em ${r.quantidadePdvs} ${if (r.quantidadePdvs == 1) "lugar" else "lugares"}",
                             style = MaterialTheme.typography.bodySmall)
@@ -465,7 +467,7 @@ private fun PorItem(r: MelhorPorItem) {
                 Row {
                     Text("${TextoLista.quantidade(c.item.quantidade)}x ${c.item.produto}", Modifier.weight(1f),
                         fontWeight = FontWeight.SemiBold)
-                    Text(Dinheiro.formatar(c.subtotalCentavos), fontWeight = FontWeight.Bold)
+                    Text(Dinheiro.formatar(c.subtotalCentavos), fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                 }
                 Text(
                     listOfNotNull(
