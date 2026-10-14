@@ -1157,4 +1157,77 @@ begin
 end $$;
 reset role;
 
+\echo '== Empresa anunciante (sem ponto de venda): cadastro, aprovação e banner'
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('f0000000-0000-4000-a000-00000000000f', 'fazenda@teste.invalid', '{"nome": "Fazenda", "tipo": "cnpj"}');
+set role authenticated;
+set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, '123', 'Teresópolis', 'RJ')$q$,
+  'telefone_obrigatorio');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, '(21) 99999-0000', ' ', 'RJ')$q$,
+  'cidade_obrigatoria');
+-- Conta de pessoa (CPF) não cadastra empresa.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'X', null, '(21) 99999-0000', 'Rio', 'RJ')$q$,
+  'conta_nao_cnpj');
+-- Cadastro sem loja e sem documento: fica pendente para o Admin.
+set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
+do $$
+declare v uuid;
+begin
+  v := public.cadastrar_anunciante('11.222.333/0001-81', 'Queijos da Serra', 'LATICINIOS SERRA LTDA',
+                                   '(21) 99999-0000', 'Teresópolis', 'rj', 'queijosdaserra.invalid');
+  perform set_config('tabelapp.anunciante', v::text, false);
+  assert (select tipo = 'anunciante' and status = 'pendente' from public.meus_pdvs() where id = v);
+  assert not exists (select 1 from public.lojas where pdv_id = v);
+end $$;
+-- Antes da aprovação, não cria banner.
+select pg_temp.espera_erro(
+  $q$select public.criar_promocao(current_setting('tabelapp.anunciante')::uuid, 'Queijo', null, null, null, null, 100)$q$,
+  'pdv_nao_verificado');
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare v constant uuid := current_setting('tabelapp.anunciante')::uuid;
+begin
+  assert (select tipo = 'anunciante' and endereco = 'Teresópolis - RJ' and telefone = '(21) 99999-0000'
+          from public.pdvs_pendentes() where id = v);
+  perform public.aprovar_pdv(v);
+  assert (select tipo = 'anunciante' and cidade = 'Teresópolis' from public.admin_pdvs('queijos') where id = v);
+end $$;
+-- Aprovado: cria o banner (sem loja) e, depois do pagamento, ele aparece na busca.
+set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
+do $$
+declare
+  v constant uuid := current_setting('tabelapp.anunciante')::uuid;
+  pag uuid;
+begin
+  pag := public.criar_promocao(v, 'Queijo artesanal', 'Direto do produtor', null, null, array['queijo'], 100);
+  perform set_config('tabelapp.pag_anunciante', pag::text, false);
+end $$;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select public.admin_confirmar_pagamento(current_setting('tabelapp.pag_anunciante')::uuid);
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$ begin
+  assert exists (select 1 from public.promocoes_para_busca('queijo minas', null, null, 10)
+                 where pdv_nome = 'Queijos da Serra' and distancia_km is null);
+end $$;
+-- Loja suspensa não pode ser "recadastrada" (o que apagaria o cadastro suspenso).
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select public.admin_suspender_pdv(current_setting('tabelapp.anunciante')::uuid, 'Teste');
+set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Outra', null, '(21) 99999-0000', 'Rio', 'RJ')$q$,
+  'cnpj_ja_cadastrado');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_pdv('11222333000181', 'X', null, 'Rua X', null, 'Rio', 'RJ', null, null,
+     'f0000000-0000-4000-a000-00000000000f/alvara.jpg')$q$,
+  'cnpj_ja_cadastrado');
+reset role;
+do $$ begin
+  assert exists (select 1 from public.pdvs where id = current_setting('tabelapp.anunciante')::uuid and status = 'suspenso');
+end $$;
+
 \echo 'OK — todos os testes do banco passaram'

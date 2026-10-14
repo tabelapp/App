@@ -116,8 +116,6 @@
     <string name="denuncia_enviar">Enviar</string>
     <string name="denuncia_cancelar">Cancelar</string>
     <string name="denuncia_obrigado">Obrigado! Isso ajuda a manter os preços confiáveis.</string>
-    <string name="nf_combo_pergunta">Faz parte de combo?</string>
-    <string name="nf_combo_apoio">Se o item foi vendido dentro de um combo, marque. O valor pode ser diferente do preço avulso.</string>
     <string name="compartilhar_aviso_usuario">Preço informado por usuário e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
     <string name="compartilhar_aviso_estabelecimento">Preço informado por estabelecimento e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
     <!-- Minha conta, termos e privacidade -->
@@ -202,4 +200,21 @@
     <string name="admin_mapa_titulo">Lojas no mapa</string>
     <string name="admin_mapa_texto">Coloca no mapa as lojas cadastradas que ainda não têm pino, localizando o endereço de cada uma.</string>
     <string name="admin_mapa_botao">Localizar lojas sem pino</string>
+
+    <!-- Arte do banner pago -->
+    <string name="promocao_arte_tamanho">Tamanho da arte: 1200 × 400 pixels (proporção 3 × 1). Formatos: JPG ou PNG, até 10 MB.</string>
+    <string name="promocao_arte_dica">Deixe textos e logotipo no centro, longe das bordas: em celulares mais estreitos as laterais são cortadas. Sem imagem, o banner mostra o título e o texto nas cores do Tabelapp.</string>
+
+    <!-- Empresa anunciante (sem ponto de venda) -->
+    <string name="anunciante_opcao_loja_titulo">Tenho loja ou ponto de venda</string>
+    <string name="anunciante_opcao_loja_texto">Publico minha tabela de preços e posso anunciar no banner. Precisa da foto do alvará.</string>
+    <string name="anunciante_opcao_anunciante_titulo">Só quero anunciar</string>
+    <string name="anunciante_opcao_anunciante_texto">Produtor, marca ou prestador que não vende direto ao público: anuncia no banner da busca, sem loja nem tabela de preços.</string>
+    <string name="anunciante_intro">Cadastre sua empresa para anunciar no banner da busca. Nossa equipe confere o CNPJ e o contato antes de liberar.</string>
+    <string name="anunciante_trocar_para_loja">Tenho loja ou ponto de venda? Trocar</string>
+    <string name="anunciante_trocar_para_anunciante">Não tenho loja, só quero anunciar? Trocar</string>
+    <string name="anunciante_documento">Se puder, envie a foto do cartão CNPJ, do contrato social ou do alvará: a análise fica mais rápida.</string>
+    <string name="anunciante_painel">Conta de anunciante: crie banners para aparecer na busca.</string>
+    <string name="admin_tipo_anunciante">ANUNCIANTE (sem ponto de venda)</string>
+    <string name="admin_sem_documento">Sem documento: confira o CNPJ na Receita e o contato antes de aprovar.</string>
 </resources>

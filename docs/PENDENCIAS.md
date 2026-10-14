@@ -21,6 +21,14 @@
 - **Leitura da página da Sefaz:** foi feita a partir do padrão conhecido do portal; se a Sefaz mudar o
   layout, a leitura falha (há o botão "Enviar página para análise").
 
+### Crescimento para outras cidades e estados
+- **NF de outros estados:** hoje o app lê só notas do RJ (código 33 na chave). Cada estado tem o seu portal
+  da Sefaz, com página e formato próprios: cada novo estado precisa de um leitor e de testes com notas reais.
+  O restante do app (busca, mapa, cadastro de lojas e anunciantes) já funciona em qualquer cidade.
+- **Arte do banner por IA:** possível (ex.: geração de imagem por API, chamada de uma função no servidor
+  para não expor a chave), com custo por imagem. Alternativa sem custo: modelos prontos com o título, o
+  preço e a foto do produto montados no próprio app.
+
 ### Configuração (painel do Supabase / contas externas)
 - **E-mail:** o serviço gratuito do Supabase só entrega para membros do projeto e poucos por hora.
   Sem um SMTP próprio (Resend, Brevo…), o **"Esqueci a senha" não chega para os usuários**.

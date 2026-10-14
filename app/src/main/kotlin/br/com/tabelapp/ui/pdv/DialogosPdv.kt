@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -163,7 +163,7 @@ fun DialogoPromocao(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "Seu banner aparece no topo da tela de busca, para quem pesquisa preços em Petrópolis.",
+                    "Seu banner aparece na tela de busca (no topo e no lugar do 5º card), do mesmo tamanho de um card de preço.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Campo("Título (ex.: Semana do hortifrúti)", titulo) { titulo = it.take(80) }
@@ -177,11 +177,14 @@ fun DialogoPromocao(
                     Text(if (arte == null) "Imagem do banner (opcional)" else "Trocar imagem")
                 }
                 miniatura?.let {
+                    // Prévia na proporção do banner (3 x 1), com o mesmo corte da busca.
                     Image(it, contentDescription = "Imagem do banner", contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 120.dp).clip(RoundedCornerShape(8.dp)))
+                        modifier = Modifier.fillMaxWidth().aspectRatio(3f).clip(RoundedCornerShape(8.dp)))
                 }
-                Text("Sem imagem, o banner mostra o título e o texto nas cores do Tabelapp. Ideal: imagem larga (3 x 1).",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.promocao_arte_tamanho), style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.promocao_arte_dica), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Campo("Palavras-chave (separe por vírgula)", palavras) { palavras = it.take(300) }
                 Text("Ex.: cerveja, carne. O banner aparece quando a busca tiver uma delas. Em branco: aparece para todos.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

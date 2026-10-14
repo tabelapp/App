@@ -10,7 +10,6 @@ import br.com.tabelapp.core.LeitorNfce
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.NotaLida
 import br.com.tabelapp.core.RascunhoNf
-import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.NotaFiscalRepositorio
@@ -141,7 +140,7 @@ class EnviarNfViewModel(
             texto.filter { it.isDigit() }.length != 44 -> "A chave tem 44 números. Confira o que foi digitado."
             chave == null -> "Chave inválida: algum número foi digitado errado."
             !chave.ehDoRioDeJaneiro ->
-                "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ."
+                "Esta nota não é do estado do Rio de Janeiro. Por enquanto o Tabelapp lê notas do RJ; outros estados chegam em breve."
             else -> null
         }
         if (erro != null || chave == null) {
@@ -171,7 +170,7 @@ class EnviarNfViewModel(
         if (!chave.ehDoRioDeJaneiro || url == null) {
             _estado.update {
                 it.copy(erroInicioTipo = null,
-                    erroInicio = "Esta nota não é do Rio de Janeiro. Por enquanto o Tabelapp funciona só em Petrópolis/RJ.")
+                    erroInicio = "Esta nota não é do estado do Rio de Janeiro. Por enquanto o Tabelapp lê notas do RJ; outros estados chegam em breve.")
             }
             return
         }
@@ -276,14 +275,6 @@ class EnviarNfViewModel(
     fun alterarNomeSugerido(texto: String) = _estado.update { it.copy(nomeSugerido = texto.take(120)) }
 
     fun alternarPdf(quer: Boolean) = _estado.update { it.copy(querPdf = quer) }
-
-    /** "Faz parte de combo?": marca/desmarca o item (e as linhas repetidas dele na nota). */
-    fun alternarCombo(item: ItemNota) = _estado.update { e ->
-        val chave = Texto.normalizar(item.produto) to item.precoCentavos
-        e.copy(itens = e.itens.map {
-            if (Texto.normalizar(it.produto) to it.precoCentavos == chave) it.copy(parteDeCombo = !item.parteDeCombo) else it
-        })
-    }
 
     fun enviar() {
         val e = _estado.value

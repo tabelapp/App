@@ -142,7 +142,7 @@ fun TelaLogin(container: AppContainer) {
                 if (sessaoExpirada) PainelErro(TipoErro.SESSAO_EXPIRADA, principal = null, compacto = true)
                 if (container.modoDemo) {
                     Text(
-                        "Modo demonstração: dados fictícios de Petrópolis. Qualquer e-mail e senha funcionam.",
+                        "Modo demonstração: dados fictícios. Qualquer e-mail e senha funcionam.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,

@@ -62,6 +62,7 @@ import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.StatusPdv
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.dados.PdvRepositorio
@@ -506,6 +507,10 @@ private fun CartaoPendente(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(pdv.nomeFantasia, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (pdv.tipo == TipoEmpresa.ANUNCIANTE) {
+                Text(stringResource(R.string.admin_tipo_anunciante), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
             Text("CNPJ ${Cnpj.formatar(pdv.cnpj)}")
             pdv.razaoSocial?.let { Text("Razão social informada: $it", style = MaterialTheme.typography.bodySmall) }
             pdv.endereco?.let { Text("Endereço informado: $it", style = MaterialTheme.typography.bodySmall) }
@@ -524,7 +529,8 @@ private fun CartaoPendente(
                 pdv.razaoSocialReceita?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 pdv.enderecoReceita?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
-            Text(
+            if (pdv.alvaraPath == null) Text(stringResource(R.string.admin_sem_documento), fontWeight = FontWeight.SemiBold)
+            else Text(
                 if (pdv.cnpjConferidoNoAlvara) "✓ O app achou o CNPJ na foto do alvará"
                 else "✗ O app não achou o CNPJ na foto do alvará — confira com atenção",
                 color = if (pdv.cnpjConferidoNoAlvara) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -544,11 +550,13 @@ private fun CartaoPendente(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                 OutlinedButton(onClick = aoRejeitar, enabled = !ocupado, modifier = Modifier.weight(1f)) { Text("Rejeitar") }
-                Button(onClick = aoAprovar, enabled = !ocupado && alvara != null, modifier = Modifier.weight(1f)) {
+                // Anunciante pode vir sem documento: aí aprova pela Receita e pelo contato.
+                val semDocumento = pdv.alvaraPath == null
+                Button(onClick = aoAprovar, enabled = !ocupado && (alvara != null || semDocumento), modifier = Modifier.weight(1f)) {
                     if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Aprovar")
                 }
             }
-            if (alvara == null) {
+            if (alvara == null && pdv.alvaraPath != null) {
                 Text("Veja o alvará antes de aprovar.", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -681,8 +689,11 @@ private fun SecaoEstabelecimentos(
                         listOfNotNull(pdv.donoNome, pdv.donoEmail).joinToString(" — ").ifEmpty { "—" }),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Text(stringResource(R.string.admin_estabelecimento_itens, pdv.itensPublicados),
-                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (pdv.tipo == TipoEmpresa.ANUNCIANTE) stringResource(R.string.admin_tipo_anunciante)
+                    else stringResource(R.string.admin_estabelecimento_itens, pdv.itensPublicados),
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 if (suspenso) {
                     pdv.motivoSuspensao?.let {
                         Text(stringResource(R.string.pdv_suspenso_motivo, it), style = MaterialTheme.typography.bodySmall)

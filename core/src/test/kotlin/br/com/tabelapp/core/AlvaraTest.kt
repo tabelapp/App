@@ -36,6 +36,16 @@ class CadastroPdvTest {
         assertTrue(base.erros(temAlvara = false).size == 1)
         assertTrue(base.copy(cnpj = "123", nomeFantasia = " ").erros(temAlvara = true).size == 2)
     }
+
+    @Test fun `loja precisa de cidade`() {
+        assertTrue(base.copy(cidade = " ").erros(temAlvara = true).contains("Informe a cidade."))
+    }
+
+    @Test fun `anunciante nao precisa de endereco nem documento, mas precisa de contato`() {
+        val anunciante = base.copy(tipo = TipoEmpresa.ANUNCIANTE, endereco = "", telefone = "(21) 99999-0000")
+        assertTrue(anunciante.erros(temAlvara = false).isEmpty())
+        assertTrue(anunciante.copy(telefone = "9999").erros(temAlvara = false).size == 1)
+    }
 }
 
 class RascunhoPrecoTest {

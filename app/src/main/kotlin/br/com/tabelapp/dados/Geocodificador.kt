@@ -33,8 +33,8 @@ class Geocodificador(contexto: Context) {
         val achado = withContext(Dispatchers.IO) {
             runCatching {
                 @Suppress("DEPRECATION") // a versão com callback (API 33+) faz o mesmo; esta roda em qualquer Android.
-                // Só dentro do estado do RJ: evita cair numa rua de mesmo nome em outra cidade.
-                g.getFromLocationName(endereco, 1, -23.4, -44.9, -20.7, -40.9)?.firstOrNull()
+                // Só dentro do Brasil (o endereço já leva cidade e UF): evita cair numa rua de mesmo nome no exterior.
+                g.getFromLocationName(endereco, 1, -33.8, -74.0, 5.3, -34.7)?.firstOrNull()
             }
         }
         // Falha de rede: não guarda, tenta de novo na próxima vez.

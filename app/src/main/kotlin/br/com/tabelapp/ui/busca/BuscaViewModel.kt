@@ -11,12 +11,15 @@ import br.com.tabelapp.core.Geo
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.SeloPreco
+import br.com.tabelapp.core.SugestaoProduto
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
+import br.com.tabelapp.dados.ListasRepositorio
 import br.com.tabelapp.dados.Localizacao
 import br.com.tabelapp.dados.Preferencias
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,12 +44,20 @@ data class EstadoBusca(
     val mostrarDisclaimer: Boolean = false,
     /** Banners patrocinados para a busca atual (vazio = espaço "Anuncie aqui"). */
     val banners: List<Banner> = emptyList(),
-)
+    /** Autocompletar: produtos com preço que combinam com o que está sendo digitado. */
+    val sugestoes: List<SugestaoProduto> = emptyList(),
+    val buscandoSugestoes: Boolean = false,
+) {
+    /** Banners do topo e do lugar do 5º card: intercalados, para os dois espaços mostrarem anúncios diferentes. */
+    val bannersTopo: List<Banner> get() = banners.filterIndexed { i, _ -> i % 2 == 0 }
+    val bannersMeio: List<Banner> get() = banners.filterIndexed { i, _ -> i % 2 == 1 }
+}
 
 class BuscaViewModel(
     private val cotacoes: CotacoesRepositorio,
     private val preferencias: Preferencias,
     private val localizacao: Localizacao,
+    private val listas: ListasRepositorio? = null,
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(
@@ -63,6 +74,7 @@ class BuscaViewModel(
     /** Parâmetros do selo (configuracao_app); padrão até carregar. */
     private var config = ConfigConfianca()
     private val bannersVistos = mutableSetOf<String>()
+    private var sugestoesJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -72,11 +84,45 @@ class BuscaViewModel(
         carregar(null)
     }
 
-    fun aoDigitar(texto: String) = _estado.update { it.copy(texto = texto) }
+    /** Autocompletar (o mesmo da lista de compras): sugere produtos com preço enquanto digita. */
+    fun aoDigitar(texto: String) {
+        _estado.update { it.copy(texto = texto) }
+        sugestoesJob?.cancel()
+        val repo = listas
+        if (repo == null || texto.trim().length < 2) {
+            _estado.update { it.copy(sugestoes = emptyList(), buscandoSugestoes = false) }
+            return
+        }
+        sugestoesJob = viewModelScope.launch {
+            delay(300)
+            _estado.update { it.copy(buscandoSugestoes = true) }
+            val sugestoes = try {
+                repo.sugerir(texto.trim())
+            } catch (e: ErroAmigavel) {
+                emptyList()
+            }
+            _estado.update { it.copy(sugestoes = sugestoes, buscandoSugestoes = false) }
+        }
+    }
 
-    fun buscar() = carregar(_estado.value.texto.trim().ifEmpty { null })
+    fun buscar() {
+        fecharSugestoes()
+        carregar(_estado.value.texto.trim().ifEmpty { null })
+    }
+
+    /** Tocou numa sugestão: busca exatamente aquele produto. */
+    fun escolherSugestao(produto: String) {
+        _estado.update { it.copy(texto = produto) }
+        buscar()
+    }
+
+    fun fecharSugestoes() {
+        sugestoesJob?.cancel()
+        _estado.update { it.copy(sugestoes = emptyList(), buscandoSugestoes = false) }
+    }
 
     fun limpar() {
+        fecharSugestoes()
         _estado.update { it.copy(texto = "", ordenacao = null) }
         carregar(null)
     }

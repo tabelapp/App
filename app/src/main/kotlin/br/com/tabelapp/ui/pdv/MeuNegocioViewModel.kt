@@ -11,6 +11,7 @@ import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Imagens
@@ -32,6 +33,8 @@ data class EstadoPdv(
     val pdvs: List<MeuPdv> = emptyList(),
     val erroCarregar: String? = null,
     // Formulário de cadastro
+    /** Loja (ponto de venda) ou só anunciante (produtor, marca); null = ainda não escolheu. */
+    val tipo: TipoEmpresa? = null,
     val cnpj: String = "",
     val consultando: Boolean = false,
     /** Já consultou a Receita (achando ou não); libera o resto do formulário. */
@@ -42,10 +45,11 @@ data class EstadoPdv(
     val razaoSocial: String = "",
     val endereco: String = "",
     val bairro: String = "",
-    val cidade: String = "Petrópolis",
-    val uf: String = "RJ",
+    val cidade: String = "",
+    val uf: String = "",
     val cep: String = "",
     val telefone: String = "",
+    val site: String = "",
     val alvara: ByteArray? = null,
     val alvaraMiniatura: ImageBitmap? = null,
     val alvaraTexto: String? = null,
@@ -110,8 +114,11 @@ class MeuNegocioViewModel(
             pdvs = it.pdvs,
             cnpj = base?.cnpj?.let(Cnpj::formatar).orEmpty(),
             nomeFantasia = base?.nomeFantasia.orEmpty(),
+            tipo = base?.tipo,
         )
     }
+
+    fun escolherTipo(tipo: TipoEmpresa) = _estado.update { it.copy(tipo = tipo, erros = emptyList()) }
 
     fun voltarASituacao() = _estado.update { it.copy(etapa = EtapaPdv.SITUACAO, erros = emptyList()) }
 
@@ -159,6 +166,8 @@ class MeuNegocioViewModel(
     fun alterarEndereco(t: String) = _estado.update { it.copy(endereco = t.take(200)) }
     fun alterarBairro(t: String) = _estado.update { it.copy(bairro = t.take(80)) }
     fun alterarCidade(t: String) = _estado.update { it.copy(cidade = t.take(80)) }
+    fun alterarUf(t: String) = _estado.update { it.copy(uf = t.filter { c -> c.isLetter() }.take(2).uppercase()) }
+    fun alterarSite(t: String) = _estado.update { it.copy(site = t.take(200)) }
     fun alterarTelefone(t: String) = _estado.update { it.copy(telefone = t.take(20)) }
 
     /** Reduz a foto para envio e lê o texto dela para conferir o CNPJ. */
@@ -190,13 +199,14 @@ class MeuNegocioViewModel(
         val dados = CadastroPdv(
             cnpj = e.cnpj, nomeFantasia = e.nomeFantasia, razaoSocial = e.razaoSocial.ifBlank { null },
             endereco = e.endereco, bairro = e.bairro, cidade = e.cidade, uf = e.uf, cep = e.cep, telefone = e.telefone,
+            tipo = e.tipo ?: TipoEmpresa.LOJA, site = e.site,
         )
         val erros = buildList {
             if (!e.consultado) add("Consulte o CNPJ antes de continuar.")
             addAll(dados.erros(temAlvara = e.alvara != null))
         }
         val alvara = e.alvara
-        if (erros.isNotEmpty() || alvara == null) {
+        if (erros.isNotEmpty() || (dados.tipo == TipoEmpresa.LOJA && alvara == null)) {
             _estado.update { it.copy(erros = erros) }
             return
         }

@@ -35,6 +35,7 @@ import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.core.SugestaoProduto
 import br.com.tabelapp.core.Texto
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.TipoOperacao
 import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.core.Validade
@@ -198,27 +199,34 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
 
     override suspend fun meusPdvs(): List<MeuPdv> = banco.pdvs.map { it.meu }
 
-    override suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray, cnpjNoAlvara: Boolean) {
+    override suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray?, cnpjNoAlvara: Boolean) {
         delay(600)
         val cnpj = dados.cnpj.filter { it.isDigit() }
         banco.pdvs.removeAll { it.meu.cnpj == cnpj }
         val id = "pdv-" + UUID.randomUUID()
+        val anunciante = dados.tipo == TipoEmpresa.ANUNCIANTE
         banco.pdvs += DemoPdv(
-            meu = MeuPdv(id, cnpj, dados.razaoSocial, dados.nomeFantasia.trim(), StatusPdv.PENDENTE, null, cnpjNoAlvara, Instant.now()),
+            meu = MeuPdv(
+                id, cnpj, dados.razaoSocial, dados.nomeFantasia.trim(), StatusPdv.PENDENTE, null, cnpjNoAlvara, Instant.now(),
+                site = dados.site.ifBlank { null }, tipo = dados.tipo,
+            ),
             pendente = PdvPendente(
                 id = id, cnpj = cnpj, razaoSocial = dados.razaoSocial, nomeFantasia = dados.nomeFantasia.trim(),
-                endereco = listOf(dados.endereco, dados.bairro, dados.cidade).filter { it.isNotBlank() }.joinToString(", "),
-                telefone = dados.telefone.ifBlank { null }, alvaraPath = id, cnpjConferidoNoAlvara = cnpjNoAlvara,
+                endereco = (if (anunciante) listOf(dados.cidade, dados.uf) else listOf(dados.endereco, dados.bairro, dados.cidade))
+                    .filter { it.isNotBlank() }.joinToString(", "),
+                telefone = dados.telefone.ifBlank { null }, alvaraPath = alvaraJpeg?.let { id },
+                cnpjConferidoNoAlvara = cnpjNoAlvara, tipo = dados.tipo,
                 situacaoReceita = receita?.situacao, razaoSocialReceita = receita?.razaoSocial,
                 enderecoReceita = receita?.let { listOfNotNull(it.endereco, it.bairro, it.cidade, it.uf).joinToString(", ") },
                 donoNome = "Você (demonstração)", donoEmail = null, enviadoEm = Instant.now(),
             ),
-            alvara = alvaraJpeg,
+            alvara = alvaraJpeg ?: ByteArray(0),
         )
     }
 
     override suspend fun lojas(pdvId: String): List<LojaPdv> {
         val p = banco.pdvs.firstOrNull { it.meu.id == pdvId } ?: return emptyList()
+        if (p.meu.tipo == TipoEmpresa.ANUNCIANTE) return emptyList()
         val id = "loja-$pdvId"
         return listOf(
             banco.lojasEditadas[id]
@@ -446,6 +454,7 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
                 PdvAdmin(
                     id = it.id, nomeFantasia = it.nomeFantasia, cnpj = it.cnpj, status = it.status,
                     motivoSuspensao = it.motivoSuspensao, cidade = "Petrópolis", donoNome = "Dono (demonstração)",
+                    tipo = it.tipo,
                     donoEmail = null, itensPublicados = banco.precosPdv.size,
                 )
             }

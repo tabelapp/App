@@ -29,7 +29,11 @@ interface PdvRepositorio {
     suspend fun meusPdvs(): List<MeuPdv>
 
     /** Sobe a foto do alvará e cria o pedido de cadastro (fica pendente para o Admin). */
-    suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray, cnpjNoAlvara: Boolean)
+    /**
+     * Cria o pedido de cadastro (fica pendente para o Admin). Loja: com a foto do alvará.
+     * Anunciante ([CadastroPdv.tipo]): sem loja; a foto de um documento é opcional.
+     */
+    suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray?, cnpjNoAlvara: Boolean)
 
     // --- Painel do PDV aprovado ---
     suspend fun lojas(pdvId: String): List<LojaPdv>

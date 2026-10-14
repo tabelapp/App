@@ -16,6 +16,17 @@ enum class StatusPdv(val codigo: String) {
     }
 }
 
+/** Tipo de empresa: loja (ponto de venda com tabela de preços) ou só anunciante (produtor, marca). */
+enum class TipoEmpresa(val codigo: String) {
+    LOJA("loja"),
+    /** Não vende direto ao público: não tem loja nem tabela de preços, só anuncia no banner. */
+    ANUNCIANTE("anunciante");
+
+    companion object {
+        fun doCodigo(codigo: String?): TipoEmpresa = entries.firstOrNull { it.codigo == codigo } ?: LOJA
+    }
+}
+
 /** Um PDV do usuário logado (conta CNPJ). */
 data class MeuPdv(
     val id: String,
@@ -31,6 +42,7 @@ data class MeuPdv(
     val site: String? = null,
     /** Motivo da suspensão (só quando [status] é SUSPENSO); o dono vê em "Meu negócio". */
     val motivoSuspensao: String? = null,
+    val tipo: TipoEmpresa = TipoEmpresa.LOJA,
 )
 
 /** Uma loja do PDV. [endereco] é o completo (para exibir); os outros campos são para editar. */
@@ -131,6 +143,8 @@ data class CadastroPdv(
     val uf: String,
     val cep: String,
     val telefone: String,
+    val tipo: TipoEmpresa = TipoEmpresa.LOJA,
+    val site: String = "",
 ) {
     /**
      * O que falta no formulário. A situação do CNPJ na Receita (ativa, baixada...) não
@@ -139,9 +153,19 @@ data class CadastroPdv(
      */
     fun erros(temAlvara: Boolean): List<String> = buildList {
         if (!Cnpj.valido(cnpj)) add("CNPJ inválido: confira os 14 números.")
-        if (nomeFantasia.isBlank()) add("Informe o nome do estabelecimento.")
-        if (endereco.isBlank()) add("Informe o endereço.")
-        if (!temAlvara) add("Envie a foto do alvará.")
+        if (nomeFantasia.isBlank()) add(if (tipo == TipoEmpresa.LOJA) "Informe o nome do estabelecimento." else "Informe o nome da empresa.")
+        when (tipo) {
+            TipoEmpresa.LOJA -> {
+                if (endereco.isBlank()) add("Informe o endereço.")
+                if (cidade.isBlank()) add("Informe a cidade.")
+                if (!temAlvara) add("Envie a foto do alvará.")
+            }
+            // Anunciante: sem loja; o documento é opcional, o contato é obrigatório.
+            TipoEmpresa.ANUNCIANTE -> {
+                if (cidade.isBlank()) add("Informe a cidade.")
+                if (telefone.count { it.isDigit() } < 10) add("Informe um telefone ou WhatsApp com DDD.")
+            }
+        }
     }
 }
 
@@ -161,6 +185,7 @@ data class PdvPendente(
     val donoNome: String?,
     val donoEmail: String?,
     val enviadoEm: Instant,
+    val tipo: TipoEmpresa = TipoEmpresa.LOJA,
 )
 
 /** Nome de estabelecimento sugerido por quem enviou NF, esperando confirmação do Admin. */
@@ -199,6 +224,7 @@ data class PdvAdmin(
     val donoNome: String?,
     val donoEmail: String?,
     val itensPublicados: Int,
+    val tipo: TipoEmpresa = TipoEmpresa.LOJA,
 )
 
 /** Resultado da prévia de uma importação de planilha (função pdv_salvar_precos com simular). */

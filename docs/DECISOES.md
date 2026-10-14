@@ -266,6 +266,23 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
 - Admin: botão **"Localizar lojas sem pino"** (função `admin_lojas_sem_coordenadas`).
 - Com coordenada gravada, o mapa usa o ponto exato e a busca calcula a distância no card.
 
+## Ajustes antes do lançamento (14/10/2026)
+
+- **Sem "Faz parte de combo?"** no envio da NF (confundia). A coluna `parte_de_combo` continua no banco
+  (sempre falsa para novos envios); os avisos de preço e o "Esse preço não confere" cobrem os combos.
+- **Busca:** banner do tamanho de um card (124 dp), segundo banner no lugar do 5º card (os banners são
+  intercalados entre os dois espaços), bloco de busca do mesmo tamanho (campo + botão único "Filtros" com
+  ordenação e "Ver no mapa" + contador e aviso ao lado) e autocompletar igual ao da lista de compras.
+- **Arte do banner:** 1200 × 400 px (3 × 1), JPG ou PNG até 10 MB; textos no centro (laterais podem ser
+  cortadas em celulares estreitos).
+- **Sem barreira de cidade:** textos sem "Petrópolis", cidade e UF obrigatórias no cadastro (sem padrão),
+  localização de endereços em todo o Brasil. Continua só RJ: a leitura da NF (cada estado tem o seu portal
+  da Sefaz) — ver pendências.
+- **Empresa anunciante** (migração `20261014002300`): conta CNPJ sem ponto de venda (produtor, marca,
+  prestador). Cadastro com CNPJ, nome, cidade/UF, telefone e site; documento opcional; aprovação do Admin.
+  No painel, só promoções. `pdvs.tipo` = `loja` | `anunciante`.
+- **Correção:** CNPJ suspenso não pode ser recadastrado (o recadastro apagava o cadastro suspenso).
+
 ## Segurança (resumo)
 
 - Nada é acessível sem login.

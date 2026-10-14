@@ -74,6 +74,7 @@ import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.RascunhoPreco
 import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.core.Validade
@@ -89,6 +90,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     }
     val estado by vm.estado.collectAsStateWithLifecycle()
     val contexto = LocalContext.current
+    val anunciante = pdv.tipo == TipoEmpresa.ANUNCIANTE
     var excluindo by remember { mutableStateOf<PrecoPdv?>(null) }
     var excluindoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var editandoCadastro by remember { mutableStateOf(false) }
@@ -119,6 +121,11 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                         }
                     }
                 }
+                if (anunciante) {
+                    Text(stringResource(R.string.anunciante_painel), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    estado.site?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
                 estado.loja?.let { l ->
                     Text(l.endereco, style = MaterialTheme.typography.bodySmall)
                     val contatos = listOfNotNull(l.telefone?.let { "Tel. $it" }, l.whatsapp?.let { "WhatsApp $it" }, estado.site)
@@ -146,76 +153,81 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 }
             }
         }
-        item { estado.catalogo?.let { CartaoCatalogo(it, aoVerPlanos = vm::abrirPlanos) } }
-        item {
-            Button(onClick = vm::novoItem, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Adicionar produto")
+        // Anunciante (sem ponto de venda): não tem tabela de preços, só promoções.
+        if (!anunciante) {
+            item { estado.catalogo?.let { CartaoCatalogo(it, aoVerPlanos = vm::abrirPlanos) } }
+            item {
+                Button(onClick = vm::novoItem, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Adicionar produto")
+                }
             }
+            item { Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { seletorPlanilha.launch(TIPOS_PLANILHA) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Enviar planilha")
+                    }
+                    OutlinedButton(onClick = { compartilharModeloPlanilha(contexto) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Modelo")
+                    }
+                }
+                Text(
+                    "Planilha Excel (.xlsx) ou .csv com as colunas Produto, Preço, Validade e OBS. " +
+                        "Antes de publicar, o app mostra o que entra no seu catálogo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            } }
         }
-        item { Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { seletorPlanilha.launch(TIPOS_PLANILHA) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Enviar planilha")
-                }
-                OutlinedButton(onClick = { compartilharModeloPlanilha(contexto) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Modelo")
-                }
-            }
-            Text(
-                "Planilha Excel (.xlsx) ou .csv com as colunas Produto, Preço, Validade e OBS. " +
-                    "Antes de publicar, o app mostra o que entra no seu catálogo.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        } }
         estado.mensagem?.let { m -> item { Text(m, color = MaterialTheme.colorScheme.primary) } }
         estado.erro?.let { m -> item { Text(m, color = MaterialTheme.colorScheme.error) } }
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Minha tabela de preços (${estado.precos.size})",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (estado.carregando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            }
-        }
-        if (estado.precos.size > 8) {
+        if (!anunciante) {
             item {
-                OutlinedTextField(
-                    value = estado.filtro, onValueChange = vm::alterarFiltro,
-                    placeholder = { Text("Procurar na minha tabela") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Minha tabela de preços (${estado.precos.size})",
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (estado.carregando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
             }
-        }
-        if (!estado.carregando && estado.precos.isEmpty()) {
-            item {
-                Text(
-                    "Sua tabela está vazia. Toque em \"Adicionar produto\" para publicar o primeiro preço — " +
-                        "ele aparece na busca como Preço oficial.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (estado.precos.size > 8) {
+                item {
+                    OutlinedTextField(
+                        value = estado.filtro, onValueChange = vm::alterarFiltro,
+                        placeholder = { Text("Procurar na minha tabela") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
-        }
-        items(estado.precosFiltrados, key = { it.id }) { p ->
-            LinhaPreco(p, aoEditar = { vm.editar(p) }, aoExcluir = { excluindo = p })
+            if (!estado.carregando && estado.precos.isEmpty()) {
+                item {
+                    Text(
+                        "Sua tabela está vazia. Toque em \"Adicionar produto\" para publicar o primeiro preço — " +
+                            "ele aparece na busca como Preço oficial.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            items(estado.precosFiltrados, key = { it.id }) { p ->
+                LinhaPreco(p, aoEditar = { vm.editar(p) }, aoExcluir = { excluindo = p })
+            }
         }
         item { Column {
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            if (!anunciante) HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text("Promoções (banner na busca)", fontWeight = FontWeight.Bold)
             Text(
-                "Seu banner aparece no topo da busca para quem procura as palavras escolhidas. " +
-                    "Pacotes de 100, 250 ou 500 visualizações.",
+                "Seu banner aparece na busca (no topo e no lugar do 5º card) para quem procura as palavras " +
+                    "escolhidas. Pacotes de 100, 250 ou 500 visualizações.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -35,13 +35,11 @@ import br.com.tabelapp.ui.tema.PretoLupa
 import br.com.tabelapp.ui.tema.VermelhoTabelapp
 import kotlinx.coroutines.delay
 
-/** Altura do espaço do banner, com as margens (layout compacto da busca, pedido do fundador). */
-val ALTURA_BANNER: Dp = 80.dp
-
 /**
- * Espaço do banner patrocinado, entre o cabeçalho e o campo de busca.
- * Com vários banners, alterna a cada 6 segundos. Sem nenhum, mostra o
- * "Anuncie aqui" do próprio Tabelapp — o espaço nunca fica vazio.
+ * Espaço do banner patrocinado, do mesmo tamanho de um card de preço ([ALTURA_CARTAO]).
+ * A busca tem dois: no topo e no lugar do 5º card. Com vários banners, alterna a cada
+ * 6 segundos. Sem nenhum, mostra o "Anuncie aqui" do próprio Tabelapp — o espaço
+ * nunca fica vazio.
  */
 @Composable
 fun BannerPatrocinado(
@@ -50,6 +48,8 @@ fun BannerPatrocinado(
     /** Toque no banner (null = espaço "Anuncie aqui"). */
     aoTocar: (Banner?) -> Unit,
     modifier: Modifier = Modifier,
+    /** Margem lateral (0 quando já está dentro da lista de cards, que tem a própria margem). */
+    margemLateral: Dp = 12.dp,
 ) {
     var indice by remember(banners) { mutableIntStateOf(0) }
     LaunchedEffect(banners) {
@@ -63,9 +63,9 @@ fun BannerPatrocinado(
 
     Box(
         modifier
+            .padding(horizontal = margemLateral, vertical = 4.dp)
             .fillMaxWidth()
-            .height(ALTURA_BANNER)
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .height(ALTURA_CARTAO)
             .clip(RoundedCornerShape(12.dp))
             .clickable { aoTocar(atual) },
     ) {
@@ -100,15 +100,15 @@ fun BannerPatrocinado(
 @Composable
 private fun BannerTexto(b: Banner) {
     Column(
-        Modifier.fillMaxSize().background(VermelhoTabelapp).padding(horizontal = 14.dp, vertical = 6.dp),
+        Modifier.fillMaxSize().background(VermelhoTabelapp).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
         Text(b.pdvNome, color = AmareloTabelapp, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(b.titulo, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(b.titulo, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
         b.descricao?.let {
-            Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(it, color = Color.White, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -117,15 +117,15 @@ private fun BannerTexto(b: Banner) {
 @Composable
 private fun AnuncieAqui() {
     Column(
-        Modifier.fillMaxSize().background(AmareloTabelapp).padding(horizontal = 14.dp, vertical = 6.dp),
+        Modifier.fillMaxSize().background(AmareloTabelapp).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text("Anuncie aqui", color = VermelhoTabelapp, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Anuncie aqui", color = VermelhoTabelapp, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
-            "Seu comércio em destaque para quem pesquisa preços em Petrópolis.",
-            color = PretoLupa, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            "Sua marca em destaque para quem está pesquisando preços agora.",
+            color = PretoLupa, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
-        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelSmall,
+        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = PretoLupa, style = MaterialTheme.typography.labelMedium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

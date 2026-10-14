@@ -24,10 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -37,9 +39,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +71,7 @@ import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.StatusPdv
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.tema.coresBarraTopo
@@ -138,122 +143,146 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            "Cadastre seu estabelecimento para publicar seus preços no Tabelapp. Para evitar fraudes, " +
-                "pedimos o alvará: nossa equipe confere se você responde pela empresa antes de liberar.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        // 1. CNPJ
-        Text("1. CNPJ da empresa", fontWeight = FontWeight.Bold)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = estado.cnpj, onValueChange = vm::alterarCnpj,
-                label = { Text("CNPJ") },
-                placeholder = { Text("00.000.000/0000-00") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-            )
-            Button(onClick = vm::consultarCnpj, enabled = !estado.consultando) {
-                if (estado.consultando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                else Text("Consultar")
+        val tipo = estado.tipo
+        if (tipo == null) {
+            EscolhaTipo(vm::escolherTipo)
+            if (estado.pdvs.isNotEmpty()) {
+                OutlinedButton(onClick = vm::voltarASituacao, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
             }
-        }
-        val receita = estado.receita
-        when {
-            receita != null -> Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Receita Federal", style = MaterialTheme.typography.labelMedium)
-                    Text(receita.razaoSocial ?: "—", fontWeight = FontWeight.Bold)
-                    receita.nomeFantasia?.let { Text(it) }
-                    Text("Situação: ${receita.situacao ?: "—"}", fontWeight = FontWeight.SemiBold)
-                    receita.atividade?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                }
-            }
-            estado.consultado && estado.avisoConsulta == null ->
-                Text(
-                    "CNPJ não encontrado na consulta da Receita. Confira os números; se estiverem certos, " +
-                        "preencha os dados — nossa equipe confere pelo alvará.",
-                    color = MaterialTheme.colorScheme.error,
-                )
-            estado.avisoConsulta != null -> Text(estado.avisoConsulta, color = MaterialTheme.colorScheme.error)
-        }
-
-        if (estado.consultado) {
-            // 2. Dados
-            Text("2. Dados do estabelecimento", fontWeight = FontWeight.Bold)
-            Campo("Nome do estabelecimento (como os clientes conhecem)", estado.nomeFantasia, vm::alterarNome)
-            Campo("Endereço (rua e número)", estado.endereco, vm::alterarEndereco)
-            Campo("Bairro", estado.bairro, vm::alterarBairro)
-            Campo("Cidade", estado.cidade, vm::alterarCidade)
-            Campo("Telefone", estado.telefone, vm::alterarTelefone, KeyboardType.Phone)
-
-            // 3. Alvará
-            Text("3. Foto do alvará", fontWeight = FontWeight.Bold)
+        } else {
+            val anunciante = tipo == TipoEmpresa.ANUNCIANTE
             Text(
-                "Fotografe o alvará de funcionamento inteiro, com o CNPJ bem legível.",
-                style = MaterialTheme.typography.bodySmall,
+                if (anunciante) stringResource(R.string.anunciante_intro) else
+                    "Cadastre seu estabelecimento para publicar seus preços no Tabelapp. Para evitar fraudes, " +
+                        "pedimos o alvará: nossa equipe confere se você responde pela empresa antes de liberar.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            estado.alvaraMiniatura?.let {
-                Image(
-                    bitmap = it, contentDescription = "Foto do alvará",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).clip(RoundedCornerShape(8.dp)),
-                )
+            TextButton(onClick = { vm.escolherTipo(if (anunciante) TipoEmpresa.LOJA else TipoEmpresa.ANUNCIANTE) }) {
+                Text(stringResource(if (anunciante) R.string.anunciante_trocar_para_loja else R.string.anunciante_trocar_para_anunciante))
             }
-            if (estado.lendoAlvara) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Lendo o alvará…")
-                }
-            }
-            when (estado.cnpjNoAlvara) {
-                true -> Aviso(Icons.Default.CheckCircle, MaterialTheme.colorScheme.primary,
-                    "CNPJ encontrado no alvará.")
-                false -> Aviso(Icons.Default.Warning, MaterialTheme.colorScheme.error,
-                    "Não encontrei o CNPJ ${Cnpj.normalizar(estado.cnpj)?.let(Cnpj::formatar) ?: ""} nesta foto. " +
-                        "Tente uma foto mais nítida, ou envie assim para a análise da nossa equipe.")
-                null -> {}
-            }
-            estado.avisoAlvara?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = ::abrirCamera, enabled = !estado.lendoAlvara, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (estado.alvara == null) "Tirar foto" else "Outra foto")
-                }
-                OutlinedButton(
-                    onClick = { galeria.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    enabled = !estado.lendoAlvara,
+
+            // 1. CNPJ
+            Text("1. CNPJ da empresa", fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = estado.cnpj, onValueChange = vm::alterarCnpj,
+                    label = { Text("CNPJ") },
+                    placeholder = { Text("00.000.000/0000-00") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Galeria")
+                )
+                Button(onClick = vm::consultarCnpj, enabled = !estado.consultando) {
+                    if (estado.consultando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Text("Consultar")
                 }
             }
-        }
-
-        estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-
-        if (estado.consultado) {
-            Button(
-                onClick = vm::enviar,
-                enabled = !estado.enviando && !estado.lendoAlvara,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                if (estado.enviando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Text("Enviar para análise")
+            val receita = estado.receita
+            when {
+                receita != null -> Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Receita Federal", style = MaterialTheme.typography.labelMedium)
+                        Text(receita.razaoSocial ?: "—", fontWeight = FontWeight.Bold)
+                        receita.nomeFantasia?.let { Text(it) }
+                        Text("Situação: ${receita.situacao ?: "—"}", fontWeight = FontWeight.SemiBold)
+                        receita.atividade?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+                estado.consultado && estado.avisoConsulta == null ->
+                    Text(
+                        "CNPJ não encontrado na consulta da Receita. Confira os números; se estiverem certos, " +
+                            "preencha os dados — nossa equipe confere pelo alvará.",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                estado.avisoConsulta != null -> Text(estado.avisoConsulta, color = MaterialTheme.colorScheme.error)
             }
-        }
-        if (estado.pdvs.isNotEmpty()) {
-            OutlinedButton(onClick = vm::voltarASituacao, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+
+            if (estado.consultado) {
+                // 2. Dados
+                if (anunciante) {
+                    Text("2. Dados da empresa", fontWeight = FontWeight.Bold)
+                    Campo("Nome da empresa ou marca (aparece no banner)", estado.nomeFantasia, vm::alterarNome)
+                } else {
+                    Text("2. Dados do estabelecimento", fontWeight = FontWeight.Bold)
+                    Campo("Nome do estabelecimento (como os clientes conhecem)", estado.nomeFantasia, vm::alterarNome)
+                    Campo("Endereço (rua e número)", estado.endereco, vm::alterarEndereco)
+                    Campo("Bairro", estado.bairro, vm::alterarBairro)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f)) { Campo("Cidade", estado.cidade, vm::alterarCidade) }
+                    Box(Modifier.width(88.dp)) { Campo("UF", estado.uf, vm::alterarUf) }
+                }
+                Campo(if (anunciante) "Telefone ou WhatsApp (com DDD)" else "Telefone", estado.telefone, vm::alterarTelefone,
+                    KeyboardType.Phone)
+                if (anunciante) Campo("Site ou Instagram (opcional)", estado.site, vm::alterarSite, KeyboardType.Uri)
+
+                // 3. Comprovante
+                Text(if (anunciante) "3. Documento da empresa (opcional)" else "3. Foto do alvará", fontWeight = FontWeight.Bold)
+                Text(
+                    if (anunciante) stringResource(R.string.anunciante_documento)
+                    else "Fotografe o alvará de funcionamento inteiro, com o CNPJ bem legível.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                estado.alvaraMiniatura?.let {
+                    Image(
+                        bitmap = it, contentDescription = "Foto do alvará",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).clip(RoundedCornerShape(8.dp)),
+                    )
+                }
+                if (estado.lendoAlvara) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Lendo o alvará…")
+                    }
+                }
+                when (estado.cnpjNoAlvara) {
+                    true -> Aviso(Icons.Default.CheckCircle, MaterialTheme.colorScheme.primary,
+                        "CNPJ encontrado no alvará.")
+                    false -> Aviso(Icons.Default.Warning, MaterialTheme.colorScheme.error,
+                        "Não encontrei o CNPJ ${Cnpj.normalizar(estado.cnpj)?.let(Cnpj::formatar) ?: ""} nesta foto. " +
+                            "Tente uma foto mais nítida, ou envie assim para a análise da nossa equipe.")
+                    null -> {}
+                }
+                estado.avisoAlvara?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = ::abrirCamera, enabled = !estado.lendoAlvara, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (estado.alvara == null) "Tirar foto" else "Outra foto")
+                    }
+                    OutlinedButton(
+                        onClick = { galeria.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        enabled = !estado.lendoAlvara,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Galeria")
+                    }
+                }
+            }
+
+            estado.erros.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
+
+            if (estado.consultado) {
+                Button(
+                    onClick = vm::enviar,
+                    enabled = !estado.enviando && !estado.lendoAlvara,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    if (estado.enviando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    else Text("Enviar para análise")
+                }
+            }
+            if (estado.pdvs.isNotEmpty()) {
+                OutlinedButton(onClick = vm::voltarASituacao, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+            }
         }
     }
 }
@@ -293,8 +322,13 @@ private fun Situacao(pdvs: List<MeuPdv>, vm: MeuNegocioViewModel, modoDemo: Bool
                         StatusPdv.PENDENTE -> {
                             Aviso(Icons.Default.HourglassTop, MaterialTheme.colorScheme.onSurface, "Cadastro em análise")
                             Text(
-                                "Nossa equipe está conferindo o alvará. Assim que for aprovado, você poderá " +
-                                    "publicar seus preços. Volte aqui para acompanhar.",
+                                if (pdv.tipo == TipoEmpresa.ANUNCIANTE) {
+                                    "Nossa equipe está conferindo o cadastro. Assim que for aprovado, você poderá " +
+                                        "criar seus banners. Volte aqui para acompanhar."
+                                } else {
+                                    "Nossa equipe está conferindo o alvará. Assim que for aprovado, você poderá " +
+                                        "publicar seus preços. Volte aqui para acompanhar."
+                                },
                             )
                             if (modoDemo) {
                                 Button(onClick = { vm.aprovarDemonstracao(pdv) }, modifier = Modifier.fillMaxWidth()) {
@@ -344,5 +378,33 @@ private fun Situacao(pdvs: List<MeuPdv>, vm: MeuNegocioViewModel, modoDemo: Bool
             }
         }
         OutlinedButton(onClick = vm::carregar, modifier = Modifier.fillMaxWidth()) { Text("Atualizar") }
+    }
+}
+
+/** Primeiro passo do cadastro: loja (ponto de venda) ou só anunciante (produtor, marca). */
+@Composable
+private fun EscolhaTipo(aoEscolher: (TipoEmpresa) -> Unit) {
+    Text("Que tipo de empresa você vai cadastrar?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    OpcaoTipo(
+        Icons.Default.Storefront, stringResource(R.string.anunciante_opcao_loja_titulo),
+        stringResource(R.string.anunciante_opcao_loja_texto),
+    ) { aoEscolher(TipoEmpresa.LOJA) }
+    OpcaoTipo(
+        Icons.Default.Campaign, stringResource(R.string.anunciante_opcao_anunciante_titulo),
+        stringResource(R.string.anunciante_opcao_anunciante_texto),
+    ) { aoEscolher(TipoEmpresa.ANUNCIANTE) }
+}
+
+@Composable
+private fun OpcaoTipo(icone: ImageVector, titulo: String, texto: String, aoTocar: () -> Unit) {
+    OutlinedCard(onClick = aoTocar, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(titulo, fontWeight = FontWeight.Bold)
+                Text(texto, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }

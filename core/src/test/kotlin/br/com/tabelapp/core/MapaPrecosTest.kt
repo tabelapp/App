@@ -34,6 +34,13 @@ class MapaPrecosTest {
         assertNull(MapaPrecos.pinos(listOf(c("a", 1, "X", " ")))[0].enderecoParaBusca)
     }
 
+    @Test fun `endereco de outra cidade nao ganha Petropolis`() {
+        assertEquals("Rua da Praia, 5, Icaraí, Niterói - RJ, Brasil", MapaPrecos.enderecoParaGeocoder("Rua da Praia, 5, Icaraí, Niterói - RJ"))
+        assertEquals("Av. Paulista, 1000, São Paulo/SP, Brasil", MapaPrecos.enderecoParaGeocoder("Av. Paulista, 1000, São Paulo/SP"))
+        // "se" e "to" soltos no nome da rua não são UF.
+        assertEquals("Rua Se Toque, 5, Petrópolis - RJ, Brasil", MapaPrecos.enderecoParaGeocoder("Rua Se Toque, 5"))
+    }
+
     @Test fun `loja usa o mesmo endereco completo para o mapa`() {
         val loja = LojaPdv("l1", null, "Rua do Imperador, 500, Centro, Petrópolis - RJ", null)
         assertEquals("Rua do Imperador, 500, Centro, Petrópolis - RJ, Brasil", loja.enderecoParaMapa)

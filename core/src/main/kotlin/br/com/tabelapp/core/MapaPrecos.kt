@@ -28,10 +28,18 @@ data class PinoMapa(
 
 object MapaPrecos {
 
-    /** Endereço completo para o Geocoder (sem cidade, assume Petrópolis - RJ); null = vazio. */
+    /** UF depois de " - ", "/" ou "," (ex.: "Niterói - RJ", "Centro/SP"), para não confundir com palavras comuns. */
+    private val comUf = Regex(
+        "[-/,]\\s*(ac|al|ap|am|ba|ce|df|es|go|ma|mt|ms|mg|pa|pb|pr|pe|pi|rj|rn|rs|ro|rr|sc|sp|se|to)\\b"
+    )
+
+    /**
+     * Endereço completo para o Geocoder; null = vazio. Com UF no texto (ex.: "Centro, Niterói - RJ"),
+     * vale como está. Sem cidade nenhuma (endereços antigos do piloto), assume Petrópolis - RJ.
+     */
     fun enderecoParaGeocoder(endereco: String): String? = endereco.takeIf { it.isNotBlank() }?.let { e ->
         val n = Texto.normalizar(e)
-        if (n.contains("petropolis") || Regex("\\brj\\b").containsMatchIn(n)) "$e, Brasil" else "$e, Petrópolis - RJ, Brasil"
+        if (comUf.containsMatchIn(n) || n.contains("petropolis")) "$e, Brasil" else "$e, Petrópolis - RJ, Brasil"
     }
 
     /** Coordenada plausível para uma loja (dentro do Brasil; descarta 0,0 e latitude/longitude trocadas). */

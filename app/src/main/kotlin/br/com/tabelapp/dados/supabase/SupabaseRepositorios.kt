@@ -30,6 +30,7 @@ import br.com.tabelapp.core.ResultadoImportacao
 import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.StatusPdv
 import br.com.tabelapp.core.SugestaoProduto
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.Unidade
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.ConsultaCnpj
@@ -340,7 +341,7 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
                 put("p_termo", termo?.trim()?.takeIf { it.isNotEmpty() })
                 put("p_lat", posicao?.latitude)
                 put("p_lng", posicao?.longitude)
-                put("p_limite", 3)
+                put("p_limite", 6)
             },
         ).decodeList<BannerDto>().map { d ->
             Banner(
@@ -455,6 +456,7 @@ private data class MeuPdvDto(
     @SerialName("modo_rede") val modoRede: Boolean = true,
     val site: String? = null,
     @SerialName("motivo_suspensao") val motivoSuspensao: String? = null,
+    val tipo: String? = null,
 )
 
 @Serializable
@@ -595,6 +597,7 @@ private data class PdvAdminDto(
     @SerialName("dono_nome") val donoNome: String? = null,
     @SerialName("dono_email") val donoEmail: String? = null,
     @SerialName("itens_publicados") val itensPublicados: Int = 0,
+    val tipo: String? = null,
 )
 
 @Serializable
@@ -611,6 +614,7 @@ private data class PdvPendenteDto(
     @SerialName("dono_nome") val donoNome: String? = null,
     @SerialName("dono_email") val donoEmail: String? = null,
     @SerialName("created_at") val createdAt: String,
+    val tipo: String? = null,
 )
 
 class SupabasePdvRepositorio(
@@ -627,6 +631,7 @@ class SupabasePdvRepositorio(
                 status = StatusPdv.doCodigo(d.status), motivoRejeicao = d.motivoRejeicao,
                 cnpjConferidoNoAlvara = d.cnpjConferidoNoAlvara, enviadoEm = instante(d.createdAt),
                 modoRede = d.modoRede, site = d.site, motivoSuspensao = d.motivoSuspensao,
+                tipo = TipoEmpresa.doCodigo(d.tipo),
             )
         }
     }
@@ -821,12 +826,45 @@ class SupabasePdvRepositorio(
     }
 
     override suspend fun cadastrar(
-        dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray, cnpjNoAlvara: Boolean,
+        dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray?, cnpjNoAlvara: Boolean,
     ) = traduzindoErros {
         val uid = supabase.auth.currentUserOrNull()?.id ?: throw ErroAmigavel(ErrosServidor.traduzir("nao_autenticado"))
         // A regra do bucket exige a pasta do próprio usuário: alvaras/<id>/<aleatório>.jpg
-        val caminho = "$uid/${java.util.UUID.randomUUID()}.jpg"
-        supabase.storage.from("alvaras").upload(caminho, alvaraJpeg) { upsert = false }
+        val caminho = alvaraJpeg?.let { foto ->
+            "$uid/${java.util.UUID.randomUUID()}.jpg".also { supabase.storage.from("alvaras").upload(it, foto) { upsert = false } }
+        }
+        val dadosReceita = receita?.let { r ->
+            buildJsonObject {
+                put("razao_social", r.razaoSocial)
+                put("nome_fantasia", r.nomeFantasia)
+                put("situacao", r.situacao)
+                put("endereco", r.endereco)
+                put("bairro", r.bairro)
+                put("cidade", r.cidade)
+                put("uf", r.uf)
+                put("cep", r.cep)
+                put("telefone", r.telefone)
+                put("atividade", r.atividade)
+            }
+        } ?: JsonNull
+        if (dados.tipo == TipoEmpresa.ANUNCIANTE) {
+            supabase.postgrest.rpc(
+                "cadastrar_anunciante",
+                buildJsonObject {
+                    put("p_cnpj", dados.cnpj.filter { it.isDigit() })
+                    put("p_nome_fantasia", dados.nomeFantasia.trim())
+                    put("p_razao_social", dados.razaoSocial?.trim())
+                    put("p_telefone", dados.telefone.trim())
+                    put("p_cidade", dados.cidade.trim())
+                    put("p_uf", dados.uf.trim())
+                    put("p_site", dados.site.trim().ifEmpty { null })
+                    put("p_documento_path", caminho)
+                    put("p_dados_receita", dadosReceita)
+                },
+            )
+            return@traduzindoErros
+        }
+        if (caminho == null) throw ErroAmigavel(ErrosServidor.traduzir("alvara_obrigatorio"))
         supabase.postgrest.rpc(
             "cadastrar_pdv",
             buildJsonObject {
@@ -841,20 +879,7 @@ class SupabasePdvRepositorio(
                 put("p_telefone", dados.telefone.trim())
                 put("p_alvara_path", caminho)
                 put("p_cnpj_no_alvara", cnpjNoAlvara)
-                put("p_dados_receita", receita?.let { r ->
-                    buildJsonObject {
-                        put("razao_social", r.razaoSocial)
-                        put("nome_fantasia", r.nomeFantasia)
-                        put("situacao", r.situacao)
-                        put("endereco", r.endereco)
-                        put("bairro", r.bairro)
-                        put("cidade", r.cidade)
-                        put("uf", r.uf)
-                        put("cep", r.cep)
-                        put("telefone", r.telefone)
-                        put("atividade", r.atividade)
-                    }
-                } ?: JsonNull)
+                put("p_dados_receita", dadosReceita)
             },
         )
         Unit
@@ -873,6 +898,7 @@ class SupabasePdvRepositorio(
                 enderecoReceita = listOfNotNull(receita("endereco"), receita("bairro"), receita("cidade"), receita("uf"))
                     .joinToString(", ").ifEmpty { null },
                 donoNome = d.donoNome, donoEmail = d.donoEmail, enviadoEm = instante(d.createdAt),
+                tipo = TipoEmpresa.doCodigo(d.tipo),
             )
         }
     }
@@ -939,7 +965,7 @@ class SupabasePdvRepositorio(
                 PdvAdmin(
                     id = it.id, nomeFantasia = it.nomeFantasia, cnpj = it.cnpj, status = StatusPdv.doCodigo(it.status),
                     motivoSuspensao = it.motivoSuspensao, cidade = it.cidade, donoNome = it.donoNome,
-                    donoEmail = it.donoEmail, itensPublicados = it.itensPublicados,
+                    donoEmail = it.donoEmail, itensPublicados = it.itensPublicados, tipo = TipoEmpresa.doCodigo(it.tipo),
                 )
             }
     }

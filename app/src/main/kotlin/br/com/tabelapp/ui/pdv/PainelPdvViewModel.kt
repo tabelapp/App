@@ -14,6 +14,7 @@ import br.com.tabelapp.core.RascunhoPreco
 import br.com.tabelapp.core.ResultadoImportacao
 import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.Texto
+import br.com.tabelapp.core.TipoEmpresa
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.dados.Geocodificador
@@ -118,6 +119,12 @@ class PainelPdvViewModel(
         _estado.update { it.copy(carregando = true, erro = null) }
         viewModelScope.launch {
             try {
+                // Anunciante não tem loja nem tabela de preços: só as promoções.
+                if (pdv.tipo == TipoEmpresa.ANUNCIANTE) {
+                    val promocoes = repositorio.promocoes(pdv.id)
+                    _estado.update { it.copy(carregando = false, promocoes = promocoes) }
+                    return@launch
+                }
                 val lojas = repositorio.lojas(pdv.id)
                 val lojaId = _estado.value.lojaId?.takeIf { id -> lojas.any { it.id == id } } ?: lojas.firstOrNull()?.id
                 if (lojaId == null) {
