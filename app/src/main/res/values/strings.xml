@@ -208,11 +208,11 @@
     <!-- Empresa anunciante (sem ponto de venda) -->
     <string name="anunciante_opcao_loja_titulo">Tenho loja ou ponto de venda</string>
     <string name="anunciante_opcao_loja_texto">Publico minha tabela de preços e posso anunciar no banner. Precisa da foto do alvará.</string>
-    <string name="anunciante_opcao_anunciante_titulo">Só quero anunciar</string>
+    <string name="anunciante_opcao_anunciante_titulo">Anunciante</string>
     <string name="anunciante_opcao_anunciante_texto">Produtor, marca ou prestador que não vende direto ao público: anuncia no banner da busca, sem loja nem tabela de preços. Precisa do comprovante do CNPJ.</string>
     <string name="anunciante_intro">Cadastre sua empresa para anunciar no banner da busca. Para evitar fraudes, pedimos o comprovante do CNPJ: nossa equipe confere se você responde pela empresa antes de liberar.</string>
     <string name="anunciante_trocar_para_loja">Tenho loja ou ponto de venda? Trocar</string>
-    <string name="anunciante_trocar_para_anunciante">Não tenho loja, só quero anunciar? Trocar</string>
+    <string name="anunciante_trocar_para_anunciante">Não tenho loja, sou anunciante? Trocar</string>
     <string name="anunciante_documento">Fotografe o alvará, o cartão CNPJ ou o contrato social, com o CNPJ bem legível.</string>
     <string name="anunciante_endereco">Endereço da empresa, só para a nossa análise: não aparece como loja na busca nem no mapa.</string>
     <string name="anunciante_painel">Conta de anunciante: crie banners para aparecer na busca.</string>
