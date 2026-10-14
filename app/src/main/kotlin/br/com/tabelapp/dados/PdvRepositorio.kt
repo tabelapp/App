@@ -30,8 +30,8 @@ interface PdvRepositorio {
 
     /** Sobe a foto do alvará e cria o pedido de cadastro (fica pendente para o Admin). */
     /**
-     * Cria o pedido de cadastro (fica pendente para o Admin). Loja: com a foto do alvará.
-     * Anunciante ([CadastroPdv.tipo]): sem loja; a foto de um documento é opcional.
+     * Cria o pedido de cadastro (fica pendente para o Admin), sempre com a foto do comprovante
+     * do CNPJ. Anunciante ([CadastroPdv.tipo]): o endereço é da empresa, não vira loja.
      */
     suspend fun cadastrar(dados: CadastroPdv, receita: DadosReceita?, alvaraJpeg: ByteArray?, cnpjNoAlvara: Boolean)
 

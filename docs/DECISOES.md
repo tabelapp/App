@@ -278,9 +278,11 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
 - **Sem barreira de cidade:** textos sem "Petrópolis", cidade e UF obrigatórias no cadastro (sem padrão),
   localização de endereços em todo o Brasil. Continua só RJ: a leitura da NF (cada estado tem o seu portal
   da Sefaz) — ver pendências.
-- **Empresa anunciante** (migração `20261014002300`): conta CNPJ sem ponto de venda (produtor, marca,
-  prestador). Cadastro com CNPJ, nome, cidade/UF, telefone e site; documento opcional; aprovação do Admin.
-  No painel, só promoções. `pdvs.tipo` = `loja` | `anunciante`.
+- **Empresa anunciante** (migrações `20261014002300` e `20261014002400`): conta CNPJ sem ponto de venda
+  (produtor, marca, prestador). Mesmo tratamento do estabelecimento: CNPJ consultado na Receita, endereço da
+  empresa e **comprovante do CNPJ obrigatório** (alvará, cartão CNPJ ou contrato social), aprovação do
+  Admin. O endereço fica em `pdvs` (não vira loja: não aparece na busca nem no mapa). Telefone/WhatsApp
+  obrigatório. No painel, só promoções. `pdvs.tipo` = `loja` | `anunciante`.
 - **Correção:** CNPJ suspenso não pode ser recadastrado (o recadastro apagava o cadastro suspenso).
 
 ## Segurança (resumo)

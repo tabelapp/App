@@ -14,7 +14,7 @@ O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarã
 
 **Notas fiscais que você envia:** o app abre a consulta pública da nota no site da Sefaz-RJ, no seu próprio celular, e guarda somente os dados do vendedor (nome, CNPJ e endereço), os produtos, os preços, a data da compra e a chave de acesso da nota. Os dados do comprador, como o CPF, nunca são guardados. Também guardamos qual conta enviou cada nota, para evitar abusos (limite diário de notas).
 
-**Estabelecimentos e anunciantes (conta de CNPJ):** CNPJ, nome, endereço (ou só a cidade, no caso de anunciante sem ponto de venda), telefone, WhatsApp, site, a posição da loja no mapa, dados públicos da Receita Federal e a foto do alvará ou de um documento da empresa. A foto do alvará é privada: só a nossa equipe a vê, para confirmar que quem cadastra é responsável pela empresa.
+**Estabelecimentos e anunciantes (conta de CNPJ):** CNPJ, nome, endereço (no caso de anunciante sem ponto de venda, o endereço da empresa, que não aparece na busca), telefone, WhatsApp, site, a posição da loja no mapa, dados públicos da Receita Federal e a foto do alvará ou de um documento da empresa. A foto do alvará é privada: só a nossa equipe a vê, para confirmar que quem cadastra é responsável pela empresa.
 
 **Localização:** quando você permite, o app usa a sua localização no próprio celular para mostrar a distância até as lojas e o seu ponto no mapa. Ela é enviada ao servidor apenas para calcular distâncias na busca e não é guardada. A única exceção é quando o dono de um estabelecimento toca em "Estou na loja": aí a posição do celular é guardada como a posição da loja no mapa (e aparece na busca).
 

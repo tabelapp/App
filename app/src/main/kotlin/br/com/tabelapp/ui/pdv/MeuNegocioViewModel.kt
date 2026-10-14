@@ -206,7 +206,7 @@ class MeuNegocioViewModel(
             addAll(dados.erros(temAlvara = e.alvara != null))
         }
         val alvara = e.alvara
-        if (erros.isNotEmpty() || (dados.tipo == TipoEmpresa.LOJA && alvara == null)) {
+        if (erros.isNotEmpty() || alvara == null) {
             _estado.update { it.copy(erros = erros) }
             return
         }

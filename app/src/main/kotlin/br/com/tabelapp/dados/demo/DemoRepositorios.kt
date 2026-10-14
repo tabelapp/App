@@ -204,7 +204,6 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         val cnpj = dados.cnpj.filter { it.isDigit() }
         banco.pdvs.removeAll { it.meu.cnpj == cnpj }
         val id = "pdv-" + UUID.randomUUID()
-        val anunciante = dados.tipo == TipoEmpresa.ANUNCIANTE
         banco.pdvs += DemoPdv(
             meu = MeuPdv(
                 id, cnpj, dados.razaoSocial, dados.nomeFantasia.trim(), StatusPdv.PENDENTE, null, cnpjNoAlvara, Instant.now(),
@@ -212,9 +211,8 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
             ),
             pendente = PdvPendente(
                 id = id, cnpj = cnpj, razaoSocial = dados.razaoSocial, nomeFantasia = dados.nomeFantasia.trim(),
-                endereco = (if (anunciante) listOf(dados.cidade, dados.uf) else listOf(dados.endereco, dados.bairro, dados.cidade))
-                    .filter { it.isNotBlank() }.joinToString(", "),
-                telefone = dados.telefone.ifBlank { null }, alvaraPath = alvaraJpeg?.let { id },
+                endereco = listOf(dados.endereco, dados.bairro, dados.cidade).filter { it.isNotBlank() }.joinToString(", "),
+                telefone = dados.telefone.ifBlank { null }, alvaraPath = id,
                 cnpjConferidoNoAlvara = cnpjNoAlvara, tipo = dados.tipo,
                 situacaoReceita = receita?.situacao, razaoSocialReceita = receita?.razaoSocial,
                 enderecoReceita = receita?.let { listOfNotNull(it.endereco, it.bairro, it.cidade, it.uf).joinToString(", ") },

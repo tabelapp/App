@@ -41,10 +41,12 @@ class CadastroPdvTest {
         assertTrue(base.copy(cidade = " ").erros(temAlvara = true).contains("Informe a cidade."))
     }
 
-    @Test fun `anunciante nao precisa de endereco nem documento, mas precisa de contato`() {
-        val anunciante = base.copy(tipo = TipoEmpresa.ANUNCIANTE, endereco = "", telefone = "(21) 99999-0000")
-        assertTrue(anunciante.erros(temAlvara = false).isEmpty())
-        assertTrue(anunciante.copy(telefone = "9999").erros(temAlvara = false).size == 1)
+    @Test fun `anunciante tem o mesmo tratamento da loja e ainda precisa de contato`() {
+        val anunciante = base.copy(tipo = TipoEmpresa.ANUNCIANTE, telefone = "(21) 99999-0000")
+        assertTrue(anunciante.erros(temAlvara = true).isEmpty())
+        assertTrue(anunciante.erros(temAlvara = false) == listOf("Envie a foto do comprovante do CNPJ."))
+        assertTrue(anunciante.copy(endereco = " ").erros(temAlvara = true) == listOf("Informe o endereço."))
+        assertTrue(anunciante.copy(telefone = "9999").erros(temAlvara = true).size == 1)
     }
 }
 

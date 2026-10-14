@@ -154,17 +154,15 @@ data class CadastroPdv(
     fun erros(temAlvara: Boolean): List<String> = buildList {
         if (!Cnpj.valido(cnpj)) add("CNPJ inválido: confira os 14 números.")
         if (nomeFantasia.isBlank()) add(if (tipo == TipoEmpresa.LOJA) "Informe o nome do estabelecimento." else "Informe o nome da empresa.")
-        when (tipo) {
-            TipoEmpresa.LOJA -> {
-                if (endereco.isBlank()) add("Informe o endereço.")
-                if (cidade.isBlank()) add("Informe a cidade.")
-                if (!temAlvara) add("Envie a foto do alvará.")
-            }
-            // Anunciante: sem loja; o documento é opcional, o contato é obrigatório.
-            TipoEmpresa.ANUNCIANTE -> {
-                if (cidade.isBlank()) add("Informe a cidade.")
-                if (telefone.count { it.isDigit() } < 10) add("Informe um telefone ou WhatsApp com DDD.")
-            }
+        // Anunciante tem o mesmo tratamento da loja (endereço da empresa + comprovante do CNPJ),
+        // mas o endereço não é ponto de venda; e o contato é obrigatório.
+        if (endereco.isBlank()) add("Informe o endereço.")
+        if (cidade.isBlank()) add("Informe a cidade.")
+        if (tipo == TipoEmpresa.ANUNCIANTE && telefone.count { it.isDigit() } < 10) {
+            add("Informe um telefone ou WhatsApp com DDD.")
+        }
+        if (!temAlvara) {
+            add(if (tipo == TipoEmpresa.LOJA) "Envie a foto do alvará." else "Envie a foto do comprovante do CNPJ.")
         }
     }
 }

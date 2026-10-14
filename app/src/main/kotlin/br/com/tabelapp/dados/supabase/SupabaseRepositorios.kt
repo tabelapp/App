@@ -830,9 +830,10 @@ class SupabasePdvRepositorio(
     ) = traduzindoErros {
         val uid = supabase.auth.currentUserOrNull()?.id ?: throw ErroAmigavel(ErrosServidor.traduzir("nao_autenticado"))
         // A regra do bucket exige a pasta do próprio usuário: alvaras/<id>/<aleatório>.jpg
-        val caminho = alvaraJpeg?.let { foto ->
-            "$uid/${java.util.UUID.randomUUID()}.jpg".also { supabase.storage.from("alvaras").upload(it, foto) { upsert = false } }
-        }
+        // Loja e anunciante: o comprovante do CNPJ é obrigatório.
+        val foto = alvaraJpeg ?: throw ErroAmigavel(ErrosServidor.traduzir("alvara_obrigatorio"))
+        val caminho = "$uid/${java.util.UUID.randomUUID()}.jpg"
+        supabase.storage.from("alvaras").upload(caminho, foto) { upsert = false }
         val dadosReceita = receita?.let { r ->
             buildJsonObject {
                 put("razao_social", r.razaoSocial)
@@ -854,17 +855,20 @@ class SupabasePdvRepositorio(
                     put("p_cnpj", dados.cnpj.filter { it.isDigit() })
                     put("p_nome_fantasia", dados.nomeFantasia.trim())
                     put("p_razao_social", dados.razaoSocial?.trim())
-                    put("p_telefone", dados.telefone.trim())
+                    put("p_endereco", dados.endereco.trim())
+                    put("p_bairro", dados.bairro.trim())
                     put("p_cidade", dados.cidade.trim())
                     put("p_uf", dados.uf.trim())
+                    put("p_cep", dados.cep.trim())
+                    put("p_telefone", dados.telefone.trim())
                     put("p_site", dados.site.trim().ifEmpty { null })
                     put("p_documento_path", caminho)
+                    put("p_cnpj_no_documento", cnpjNoAlvara)
                     put("p_dados_receita", dadosReceita)
                 },
             )
             return@traduzindoErros
         }
-        if (caminho == null) throw ErroAmigavel(ErrosServidor.traduzir("alvara_obrigatorio"))
         supabase.postgrest.rpc(
             "cadastrar_pdv",
             buildJsonObject {

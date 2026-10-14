@@ -205,12 +205,15 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
                 if (anunciante) {
                     Text("2. Dados da empresa", fontWeight = FontWeight.Bold)
                     Campo("Nome da empresa ou marca (aparece no banner)", estado.nomeFantasia, vm::alterarNome)
+                    Campo("Endereço da empresa (rua e número)", estado.endereco, vm::alterarEndereco)
+                    Text(stringResource(R.string.anunciante_endereco), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Text("2. Dados do estabelecimento", fontWeight = FontWeight.Bold)
                     Campo("Nome do estabelecimento (como os clientes conhecem)", estado.nomeFantasia, vm::alterarNome)
                     Campo("Endereço (rua e número)", estado.endereco, vm::alterarEndereco)
-                    Campo("Bairro", estado.bairro, vm::alterarBairro)
                 }
+                Campo("Bairro", estado.bairro, vm::alterarBairro)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.weight(1f)) { Campo("Cidade", estado.cidade, vm::alterarCidade) }
                     Box(Modifier.width(88.dp)) { Campo("UF", estado.uf, vm::alterarUf) }
@@ -220,7 +223,7 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
                 if (anunciante) Campo("Site ou Instagram (opcional)", estado.site, vm::alterarSite, KeyboardType.Uri)
 
                 // 3. Comprovante
-                Text(if (anunciante) "3. Documento da empresa (opcional)" else "3. Foto do alvará", fontWeight = FontWeight.Bold)
+                Text(if (anunciante) "3. Comprovante do CNPJ" else "3. Foto do alvará", fontWeight = FontWeight.Bold)
                 Text(
                     if (anunciante) stringResource(R.string.anunciante_documento)
                     else "Fotografe o alvará de funcionamento inteiro, com o CNPJ bem legível.",

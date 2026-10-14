@@ -513,7 +513,10 @@ private fun CartaoPendente(
             }
             Text("CNPJ ${Cnpj.formatar(pdv.cnpj)}")
             pdv.razaoSocial?.let { Text("Razão social informada: $it", style = MaterialTheme.typography.bodySmall) }
-            pdv.endereco?.let { Text("Endereço informado: $it", style = MaterialTheme.typography.bodySmall) }
+            pdv.endereco?.let {
+                val nota = if (pdv.tipo == TipoEmpresa.ANUNCIANTE) " (da empresa, não é ponto de venda)" else ""
+                Text("Endereço informado$nota: $it", style = MaterialTheme.typography.bodySmall)
+            }
             pdv.telefone?.let { Text("Telefone: $it", style = MaterialTheme.typography.bodySmall) }
             Text(
                 "Enviado por: ${listOfNotNull(pdv.donoNome, pdv.donoEmail).joinToString(" — ").ifEmpty { "—" }}",
@@ -529,10 +532,9 @@ private fun CartaoPendente(
                 pdv.razaoSocialReceita?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 pdv.enderecoReceita?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
-            if (pdv.alvaraPath == null) Text(stringResource(R.string.admin_sem_documento), fontWeight = FontWeight.SemiBold)
-            else Text(
-                if (pdv.cnpjConferidoNoAlvara) "✓ O app achou o CNPJ na foto do alvará"
-                else "✗ O app não achou o CNPJ na foto do alvará — confira com atenção",
+            Text(
+                if (pdv.cnpjConferidoNoAlvara) "✓ O app achou o CNPJ na foto do comprovante"
+                else "✗ O app não achou o CNPJ na foto do comprovante — confira com atenção",
                 color = if (pdv.cnpjConferidoNoAlvara) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 6.dp),
@@ -545,19 +547,17 @@ private fun CartaoPendente(
                 )
             } else if (pdv.alvaraPath != null) {
                 OutlinedButton(onClick = aoVerAlvara, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
-                    Text("Ver foto do alvará")
+                    Text("Ver foto do comprovante")
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                 OutlinedButton(onClick = aoRejeitar, enabled = !ocupado, modifier = Modifier.weight(1f)) { Text("Rejeitar") }
-                // Anunciante pode vir sem documento: aí aprova pela Receita e pelo contato.
-                val semDocumento = pdv.alvaraPath == null
-                Button(onClick = aoAprovar, enabled = !ocupado && (alvara != null || semDocumento), modifier = Modifier.weight(1f)) {
+                Button(onClick = aoAprovar, enabled = !ocupado && alvara != null, modifier = Modifier.weight(1f)) {
                     if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Aprovar")
                 }
             }
-            if (alvara == null && pdv.alvaraPath != null) {
-                Text("Veja o alvará antes de aprovar.", style = MaterialTheme.typography.bodySmall,
+            if (alvara == null) {
+                Text("Veja o comprovante antes de aprovar.", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

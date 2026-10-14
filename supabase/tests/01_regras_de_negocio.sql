@@ -1157,32 +1157,51 @@ begin
 end $$;
 reset role;
 
-\echo '== Empresa anunciante (sem ponto de venda): cadastro, aprovação e banner'
+\echo '== Empresa anunciante (sem ponto de venda): cadastro com comprovante, aprovação e banner'
 insert into auth.users (id, email, raw_user_meta_data) values
   ('f0000000-0000-4000-a000-00000000000f', 'fazenda@teste.invalid', '{"nome": "Fazenda", "tipo": "cnpj"}');
 set role authenticated;
 set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
 select pg_temp.espera_erro(
-  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, '123', 'Teresópolis', 'RJ')$q$,
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, 'Estrada do Queijo, km 3', null,
+     'Teresópolis', 'RJ', null, '123', null, 'f0000000-0000-4000-a000-00000000000f/doc.jpg')$q$,
   'telefone_obrigatorio');
 select pg_temp.espera_erro(
-  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, '(21) 99999-0000', ' ', 'RJ')$q$,
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, 'Estrada do Queijo, km 3', null,
+     ' ', 'RJ', null, '(21) 99999-0000', null, 'f0000000-0000-4000-a000-00000000000f/doc.jpg')$q$,
   'cidade_obrigatoria');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, ' ', null,
+     'Teresópolis', 'RJ', null, '(21) 99999-0000', null, 'f0000000-0000-4000-a000-00000000000f/doc.jpg')$q$,
+  'endereco_obrigatorio');
+-- Comprovante do CNPJ é obrigatório (mesmo tratamento do estabelecimento).
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, 'Estrada do Queijo, km 3', null,
+     'Teresópolis', 'RJ', null, '(21) 99999-0000', null, null)$q$,
+  'alvara_obrigatorio');
+select pg_temp.espera_erro(
+  $q$select public.cadastrar_anunciante('11222333000181', 'Queijos da Serra', null, 'Estrada do Queijo, km 3', null,
+     'Teresópolis', 'RJ', null, '(21) 99999-0000', null, 'a0000000-0000-4000-a000-00000000000a/doc.jpg')$q$,
+  'alvara_obrigatorio');
 -- Conta de pessoa (CPF) não cadastra empresa.
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 select pg_temp.espera_erro(
-  $q$select public.cadastrar_anunciante('11222333000181', 'X', null, '(21) 99999-0000', 'Rio', 'RJ')$q$,
+  $q$select public.cadastrar_anunciante('11222333000181', 'X', null, 'Rua X', null, 'Rio', 'RJ', null,
+     '(21) 99999-0000', null, 'a0000000-0000-4000-a000-00000000000a/doc.jpg')$q$,
   'conta_nao_cnpj');
--- Cadastro sem loja e sem documento: fica pendente para o Admin.
+-- Cadastro com endereço da empresa (não vira loja) e comprovante: fica pendente para o Admin.
 set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
 do $$
 declare v uuid;
 begin
   v := public.cadastrar_anunciante('11.222.333/0001-81', 'Queijos da Serra', 'LATICINIOS SERRA LTDA',
-                                   '(21) 99999-0000', 'Teresópolis', 'rj', 'queijosdaserra.invalid');
+                                   'Estrada do Queijo, km 3', 'Vargem Grande', 'Teresópolis', 'rj', '25960000',
+                                   '(21) 99999-0000', 'queijosdaserra.invalid',
+                                   'f0000000-0000-4000-a000-00000000000f/doc.jpg', true);
   perform set_config('tabelapp.anunciante', v::text, false);
-  assert (select tipo = 'anunciante' and status = 'pendente' from public.meus_pdvs() where id = v);
-  assert not exists (select 1 from public.lojas where pdv_id = v);
+  assert (select tipo = 'anunciante' and status = 'pendente' and cnpj_conferido_no_alvara
+          from public.meus_pdvs() where id = v);
+  assert not exists (select 1 from public.lojas where pdv_id = v), 'endereço do anunciante não é ponto de venda';
 end $$;
 -- Antes da aprovação, não cria banner.
 select pg_temp.espera_erro(
@@ -1192,7 +1211,9 @@ set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 do $$
 declare v constant uuid := current_setting('tabelapp.anunciante')::uuid;
 begin
-  assert (select tipo = 'anunciante' and endereco = 'Teresópolis - RJ' and telefone = '(21) 99999-0000'
+  assert (select tipo = 'anunciante' and telefone = '(21) 99999-0000'
+                 and endereco = 'Estrada do Queijo, km 3, Vargem Grande, Teresópolis - RJ'
+                 and alvara_path = 'f0000000-0000-4000-a000-00000000000f/doc.jpg'
           from public.pdvs_pendentes() where id = v);
   perform public.aprovar_pdv(v);
   assert (select tipo = 'anunciante' and cidade = 'Teresópolis' from public.admin_pdvs('queijos') where id = v);
@@ -1219,7 +1240,8 @@ set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
 select public.admin_suspender_pdv(current_setting('tabelapp.anunciante')::uuid, 'Teste');
 set request.jwt.claim.sub = 'f0000000-0000-4000-a000-00000000000f';
 select pg_temp.espera_erro(
-  $q$select public.cadastrar_anunciante('11222333000181', 'Outra', null, '(21) 99999-0000', 'Rio', 'RJ')$q$,
+  $q$select public.cadastrar_anunciante('11222333000181', 'Outra', null, 'Rua X', null, 'Rio', 'RJ', null,
+     '(21) 99999-0000', null, 'f0000000-0000-4000-a000-00000000000f/doc2.jpg')$q$,
   'cnpj_ja_cadastrado');
 select pg_temp.espera_erro(
   $q$select public.cadastrar_pdv('11222333000181', 'X', null, 'Rua X', null, 'Rio', 'RJ', null, null,
