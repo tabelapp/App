@@ -37,8 +37,8 @@ class ValidadeTest {
         assertEquals("Preço praticado dia 22/09/2026", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(7), hoje))
         // Sem data da NF (dado antigo): deduz pela validade.
         assertEquals("Preço praticado dia 22/09/2026", Validade.exibir(Fonte.USUARIO_NF, hoje.plusDays(7)))
-        assertEquals("Válido até 25/09/2026", Validade.exibir(Fonte.USUARIO_ENCARTE, hoje.plusDays(3)))
-        assertEquals("Válido até 22/10/2026", Validade.exibir(Fonte.PDV_MANUAL, hoje.plusDays(30)))
+        assertEquals("Oferta válida até 25/09/2026", Validade.exibir(Fonte.USUARIO_ENCARTE, hoje.plusDays(3)))
+        assertEquals("Oferta válida até 22/10/2026", Validade.exibir(Fonte.PDV_MANUAL, hoje.plusDays(30)))
         assertEquals("Validade não informada", Validade.exibir(Fonte.PDV_EXCEL, null))
     }
 

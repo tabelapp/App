@@ -27,14 +27,14 @@ object Validade {
     /**
      * O que aparece no campo "validade" da busca. Lógica de apresentação, como o OBS:
      *  - Nota Fiscal -> "Preço praticado dia dd/MM/aaaa" (a data da nota)
-     *  - demais      -> "Válido até dd/MM/aaaa"
+     *  - demais      -> "Oferta válida até dd/MM/aaaa" (PDV e encarte: a validade é da oferta)
      */
     fun exibir(fonte: Fonte, validade: LocalDate?, dataNf: LocalDate? = null): String {
         if (fonte == Fonte.USUARIO_NF) {
             val dia = dataNf ?: validade?.minusDays(NF_DIAS)
             return if (dia != null) "Preço praticado dia ${formatar(dia)}" else "Preço praticado"
         }
-        return if (validade == null) TEXTO_SEM_VALIDADE else "Válido até ${formatar(validade)}"
+        return if (validade == null) TEXTO_SEM_VALIDADE else "Oferta válida até ${formatar(validade)}"
     }
 
     fun exibir(cotacao: Cotacao): String = exibir(cotacao.fonte, cotacao.validade, cotacao.dataNf)

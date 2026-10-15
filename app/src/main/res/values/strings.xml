@@ -79,6 +79,9 @@
     <string name="tolerancia_plano">Seu plano terminou. Até %1$s seu catálogo continua como estava; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados. Veja os planos.</string>
     <string name="itens_pausados_texto">Alguns itens foram pausados porque o teste ou o plano terminou. Eles continuam guardados e voltam quando você assinar. Você também pode escolher quais ficam ativos.</string>
 
+    <!-- Validade da oferta do PDV (lista de itens e botão de data) -->
+    <string name="pdv_oferta_valida_ate">Oferta válida até %1$s</string>
+
     <!-- Itens da tabela: pausar e reativar -->
     <string name="item_estado_pausado">Pausado por você</string>
     <string name="item_estado_pausado_limite">Pausado (limite do plano)</string>

@@ -443,7 +443,7 @@ private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit,
             Column(Modifier.weight(1f)) {
                 Text(p.produto, fontWeight = FontWeight.SemiBold)
                 Text(
-                    listOfNotNull("Válido até ${Validade.formatar(p.validade)}", p.obs).joinToString(" · "),
+                    listOfNotNull(stringResource(R.string.pdv_oferta_valida_ate, Validade.formatar(p.validade)), p.obs).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -542,7 +542,8 @@ private fun EditorPreco(
                         style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
                 }
                 OutlinedButton(onClick = { escolhendoData = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(rascunho.validade?.let { "Válido até ${Validade.formatar(it)}" } ?: "Validade: 30 dias (tocar para mudar)")
+                    Text(rascunho.validade?.let { stringResource(R.string.pdv_oferta_valida_ate, Validade.formatar(it)) }
+                        ?: "Validade: 30 dias (tocar para mudar)")
                 }
                 OutlinedTextField(
                     value = rascunho.obs,
