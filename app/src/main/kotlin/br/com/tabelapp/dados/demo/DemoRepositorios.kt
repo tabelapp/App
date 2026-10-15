@@ -330,8 +330,26 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     }
 
     override suspend fun excluirPromocao(promocaoId: String): Boolean {
+        val paga = banco.promocoesDemo.firstOrNull { it.second.id == promocaoId }?.second?.visualizacoesContratadas?.let { it > 0 } == true
         banco.promocoesDemo.removeAll { it.second.id == promocaoId }
-        return true
+        return !paga
+    }
+
+    override suspend fun editarPromocao(
+        promocaoId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>,
+        trocarArte: Boolean, artePath: String?,
+    ) {
+        delay(200)
+        if (titulo.isBlank()) throw ErroAmigavel(ErrosServidor.traduzir("titulo_obrigatorio"))
+        val i = banco.promocoesDemo.indexOfFirst { it.second.id == promocaoId }
+        if (i < 0) throw ErroAmigavel(ErrosServidor.traduzir("sem_permissao"))
+        banco.promocoesDemo[i] = banco.promocoesDemo[i].let { (pdv, p) ->
+            pdv to p.copy(
+                titulo = titulo.trim(), descricao = descricao?.trim()?.ifEmpty { null }, link = link?.trim()?.ifEmpty { null },
+                palavrasChave = palavrasChave.map { it.trim() }.filter { it.isNotEmpty() }.distinct(),
+                artePath = if (trocarArte) artePath else p.artePath,
+            )
+        }
     }
 
     override suspend fun pagamentosPendentes(): List<PagamentoPendente> =

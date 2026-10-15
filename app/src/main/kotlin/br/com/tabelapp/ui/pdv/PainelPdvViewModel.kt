@@ -292,12 +292,38 @@ class PainelPdvViewModel(
         }
     }
 
+    /** Edita a promoção. Nova imagem: sobe antes; [removerArte] tira a imagem atual. */
+    fun editarPromocao(
+        p: PromocaoPdv, titulo: String, descricao: String, link: String, arteJpeg: ByteArray?, removerArte: Boolean,
+        palavras: List<String>, aoErro: (String) -> Unit, aoTerminar: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            val novaArte = try {
+                arteJpeg?.let { repositorio.enviarArte(pdv.id, it) }
+            } catch (ex: ErroAmigavel) {
+                aoErro(if (ex.tipo == null) ex.message.orEmpty() else Erros.texto(TipoErro.FALHA_UPLOAD_FOTO))
+                return@launch
+            }
+            try {
+                repositorio.editarPromocao(
+                    p.id, titulo, descricao.ifBlank { null }, link.ifBlank { null }, palavras,
+                    trocarArte = novaArte != null || removerArte, artePath = novaArte,
+                )
+                _estado.update { it.copy(mensagem = "Promoção atualizada.") }
+                aoTerminar()
+                carregar()
+            } catch (ex: ErroAmigavel) {
+                aoErro(ex.message.orEmpty())
+            }
+        }
+    }
+
     fun excluirPromocao(p: PromocaoPdv) {
         viewModelScope.launch {
             try {
                 val apagada = repositorio.excluirPromocao(p.id)
                 _estado.update {
-                    it.copy(mensagem = if (apagada) "Promoção excluída." else "Promoção encerrada (fica no seu histórico).")
+                    it.copy(mensagem = if (apagada) "Promoção excluída." else "Promoção excluída. O pagamento fica guardado no histórico.")
                 }
                 carregar()
             } catch (ex: ErroAmigavel) {

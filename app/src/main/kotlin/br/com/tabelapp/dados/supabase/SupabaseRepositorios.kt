@@ -749,6 +749,22 @@ class SupabasePdvRepositorio(
             .decodeAs<String>() == "excluida"
     }
 
+    override suspend fun editarPromocao(
+        promocaoId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>,
+        trocarArte: Boolean, artePath: String?,
+    ) = traduzindoErros {
+        supabase.postgrest.rpc("editar_promocao", buildJsonObject {
+            put("p_promocao_id", promocaoId)
+            put("p_titulo", titulo.trim())
+            put("p_descricao", descricao?.trim())
+            put("p_link", link?.trim())
+            put("p_palavras_chave", buildJsonArray { palavrasChave.forEach { add(JsonPrimitive(it)) } })
+            put("p_trocar_arte", trocarArte)
+            put("p_arte_path", artePath)
+        })
+        Unit
+    }
+
     override suspend fun pagamentosPendentes(): List<PagamentoPendente> = traduzindoErros {
         supabase.postgrest.rpc("pagamentos_pendentes").decodeList<PagamentoPendenteDto>().map {
             PagamentoPendente(it.id, it.tipo, it.pdvNome, it.descricao, it.quantidade, it.valorCentavos,

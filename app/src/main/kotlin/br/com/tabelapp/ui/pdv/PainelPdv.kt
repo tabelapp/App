@@ -96,6 +96,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     var excluindoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var editandoCadastro by remember { mutableStateOf(false) }
     var criandoPromocao by remember { mutableStateOf(false) }
+    var editandoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var confirmandoLocal by remember { mutableStateOf(false) }
     val pedirLocalizacao = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.usarLocalizacaoDoCelular()
@@ -241,7 +242,9 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             }
         }
         items(estado.promocoes, key = { "promo-" + it.id }) { p ->
-            CartaoPromocao(p, aoPagar = { vm.pagarPromocao(p) }, aoExcluir = { excluindoPromocao = p })
+            CartaoPromocao(
+                p, aoPagar = { vm.pagarPromocao(p) }, aoEditar = { editandoPromocao = p }, aoExcluir = { excluindoPromocao = p },
+            )
         }
     }
 
@@ -288,6 +291,21 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         )
     }
 
+    editandoPromocao?.let { promo ->
+        DialogoPromocao(
+            imagens = container.imagens,
+            aoCriar = { _, _, _, _, _, _, _, _ -> },
+            aoFechar = { editandoPromocao = null },
+            existente = promo,
+            aoEditar = { titulo, descricao, link, arte, removerArte, palavras, aoErro, aoTerminar ->
+                vm.editarPromocao(promo, titulo, descricao, link, arte, removerArte, palavras, aoErro) {
+                    aoTerminar()
+                    editandoPromocao = null
+                }
+            },
+        )
+    }
+
     estado.planilha?.let { p ->
         DialogoPlanilha(
             estado = p,
@@ -327,8 +345,10 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             title = { Text("Excluir a promoção \"${p.titulo}\"?") },
             text = {
                 Text(
-                    if (p.status == "aguardando_pagamento") "O pedido de pagamento também é cancelado."
-                    else "O banner sai do ar. Visualizações não usadas não são devolvidas."
+                    if (p.visualizacoesContratadas == 0) "O pedido de pagamento também é cancelado."
+                    else "O banner sai do ar e some da sua lista (o pagamento fica guardado no histórico). " +
+                        "As ${(p.visualizacoesContratadas - p.visualizacoesExibidas).coerceAtLeast(0)} visualizações " +
+                        "que faltam não são devolvidas."
                 )
             },
             confirmButton = {
@@ -371,7 +391,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
 }
 
 @Composable
-private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoExcluir: () -> Unit) {
+private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoEditar: () -> Unit, aoExcluir: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -387,6 +407,7 @@ private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoExcluir: () ->
                         },
                     )
                 }
+                IconButton(onClick = aoEditar) { Icon(Icons.Default.Edit, contentDescription = "Editar promoção") }
                 IconButton(onClick = aoExcluir) { Icon(Icons.Default.Delete, contentDescription = "Excluir promoção") }
             }
             if (p.visualizacoesContratadas > 0) {

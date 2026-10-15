@@ -56,6 +56,7 @@ import br.com.tabelapp.core.ContatoTabelapp
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.Mensagens
+import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.tema.CoresTabelapp
@@ -128,8 +129,10 @@ private fun Campo(rotulo: String, valor: String, teclado: KeyboardType = Keyboar
 private val pacotes = listOf(100 to 1000L, 250 to 2500L, 500 to 5000L)
 
 /**
- * Nova promoção (banner pago): aparece no topo da busca para quem pesquisa as
- * palavras escolhidas (ou para todos), até acabarem as visualizações compradas.
+ * Nova promoção (banner pago): aparece na busca para quem pesquisa as palavras
+ * escolhidas (ou para todos), até acabarem as visualizações compradas.
+ * Com [existente], edita a promoção (texto, link, arte e palavras; o pacote não muda)
+ * e salva por [aoEditar].
  */
 @Composable
 fun DialogoPromocao(
@@ -137,13 +140,19 @@ fun DialogoPromocao(
     aoCriar: (titulo: String, descricao: String, link: String, arte: ByteArray?, palavras: List<String>, visualizacoes: Int,
               aoErro: (String) -> Unit, aoTerminar: () -> Unit) -> Unit,
     aoFechar: () -> Unit,
+    existente: PromocaoPdv? = null,
+    aoEditar: (titulo: String, descricao: String, link: String, arte: ByteArray?, removerArte: Boolean, palavras: List<String>,
+               aoErro: (String) -> Unit, aoTerminar: () -> Unit) -> Unit = { _, _, _, _, _, _, _, _ -> },
 ) {
     val escopo = rememberCoroutineScope()
     val contexto = LocalContext.current
-    var titulo by rememberSaveable { mutableStateOf("") }
-    var descricao by rememberSaveable { mutableStateOf("") }
-    var link by rememberSaveable { mutableStateOf("") }
-    var palavras by rememberSaveable { mutableStateOf("") }
+    val editando = existente != null
+    var titulo by rememberSaveable { mutableStateOf(existente?.titulo.orEmpty()) }
+    var descricao by rememberSaveable { mutableStateOf(existente?.descricao.orEmpty()) }
+    var link by rememberSaveable { mutableStateOf(existente?.link.orEmpty()) }
+    var palavras by rememberSaveable { mutableStateOf(existente?.palavrasChave?.joinToString(", ").orEmpty()) }
+    /** Edição: tirar a imagem atual (sem escolher outra). */
+    var removerArte by rememberSaveable { mutableStateOf(false) }
     var pacote by rememberSaveable { mutableStateOf(100) }
     var arte by remember { mutableStateOf<ByteArray?>(null) }
     var miniatura by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -154,13 +163,14 @@ fun DialogoPromocao(
         if (uri != null) escopo.launch {
             val jpeg = withContext(Dispatchers.Default) { imagens.jpegReduzido(uri, ladoMaximo = 1200) }
             arte = jpeg
+            removerArte = false
             miniatura = jpeg?.let { withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(it, 0, it.size) } }?.asImageBitmap()
         }
     }
 
     AlertDialog(
         onDismissRequest = { if (!enviando) aoFechar() },
-        title = { Text("Nova promoção (banner)") },
+        title = { Text(if (editando) "Editar promoção" else "Nova promoção (banner)") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -175,7 +185,25 @@ fun DialogoPromocao(
                 }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text(if (arte == null) "Imagem do banner (opcional)" else "Trocar imagem")
+                    Text(
+                        when {
+                            arte != null -> "Trocar imagem"
+                            editando && existente?.artePath != null && !removerArte -> "Trocar a imagem atual"
+                            else -> "Imagem do banner (opcional)"
+                        }
+                    )
+                }
+                // Edição: a imagem atual continua, a menos que troque ou tire.
+                if (editando && existente?.artePath != null && arte == null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (removerArte) "Sem imagem (o banner mostra o título e o texto)." else "Imagem atual mantida.",
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { removerArte = !removerArte }) {
+                            Text(if (removerArte) "Manter imagem" else "Tirar imagem")
+                        }
+                    }
                 }
                 miniatura?.let {
                     // Prévia na proporção do banner (3 x 1), com o mesmo corte da busca.
@@ -189,11 +217,19 @@ fun DialogoPromocao(
                 Campo("Palavras-chave (separe por vírgula)", palavras) { palavras = it.take(300) }
                 Text("Ex.: cerveja, carne. O banner aparece quando a busca tiver uma delas. Em branco: aparece para todos.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Pacote de visualizações", fontWeight = FontWeight.SemiBold)
-                pacotes.forEach { (vis, valor) ->
-                    Row(Modifier.fillMaxWidth().clickable { pacote = vis }, verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = pacote == vis, onClick = { pacote = vis })
-                        Text("$vis visualizações — ${Dinheiro.formatar(valor)}")
+                if (existente != null) {
+                    // O pacote já comprado não muda na edição.
+                    if (existente.visualizacoesContratadas > 0) {
+                        Text("Visualizações: ${existente.visualizacoesExibidas} de ${existente.visualizacoesContratadas} (não mudam)",
+                            style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    Text("Pacote de visualizações", fontWeight = FontWeight.SemiBold)
+                    pacotes.forEach { (vis, valor) ->
+                        Row(Modifier.fillMaxWidth().clickable { pacote = vis }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = pacote == vis, onClick = { pacote = vis })
+                            Text("$vis visualizações — ${Dinheiro.formatar(valor)}")
+                        }
                     }
                 }
                 erro?.let {
@@ -212,14 +248,15 @@ fun DialogoPromocao(
                 }
                 if (link.isNotBlank() && !link.trim().startsWith("http")) link = "https://" + link.trim()
                 enviando = true
-                aoCriar(
-                    titulo, descricao, link, arte,
-                    palavras.split(',').map { it.trim() }.filter { it.isNotEmpty() }, pacote,
-                    { e -> erro = e; enviando = false },
-                    { enviando = false },
-                )
+                val lista = palavras.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                if (editando) {
+                    aoEditar(titulo, descricao, link, arte, removerArte, lista, { e -> erro = e; enviando = false }, { enviando = false })
+                } else {
+                    aoCriar(titulo, descricao, link, arte, lista, pacote, { e -> erro = e; enviando = false }, { enviando = false })
+                }
             }) {
-                if (enviando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Criar e pagar")
+                if (enviando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Text(if (editando) "Salvar" else "Criar e pagar")
             }
         },
         dismissButton = { TextButton(onClick = aoFechar, enabled = !enviando) { Text("Cancelar") } },

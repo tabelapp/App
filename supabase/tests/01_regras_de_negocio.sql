@@ -908,12 +908,45 @@ begin
   perform public.criar_promocao('10000000-0000-4000-b000-000000000001', 'Rascunho', null, null, null, null, 100);
   assert public.encerrar_promocao((select id from public.promocoes where titulo = 'Rascunho')) = 'excluida';
   assert not exists (select 1 from public.promocoes where titulo = 'Rascunho');
-  assert public.encerrar_promocao((select id from public.promocoes where titulo = 'Semana do arroz')) = 'pausada';
-  assert (select count(*) from public.promocoes_para_busca('arroz tio joao')) = 0, 'pausada sai da busca';
+  -- Editar a promoção paga: texto, link, palavras e arte mudam; as visualizações compradas não.
+  perform public.editar_promocao((select id from public.promocoes where titulo = 'Semana do arroz'),
+    'Semana do arroz e feijão', 'Arroz e feijão com desconto', '', array['arroz', 'feijao'],
+    true, '10000000-0000-4000-b000-000000000001/nova.jpg');
+  assert (select descricao = 'Arroz e feijão com desconto' and link is null and palavras_chave @> array['feijao']
+                 and arte_path = '10000000-0000-4000-b000-000000000001/nova.jpg' and visualizacoes_contratadas = 250
+                 and status = 'ativa'
+          from public.minhas_promocoes('10000000-0000-4000-b000-000000000001') where titulo = 'Semana do arroz e feijão');
+  assert exists (select 1 from public.promocoes_para_busca('feijao preto') where titulo = 'Semana do arroz e feijão');
+  -- Sem trocar a arte, a arte fica.
+  perform public.editar_promocao((select id from public.promocoes where titulo = 'Semana do arroz e feijão'),
+    'Semana do arroz e feijão', null, null, array['arroz', 'feijao']);
+  assert (select arte_path from public.promocoes where titulo = 'Semana do arroz e feijão')
+         = '10000000-0000-4000-b000-000000000001/nova.jpg';
+  -- Excluir a paga: sai do ar e da lista do dono; a promoção e o pagamento ficam no histórico.
+  perform set_config('tabelapp.promo_paga', (select id from public.promocoes where titulo = 'Semana do arroz e feijão')::text, false);
+  assert public.encerrar_promocao(current_setting('tabelapp.promo_paga')::uuid) = 'encerrada';
+  assert (select count(*) from public.promocoes_para_busca('arroz tio joao')) = 0, 'excluída sai da busca';
+  assert not exists (select 1 from public.minhas_promocoes('10000000-0000-4000-b000-000000000001')
+                     where id = current_setting('tabelapp.promo_paga')::uuid), 'some da lista do dono';
 end $$;
+select pg_temp.espera_erro(
+  $q$select public.editar_promocao(current_setting('tabelapp.promo_paga')::uuid, 'X', null, null, null)$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select public.encerrar_promocao(current_setting('tabelapp.promo_paga')::uuid)$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select public.editar_promocao(current_setting('tabelapp.promo_paga')::uuid, ' ', null, null, null)$q$, 'sem_permissao');
+reset role;
+do $$ begin
+  assert exists (select 1 from public.promocoes p join public.pagamentos g on g.promocao_id = p.id
+                 where p.id = current_setting('tabelapp.promo_paga')::uuid and p.excluida_em is not null
+                   and g.status = 'pago'), 'pagamento fica no histórico';
+end $$;
+set role authenticated;
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 select pg_temp.espera_erro(
   $q$select public.encerrar_promocao((select id from public.promocoes limit 1))$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$select public.editar_promocao((select id from public.promocoes limit 1), 'X', null, null, null)$q$, 'sem_permissao');
 
 \echo '== Lançamentos repetidos: o igual não entra; a busca mostra o mais recente'
 set role authenticated;

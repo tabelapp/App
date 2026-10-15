@@ -82,8 +82,20 @@ interface PdvRepositorio {
         pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
         palavrasChave: List<String>, visualizacoes: Int,
     ): String
-    /** Encerra a promoção: true = apagada; false = já tinha pagamento, só saiu do ar (fica no histórico). */
+    /**
+     * Exclui a promoção: true = apagada (sem pagamento); false = já tinha pagamento: sai do ar e da
+     * lista do dono, mas fica guardada no histórico com o pagamento.
+     */
     suspend fun excluirPromocao(promocaoId: String): Boolean
+
+    /**
+     * Edita título, texto, link e palavras-chave (as visualizações compradas não mudam).
+     * [trocarArte] = true grava [artePath] (null = tira a imagem); false mantém a arte atual.
+     */
+    suspend fun editarPromocao(
+        promocaoId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>,
+        trocarArte: Boolean, artePath: String?,
+    )
 
     // --- Admin ---
     suspend fun pagamentosPendentes(): List<PagamentoPendente>
