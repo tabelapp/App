@@ -89,6 +89,9 @@ Para ninguém cadastrar uma empresa que não é sua:
   registro em `assinaturas_log` (só o Admin). Sem Pix automático nem Google Play Billing por enquanto.
 - **Planilha:** importa as atualizações e os itens novos até o espaço disponível, na ordem da planilha,
   numa transação só; devolve quantos e quais ficaram de fora (o app oferece baixar a lista).
+- **Assinatura por PDV (CNPJ), não por loja** (decisão do fundador, 15/10/2026): mantido como está. No
+  varejo, cada loja tem o próprio limite; no modo rede, a lista é única. Hoje o cadastro cria uma loja
+  por CNPJ; rever se "cadastrar mais lojas" for implementado.
 - `interesse_planos` ficou intacta, sem uso ("Quero ser avisado" saiu do app). A tabela `pagamentos`
   continua só para os banners. O pacote de +50 operações foi removido (`comprar_pacote_operacoes`).
 - A verificação é **no banco** (`pdv_salvar_precos`, erro `limite_catalogo`): versões antigas do app não
