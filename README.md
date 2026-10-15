@@ -11,7 +11,7 @@ regras do app em Kotlin testadas, e o app Android com login/cadastro e a tela de
 | Parte | Situação |
 |---|---|
 | Banco de dados (todas as tabelas da seção 7) | ✅ pronto e testado |
-| Regras no banco: limite por tamanho do catálogo (planos), parceiro fundador, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, encarte de usuário (suspenso), promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
+| Regras no banco: limite por tamanho do catálogo (planos grátis/essencial/loja/mercado), teste grátis de 30 dias, modo rede/varejo, validades (PDV 30 dias, NF 7 dias a partir da data da nota, encarte), NF com vários itens, encarte de usuário (suspenso), promoções, Pix confirmado | ✅ pronto e testado (falta a tela no app) |
 | Login por e-mail e Google, cadastro CPF/CNPJ | ✅ no app |
 | Cores e ícone da logomarca (amarelo, vermelho, lupa com cifrão) | ✅ no app |
 | Tela de busca: últimos preços, busca, 5 ordenações, destaque do mais barato, regra do OBS, PDV clicável, pop-up de aviso | ✅ no app |

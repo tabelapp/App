@@ -6,14 +6,17 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.AlertDialog
@@ -41,27 +44,31 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import br.com.tabelapp.R
-import br.com.tabelapp.core.AvisoFundador
-import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.AvisoPlano
+import br.com.tabelapp.core.ContatoTabelapp
+import br.com.tabelapp.core.OrigemLimite
 import br.com.tabelapp.core.Plano
+import br.com.tabelapp.core.PrecoPlano
 import br.com.tabelapp.core.ResultadoImportacao
 import br.com.tabelapp.core.StatusCatalogo
 import br.com.tabelapp.core.Validade
+import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.tema.CoresTabelapp
 import java.io.File
 import java.time.LocalDate
 
-/** Tamanho do catálogo, plano e (no piloto) o período de parceiro fundador. */
+/** Tamanho do catálogo, plano, teste grátis e os avisos (fim do teste/plano, tolerância, pausados). */
 @Composable
 fun CartaoCatalogo(c: StatusCatalogo, aoVerPlanos: () -> Unit) {
     val hoje = LocalDate.now()
     Card(
         Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.catalogo_resumo, c.itensAtivos, c.limite),
+                    stringResource(R.string.catalogo_resumo, c.itensPublicados, c.limite),
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -71,26 +78,41 @@ fun CartaoCatalogo(c: StatusCatalogo, aoVerPlanos: () -> Unit) {
                 progress = { (c.itensAtivos.toFloat() / c.limite.coerceAtLeast(1)).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            // Faixa discreta do parceiro fundador e os avisos de fim (7 dias antes e no dia).
-            when (c.avisoFundador(hoje)) {
-                AvisoFundador.FAIXA -> Faixa(stringResource(R.string.fundador_faixa, Validade.formatar(c.fundadorAte!!)))
-                AvisoFundador.FALTAM_POUCOS_DIAS -> Faixa(
-                    stringResource(
-                        R.string.fundador_faltam_dias, (c.diasDeFundador(hoje) ?: 0).toInt(),
-                        Validade.formatar(c.fundadorAte!!), c.limitePlano, c.planoNome,
-                    )
-                )
-                AvisoFundador.ULTIMO_DIA -> Faixa(stringResource(R.string.fundador_ultimo_dia, c.limitePlano, c.planoNome))
-                AvisoFundador.NENHUM -> if (c.itensAtivos > c.limite) {
-                    Faixa(stringResource(R.string.catalogo_acima_do_limite, c.planoEfetivoNome, c.limite))
-                }
+            if (c.temPlanoPago) {
+                Text(stringResource(R.string.catalogo_plano_ate, Validade.formatar(c.planoAte!!)),
+                    style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
             }
+            if (c.pausadosPdv > 0) {
+                Text(stringResource(R.string.catalogo_pausados_pdv, c.pausadosPdv), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            c.avisos(hoje).forEach { aviso -> Faixa(textoDoAviso(aviso)) }
             Text(stringResource(R.string.catalogo_explicacao), style = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = aoVerPlanos, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.catalogo_ver_planos))
             }
         }
     }
+}
+
+@Composable
+private fun textoDoAviso(aviso: AvisoPlano): String = when (aviso) {
+    is AvisoPlano.FaixaTeste -> stringResource(R.string.teste_faixa, Validade.formatar(aviso.ate))
+    is AvisoPlano.TesteTermina -> when (aviso.dias) {
+        0 -> stringResource(R.string.teste_termina_hoje, aviso.limiteGratis)
+        1 -> stringResource(R.string.teste_termina_amanha, aviso.limiteGratis)
+        else -> stringResource(R.string.teste_termina_dias, aviso.dias, aviso.limiteGratis)
+    }
+    is AvisoPlano.PlanoTermina -> when (aviso.dias) {
+        0 -> stringResource(R.string.plano_termina_hoje, aviso.planoNome)
+        1 -> stringResource(R.string.plano_termina_amanha, aviso.planoNome)
+        else -> stringResource(R.string.plano_termina_dias, aviso.planoNome, aviso.dias, Validade.formatar(aviso.ate))
+    }
+    is AvisoPlano.Tolerancia -> stringResource(
+        if (aviso.origem == OrigemLimite.TESTE) R.string.tolerancia_teste else R.string.tolerancia_plano,
+        Validade.formatar(aviso.ate), aviso.limiteGratis,
+    )
+    is AvisoPlano.ItensPausados -> stringResource(R.string.itens_pausados_texto)
 }
 
 @Composable
@@ -113,14 +135,21 @@ fun DialogoLimite(c: StatusCatalogo, aoVerPlanos: () -> Unit, aoFechar: () -> Un
     )
 }
 
-/** "Ver planos": as faixas da tabela `planos`. Sem cobrança por enquanto: "Quero ser avisado". */
+/**
+ * "Ver planos": faixas e preços da tabela `planos`. Sem cobrança no app: os pagos têm
+ * "Assinar pelo WhatsApp" com a mensagem pronta; o Admin ativa depois do Pix.
+ */
 @Composable
 fun TelaPlanos(
     estado: EstadoPlanos,
-    planoAtual: String?,
-    aoQuererSerAvisado: (Plano) -> Unit,
+    catalogo: StatusCatalogo?,
+    nomeNegocio: String,
     aoFechar: () -> Unit,
 ) {
+    val contexto = LocalContext.current
+    val whatsapp = catalogo?.whatsappContato?.takeIf { it.isNotBlank() } ?: ContatoTabelapp.WHATSAPP
+    // "Seu plano": o contratado (o grátis, enquanto não houver plano pago valendo).
+    val planoAtual = catalogo?.let { if (it.temPlanoPago) it.plano else Plano.GRATIS }
     Dialog(onDismissRequest = aoFechar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize()) {
             Column(
@@ -135,17 +164,23 @@ fun TelaPlanos(
                     }
                 }
                 Text(stringResource(R.string.planos_intro))
-                Text(stringResource(R.string.planos_ainda_sem_cobranca), style = MaterialTheme.typography.bodySmall,
+                catalogo?.avisos(LocalDate.now())?.forEach { Faixa(textoDoAviso(it)) }
+                Text(stringResource(R.string.planos_apoio_pix), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (estado.carregando) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
                 estado.erro?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 estado.lista.forEach { p ->
+                    val atual = p.codigo == planoAtual
                     CartaoPlano(
                         plano = p,
-                        atual = p.codigo == planoAtual,
-                        interessado = p.codigo in estado.interessados,
-                        enviando = estado.enviando == p.codigo,
-                        aoQuererSerAvisado = { aoQuererSerAvisado(p) },
+                        atual = atual,
+                        planoAte = catalogo?.takeIf { atual && it.temPlanoPago }?.planoAte,
+                        aoAssinar = {
+                            WhatsApp.abrirConversa(
+                                contexto, whatsapp,
+                                contexto.getString(R.string.plano_mensagem_whatsapp, p.nome, nomeNegocio),
+                            )
+                        },
                     )
                 }
             }
@@ -154,34 +189,28 @@ fun TelaPlanos(
 }
 
 @Composable
-private fun CartaoPlano(plano: Plano, atual: Boolean, interessado: Boolean, enviando: Boolean, aoQuererSerAvisado: () -> Unit) {
+private fun CartaoPlano(plano: Plano, atual: Boolean, planoAte: LocalDate?, aoAssinar: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(plano.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f))
                 if (atual) Text(stringResource(R.string.plano_atual), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary)
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             Text(stringResource(R.string.plano_limite_itens, plano.limiteItens))
-            Text(
-                when (val preco = plano.precoReferenciaCentavos) {
-                    null -> stringResource(R.string.plano_preco_em_breve)
-                    0L -> stringResource(R.string.plano_gratis)
-                    else -> stringResource(R.string.plano_preco_referencia, Dinheiro.formatar(preco))
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            // No lugar do pagamento: registrar o interesse.
-            if (!atual && plano.precoReferenciaCentavos != 0L) {
-                if (interessado) {
-                    Text(stringResource(R.string.planos_anotado), color = MaterialTheme.colorScheme.primary)
-                } else {
-                    Button(onClick = aoQuererSerAvisado, enabled = !enviando, modifier = Modifier.fillMaxWidth()) {
-                        if (enviando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        else Text(stringResource(R.string.plano_quero_ser_avisado))
-                    }
+            val preco = plano.precoCentavos
+            if (!plano.gratis && preco != null && preco > 0) {
+                Text(PrecoPlano.porMes(preco), fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
+            }
+            planoAte?.let {
+                Text(stringResource(R.string.catalogo_plano_ate, Validade.formatar(it)), style = MaterialTheme.typography.bodySmall)
+            }
+            if (!plano.gratis) {
+                Button(onClick = aoAssinar, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.plano_assinar_whatsapp))
                 }
             }
         }

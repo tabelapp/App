@@ -11,6 +11,7 @@ import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
+import br.com.tabelapp.core.PlanoPdvAdmin
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
@@ -41,14 +42,14 @@ interface PdvRepositorio {
     /** Tabela de preços oficial (modo rede: a mesma em todas as lojas). */
     suspend fun precos(pdvId: String, lojaId: String): List<PrecoPdv>
 
-    /** Tamanho do catálogo da loja (ou da rede), limite do plano e período de fundador. */
+    /** Tamanho do catálogo da loja (ou da rede), limite efetivo, teste grátis, plano e pausados. */
     suspend fun statusCatalogo(pdvId: String, lojaId: String): StatusCatalogo
 
-    /** Planos disponíveis (faixas de itens ativos; sem cobrança por enquanto). */
+    /** Planos (faixas de itens ativos e preço por mês). A assinatura é pelo WhatsApp, sem cobrança no app. */
     suspend fun planos(): List<Plano>
 
-    /** "Quero ser avisado" quando o plano estiver disponível. */
-    suspend fun registrarInteresse(pdvId: String, plano: String)
+    /** Pausa (grátis) ou reativa um item. Reativar acima do limite efetivo dá erro "limite_catalogo". */
+    suspend fun pausarItem(precoId: String, pausar: Boolean)
 
     /**
      * Inclui ou atualiza um item. Atualizar nunca é bloqueado; item novo acima do
@@ -127,6 +128,12 @@ interface PdvRepositorio {
     /** Suspende (preços oficiais saem da busca; nada é apagado). O dono vê o [motivo]. */
     suspend fun suspenderPdv(pdvId: String, motivo: String)
     suspend fun reativarPdv(pdvId: String)
+
+    // --- Planos dos PDVs (Admin; assinatura manual, sem cobrança no app) ---
+    suspend fun planosPdvs(busca: String?): List<PlanoPdvAdmin>
+    /** Ativa, renova ou troca o plano pago até [validade]. */
+    suspend fun definirPlano(pdvId: String, plano: String, validade: LocalDate, observacao: String?)
+    suspend fun cancelarPlano(pdvId: String, observacao: String?)
 
     /** Lojas ainda sem pino no mapa (o Admin localiza de uma vez). */
     suspend fun lojasSemCoordenadas(): List<LojaSemLocal>

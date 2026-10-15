@@ -276,6 +276,7 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
     var removendo by remember { mutableStateOf<PrecoDenunciado?>(null) }
     var suspendendo by remember { mutableStateOf<PdvAdmin?>(null) }
     var reativando by remember { mutableStateOf<PdvAdmin?>(null) }
+    var vendoPlanos by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -382,6 +383,14 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                     )
                 }
                 if (!estado.carregando) {
+                    Text(stringResource(R.string.admin_planos_titulo), fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp))
+                    Text(stringResource(R.string.admin_planos_texto), style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = { vendoPlanos = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.admin_planos_abrir))
+                    }
+                }
+                if (!estado.carregando) {
                     Text(stringResource(R.string.admin_mapa_titulo), fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp))
                     Text(stringResource(R.string.admin_mapa_texto), style = MaterialTheme.typography.bodySmall)
@@ -414,6 +423,8 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
             dismissButton = { TextButton(onClick = { confirmando = null }) { Text("Voltar") } },
         )
     }
+
+    if (vendoPlanos) TelaPlanosPdvs(container.pdvs, aoFechar = { vendoPlanos = false })
 
     removendo?.let { p ->
         AlertDialog(

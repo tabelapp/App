@@ -78,6 +78,8 @@ data class PrecoPdv(
     val obs: String?,
     val unidade: Unidade = Unidade.UNIDADE,
     val aPartirDe: Boolean = false,
+    /** Publicado, pausado pelo PDV, pausado pelo limite do plano ou vencido. */
+    val estado: EstadoItem = EstadoItem.ATIVO,
 )
 
 /**
@@ -209,6 +211,22 @@ data class PrecoDenunciado(
     val precoMudou: Int,
     val produtoErrado: Int,
     val outros: Int,
+)
+
+/** PDV na tela "Planos dos PDVs" do Admin. */
+data class PlanoPdvAdmin(
+    val id: String,
+    val nomeFantasia: String,
+    val cnpj: String,
+    val plano: String,
+    val planoNome: String,
+    val planoAte: LocalDate?,
+    val testeAte: LocalDate?,
+    /** Limite que vale hoje e de onde vem (pago, teste ou grátis). */
+    val limite: Int,
+    val origem: OrigemLimite,
+    val emTolerancia: Boolean,
+    val itensAtivos: Int,
 )
 
 /** Estabelecimento aprovado ou suspenso, na lista de moderação do Admin. */

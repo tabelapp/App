@@ -68,21 +68,29 @@ Para ninguém cadastrar uma empresa que não é sua:
 
 - **Limite = itens ATIVOS** (não excluídos e dentro da validade). Varejo: por loja. **Rede: o catálogo
   único da rede** (não multiplica pelo número de lojas).
-- **Só criar item novo** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
+- **Só criar ou reativar item** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
   **nunca contam e nunca são bloqueados**; excluir libera espaço. Item vencido não conta, e renovar a
   validade dele é atualização (nunca bloqueada).
-- Faixas na tabela **`planos`** (gratis 30 · loja 300 · mercado 3000), parâmetros em
-  **`configuracao_app`** — ajuste por SQL, sem publicar app. Todo PDV começa no **grátis**.
-- **Parceiro fundador (piloto):** `pdvs.fundador_ate` = cadastro + 90 dias (`fundador_dias`); até lá vale
-  o plano `fundador_plano` (mercado). PDVs que já existiam ganharam 90 dias a partir da migração.
-  Ao acabar, **nada sai do ar**: só não dá para criar itens novos acima do limite. O app avisa 7 dias
-  antes (`fundador_aviso_dias`) e no último dia.
+- **Planos (15/10/2026, substituiu o "parceiro fundador"):** tabela **`planos`** — grátis 5 · essencial 30
+  (R$ 9,99) · loja 300 (R$ 19,99) · mercado 3000 (R$ 29,99) por mês, preço em centavos na coluna
+  `preco_referencia_centavos` (nome antigo mantido). Aplicados uma vez (marcador `planos_2026_10_aplicados`);
+  depois, ajuste por SQL sem publicar app.
+- **Teste grátis:** `pdvs.teste_ate` (era `fundador_ate`) = cadastro + `dias_teste_gratis` (30), com o limite
+  do `plano_teste` (mercado). PDVs existentes: data da migração + 30. **Um teste por CNPJ**: a tabela
+  `testes_gratis` guarda o prazo por CNPJ (recadastro não reinicia).
+- **Limite efetivo** (`_limite_efetivo`): o maior entre plano pago (até `plano_ate`), teste (até `teste_ate`) e
+  grátis; até `dias_tolerancia` (7; pode ser 0) depois do fim, o limite anterior continua valendo.
+- **Pausa calculada, sem job:** passada a tolerância, ficam no ar os itens não pausados atualizados mais
+  recentemente, até o limite; os outros são **pausados na leitura** (`_cotacoes_ocultas`), nunca apagados.
+  Renovar/assinar devolve tudo na hora. O PDV pode **pausar/reativar** itens (`cotacoes.pausado`,
+  `pdv_pausar_item`); reativar só até o limite. A busca e as sugestões filtram os pausados.
+- **Assinatura manual:** "Assinar pelo WhatsApp" (número em `configuracao_app.whatsapp_contato`); o Admin
+  ativa/renova/troca/cancela em "Planos dos PDVs" (`admin_definir_plano`, `admin_cancelar_plano`), com
+  registro em `assinaturas_log` (só o Admin). Sem Pix automático nem Google Play Billing por enquanto.
 - **Planilha:** importa as atualizações e os itens novos até o espaço disponível, na ordem da planilha,
   numa transação só; devolve quantos e quais ficaram de fora (o app oferece baixar a lista).
-- **Cobrança: nenhuma por enquanto.** "Ver planos" mostra as faixas e "Quero ser avisado" grava em
-  `interesse_planos`. A tabela `pagamentos` ficou intacta (dúvida sobre as regras da Google Play); os
-  pacotes de banner continuam iguais. O pacote de +50 operações foi removido do app e do banco
-  (`comprar_pacote_operacoes`).
+- `interesse_planos` ficou intacta, sem uso ("Quero ser avisado" saiu do app). A tabela `pagamentos`
+  continua só para os banners. O pacote de +50 operações foi removido (`comprar_pacote_operacoes`).
 - A verificação é **no banco** (`pdv_salvar_precos`, erro `limite_catalogo`): versões antigas do app não
   burlam. `cota_status()` ficou só para apps antigos (mostra o limite do catálogo).
 - **Medição:** `operacoes_log` continua registrando criar/subir/baixar/editar/excluir, sem bloquear nada;

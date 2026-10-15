@@ -2,6 +2,7 @@ package br.com.tabelapp.ui.pdv
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tabelapp.R
 import br.com.tabelapp.core.LeitorPlanilha
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MapaPrecos
@@ -78,12 +79,10 @@ data class EstadoPainel(
         }
 }
 
-/** Tela de planos: faixas da tabela `planos` e os interesses já registrados. */
+/** Tela de planos: faixas e preços da tabela `planos` (assinatura pelo WhatsApp). */
 data class EstadoPlanos(
     val carregando: Boolean = true,
     val lista: List<Plano> = emptyList(),
-    val interessados: Set<String> = emptySet(),
-    val enviando: String? = null,
     val erro: String? = null,
 )
 
@@ -348,17 +347,22 @@ class PainelPdvViewModel(
 
     fun fecharPlanos() = _estado.update { it.copy(planos = null) }
 
-    /** "Quero ser avisado": registra o interesse (sem cobrança por enquanto). */
-    fun quererSerAvisado(plano: Plano) {
-        _estado.update { e -> e.copy(planos = e.planos?.copy(enviando = plano.codigo, erro = null)) }
+    /**
+     * Pausar (grátis) ou reativar um item. Reativar só até o limite do plano: acima dele,
+     * a mesma mensagem calma do limite, com "Ver planos".
+     */
+    fun pausarItem(p: PrecoPdv, pausar: Boolean) {
         viewModelScope.launch {
             try {
-                repositorio.registrarInteresse(pdv.id, plano.codigo)
-                _estado.update { e ->
-                    e.copy(planos = e.planos?.let { it.copy(enviando = null, interessados = it.interessados + plano.codigo) })
+                repositorio.pausarItem(p.id, pausar)
+                _estado.update {
+                    it.copy(mensagem = Erros.texto(if (pausar) R.string.item_pausado_ok else R.string.item_reativado_ok))
                 }
+                carregar()
             } catch (ex: ErroAmigavel) {
-                _estado.update { e -> e.copy(planos = e.planos?.copy(enviando = null, erro = ex.message)) }
+                _estado.update {
+                    if (ex.codigo == "limite_catalogo") it.copy(mostrarLimite = true) else it.copy(mensagem = ex.message)
+                }
             }
         }
     }

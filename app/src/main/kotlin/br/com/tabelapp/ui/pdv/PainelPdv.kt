@@ -27,7 +27,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -69,6 +71,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.EstadoItem
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.PrecoExibido
@@ -221,7 +224,10 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 }
             }
             items(estado.precosFiltrados, key = { it.id }) { p ->
-                LinhaPreco(p, aoEditar = { vm.editar(p) }, aoExcluir = { excluindo = p })
+                LinhaPreco(
+                    p, aoEditar = { vm.editar(p) }, aoExcluir = { excluindo = p },
+                    aoPausar = { pausar -> vm.pausarItem(p, pausar) },
+                )
             }
         }
         item { Column {
@@ -329,8 +335,8 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     estado.planos?.let { p ->
         TelaPlanos(
             estado = p,
-            planoAtual = estado.catalogo?.plano,
-            aoQuererSerAvisado = vm::quererSerAvisado,
+            catalogo = estado.catalogo,
+            nomeNegocio = estado.nomeFantasia,
             aoFechar = vm::fecharPlanos,
         )
     }
@@ -428,7 +434,7 @@ private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoEditar: () -> 
 }
 
 @Composable
-private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit) {
+private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit, aoPausar: (Boolean) -> Unit) {
     Column {
         Row(
             Modifier.fillMaxWidth().clickable(onClick = aoEditar).padding(vertical = 6.dp),
@@ -441,9 +447,30 @@ private fun LinhaPreco(p: PrecoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit)
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Situação do item (fora da busca, mas guardado e editável).
+                val estado = when (p.estado) {
+                    EstadoItem.PAUSADO -> R.string.item_estado_pausado
+                    EstadoItem.PAUSADO_LIMITE -> R.string.item_estado_pausado_limite
+                    EstadoItem.VENCIDO -> R.string.item_estado_vencido
+                    EstadoItem.ATIVO -> null
+                }
+                estado?.let {
+                    Text(stringResource(it), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                }
             }
             Text(PrecoExibido.texto(p.precoCentavos, p.unidade, p.aPartirDe), fontWeight = FontWeight.Bold,
                 color = CoresTabelapp.Preco)
+            // Pausar e reativar são grátis (reativar só até o limite do plano).
+            if (p.estado != EstadoItem.VENCIDO) {
+                val pausado = p.estado == EstadoItem.PAUSADO
+                IconButton(onClick = { aoPausar(!pausado) }) {
+                    Icon(
+                        if (pausado) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = stringResource(if (pausado) R.string.item_reativar else R.string.item_pausar),
+                    )
+                }
+            }
             IconButton(onClick = aoExcluir) { Icon(Icons.Default.Delete, contentDescription = "Excluir") }
         }
         HorizontalDivider()

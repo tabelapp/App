@@ -39,6 +39,8 @@ object ErrosServidor {
         "pdv_nao_verificado" to "Seu cadastro ainda não foi aprovado.",
         "pdv_nao_encontrado" to "Cadastro não encontrado (talvez já analisado).",
         "motivo_obrigatorio" to "Informe o motivo.",
+        "plano_invalido" to "Escolha um plano pago (Essencial, Loja ou Mercado).",
+        "validade_invalida" to "A validade do plano precisa ser hoje ou depois.",
         "telefone_obrigatorio" to "Informe um telefone ou WhatsApp com DDD.",
         "cidade_obrigatoria" to "Informe a cidade.",
         "coordenada_invalida" to "Não consegui marcar a loja no mapa: a localização parece errada. Tente de novo.",

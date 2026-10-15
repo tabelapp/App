@@ -7,6 +7,7 @@ import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.ErrosServidor
+import br.com.tabelapp.core.EstadoItem
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.ItemFora
 import br.com.tabelapp.core.ItemSalvo
@@ -16,11 +17,13 @@ import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.NomeSugerido
+import br.com.tabelapp.core.OrigemLimite
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
+import br.com.tabelapp.core.PlanoPdvAdmin
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
@@ -534,6 +537,7 @@ private data class PrecoPdvDto(
     val obs: String? = null,
     val unidade: String? = null,
     @SerialName("a_partir_de") val aPartirDe: Boolean = false,
+    val estado: String? = null,
 )
 
 @Serializable
@@ -546,8 +550,34 @@ private data class StatusCatalogoDto(
     val limite: Int,
     @SerialName("itens_ativos") val itensAtivos: Int,
     val disponiveis: Int,
-    @SerialName("fundador_ate") val fundadorAte: String? = null,
-    @SerialName("aviso_fundador_dias") val avisoFundadorDias: Int = 7,
+    @SerialName("plano_ate") val planoAte: String? = null,
+    @SerialName("teste_ate") val testeAte: String? = null,
+    val origem: String? = null,
+    @SerialName("em_tolerancia") val emTolerancia: Boolean = false,
+    val fim: String? = null,
+    @SerialName("tolerancia_ate") val toleranciaAte: String? = null,
+    @SerialName("itens_publicados") val itensPublicados: Int? = null,
+    @SerialName("pausados_limite") val pausadosLimite: Int = 0,
+    @SerialName("pausados_pdv") val pausadosPdv: Int = 0,
+    @SerialName("limite_gratis") val limiteGratis: Int = 5,
+    @SerialName("dias_tolerancia") val diasTolerancia: Int = 7,
+    @SerialName("aviso_dias") val avisoDias: Int = 7,
+    @SerialName("whatsapp_contato") val whatsappContato: String? = null,
+)
+
+@Serializable
+private data class PlanoPdvAdminDto(
+    val id: String,
+    @SerialName("nome_fantasia") val nomeFantasia: String,
+    val cnpj: String,
+    val plano: String,
+    @SerialName("plano_nome") val planoNome: String,
+    @SerialName("plano_ate") val planoAte: String? = null,
+    @SerialName("teste_ate") val testeAte: String? = null,
+    val limite: Int,
+    val origem: String? = null,
+    @SerialName("em_tolerancia") val emTolerancia: Boolean = false,
+    @SerialName("itens_ativos") val itensAtivos: Int = 0,
 )
 
 @Serializable
@@ -788,7 +818,7 @@ class SupabasePdvRepositorio(
             put("p_loja_id", lojaId)
         }).decodeList<PrecoPdvDto>().map {
             PrecoPdv(it.id, it.lojaId, it.produto, it.precoCentavos, LocalDate.parse(it.validade), it.obs,
-                Unidade.deCodigo(it.unidade), it.aPartirDe)
+                Unidade.deCodigo(it.unidade), it.aPartirDe, EstadoItem.doCodigo(it.estado))
         }
     }
 
@@ -797,8 +827,16 @@ class SupabasePdvRepositorio(
             put("p_pdv_id", pdvId)
             put("p_loja_id", lojaId)
         }).decodeList<StatusCatalogoDto>().first()
-        StatusCatalogo(d.plano, d.planoNome, d.limitePlano, d.planoEfetivo, d.planoEfetivoNome, d.limite, d.itensAtivos,
-            d.disponiveis, d.fundadorAte?.let(LocalDate::parse), d.avisoFundadorDias)
+        StatusCatalogo(
+            plano = d.plano, planoNome = d.planoNome, limitePlano = d.limitePlano,
+            planoAte = d.planoAte?.let(LocalDate::parse), testeAte = d.testeAte?.let(LocalDate::parse),
+            planoEfetivo = d.planoEfetivo, planoEfetivoNome = d.planoEfetivoNome, limite = d.limite,
+            origem = OrigemLimite.doCodigo(d.origem), emTolerancia = d.emTolerancia, fim = d.fim?.let(LocalDate::parse),
+            toleranciaAte = d.toleranciaAte?.let(LocalDate::parse), itensAtivos = d.itensAtivos, disponiveis = d.disponiveis,
+            itensPublicados = d.itensPublicados ?: minOf(d.itensAtivos, d.limite), pausadosLimite = d.pausadosLimite,
+            pausadosPdv = d.pausadosPdv, limiteGratis = d.limiteGratis, diasTolerancia = d.diasTolerancia,
+            avisoDias = d.avisoDias, whatsappContato = d.whatsappContato,
+        )
     }
 
     override suspend fun planos(): List<Plano> = traduzindoErros {
@@ -807,10 +845,41 @@ class SupabasePdvRepositorio(
             .sortedBy { it.ordem }
     }
 
-    override suspend fun registrarInteresse(pdvId: String, plano: String) = traduzindoErros {
-        supabase.postgrest.rpc("registrar_interesse_plano", buildJsonObject {
+    override suspend fun pausarItem(precoId: String, pausar: Boolean) = traduzindoErros {
+        supabase.postgrest.rpc("pdv_pausar_item", buildJsonObject {
+            put("p_cotacao_id", precoId)
+            put("p_pausar", pausar)
+        })
+        Unit
+    }
+
+    override suspend fun planosPdvs(busca: String?): List<PlanoPdvAdmin> = traduzindoErros {
+        supabase.postgrest.rpc("admin_planos_pdvs", buildJsonObject { put("p_busca", busca?.trim()?.ifEmpty { null }) })
+            .decodeList<PlanoPdvAdminDto>().map {
+                PlanoPdvAdmin(
+                    id = it.id, nomeFantasia = it.nomeFantasia, cnpj = it.cnpj, plano = it.plano, planoNome = it.planoNome,
+                    planoAte = it.planoAte?.let(LocalDate::parse), testeAte = it.testeAte?.let(LocalDate::parse),
+                    limite = it.limite, origem = OrigemLimite.doCodigo(it.origem), emTolerancia = it.emTolerancia,
+                    itensAtivos = it.itensAtivos,
+                )
+            }
+    }
+
+    override suspend fun definirPlano(pdvId: String, plano: String, validade: LocalDate, observacao: String?) =
+        traduzindoErros {
+            supabase.postgrest.rpc("admin_definir_plano", buildJsonObject {
+                put("p_pdv_id", pdvId)
+                put("p_plano", plano)
+                put("p_validade", validade.toString())
+                put("p_observacao", observacao?.trim()?.ifEmpty { null })
+            })
+            Unit
+        }
+
+    override suspend fun cancelarPlano(pdvId: String, observacao: String?) = traduzindoErros {
+        supabase.postgrest.rpc("admin_cancelar_plano", buildJsonObject {
             put("p_pdv_id", pdvId)
-            put("p_plano", plano)
+            put("p_observacao", observacao?.trim()?.ifEmpty { null })
         })
         Unit
     }

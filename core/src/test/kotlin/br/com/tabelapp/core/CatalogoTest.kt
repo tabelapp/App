@@ -48,27 +48,81 @@ class CatalogoTest {
         assertTrue(Mensagens.interesseNaOferta(c).contains("*Aula de violão* a partir de R$ 80,00 / hora"))
     }
 
-    // --- Status do catálogo e período de fundador -----------------------------------
+    // --- Planos, limite efetivo e avisos ---------------------------------------------
 
-    private fun status(fundadorAte: LocalDate?, ativos: Int = 10, limite: Int = 30) = StatusCatalogo(
-        plano = "gratis", planoNome = "Grátis", limitePlano = 30, planoEfetivo = "gratis", planoEfetivoNome = "Grátis",
-        limite = limite, itensAtivos = ativos, disponiveis = (limite - ativos).coerceAtLeast(0), fundadorAte = fundadorAte,
+    private val planos = listOf(
+        Plano("gratis", "Grátis", 5, 0, 1), Plano("essencial", "Essencial", 30, 999, 2),
+        Plano("loja", "Loja", 300, 1999, 3), Plano("mercado", "Mercado", 3000, 2999, 4),
     )
+    private val hoje = LocalDate.of(2026, 10, 15)
 
-    @Test fun `avisos do periodo de fundador`() {
-        val hoje = LocalDate.of(2026, 10, 12)
-        assertEquals(AvisoFundador.FAIXA, status(hoje.plusDays(30)).avisoFundador(hoje))
-        assertEquals(AvisoFundador.FALTAM_POUCOS_DIAS, status(hoje.plusDays(7)).avisoFundador(hoje))
-        assertEquals(AvisoFundador.FALTAM_POUCOS_DIAS, status(hoje.plusDays(1)).avisoFundador(hoje))
-        assertEquals(AvisoFundador.ULTIMO_DIA, status(hoje).avisoFundador(hoje))
-        assertEquals(AvisoFundador.NENHUM, status(hoje.minusDays(1)).avisoFundador(hoje))
-        assertEquals(AvisoFundador.NENHUM, status(null).avisoFundador(hoje))
+    private fun efetivo(plano: String = "gratis", planoAte: LocalDate? = null, testeAte: LocalDate? = null, tol: Int = 7) =
+        Limites.efetivo(planos, plano, planoAte, testeAte, hoje, tol)
+
+    @Test fun `teste gratis vale o limite do mercado`() {
+        val e = efetivo(testeAte = hoje.plusDays(30))
+        assertEquals(3000, e.limite); assertEquals(OrigemLimite.TESTE, e.origem); assertFalse(e.emTolerancia)
+        // No último dia ainda vale.
+        assertEquals(3000, efetivo(testeAte = hoje).limite)
     }
 
-    @Test fun `no limite`() {
-        assertTrue(status(null, ativos = 30).noLimite)
-        assertTrue(status(null, ativos = 35).noLimite)
-        assertFalse(status(null, ativos = 29).noLimite)
+    @Test fun `depois do teste e da tolerancia vale o gratis`() {
+        val tolerancia = efetivo(testeAte = hoje.minusDays(1))
+        assertEquals(3000, tolerancia.limite); assertTrue(tolerancia.emTolerancia)
+        assertEquals(hoje.plusDays(6), tolerancia.toleranciaAte)
+        assertEquals(3000, efetivo(testeAte = hoje.minusDays(7)).limite)
+        val gratis = efetivo(testeAte = hoje.minusDays(8))
+        assertEquals(5, gratis.limite); assertEquals(OrigemLimite.GRATIS, gratis.origem)
+        // Tolerância 0: acabou, acabou.
+        assertEquals(5, efetivo(testeAte = hoje.minusDays(1), tol = 0).limite)
+    }
+
+    @Test fun `planos pagos e o maior limite vence`() {
+        assertEquals(30, efetivo("essencial", hoje.plusDays(10)).limite)
+        assertEquals(300, efetivo("loja", hoje.plusDays(10)).limite)
+        assertEquals(3000, efetivo("mercado", hoje.plusDays(10)).limite)
+        // Teste ainda valendo com plano essencial: vale o maior (o do teste).
+        assertEquals(OrigemLimite.TESTE, efetivo("essencial", hoje.plusDays(10), hoje.plusDays(3)).origem)
+        // Plano mercado e teste: empate, vale o pago.
+        assertEquals(OrigemLimite.PAGO, efetivo("mercado", hoje.plusDays(10), hoje.plusDays(3)).origem)
+        // Plano vencido há 8 dias: grátis.
+        assertEquals(5, efetivo("loja", hoje.minusDays(8)).limite)
+    }
+
+    private fun status(e: LimiteEfetivo, ativos: Int) = StatusCatalogo(
+        plano = "gratis", planoNome = "Grátis", limitePlano = 5, planoAte = null, testeAte = e.fim,
+        planoEfetivo = e.plano, planoEfetivoNome = planos.first { it.codigo == e.plano }.nome, limite = e.limite,
+        origem = e.origem, emTolerancia = e.emTolerancia, fim = e.fim, toleranciaAte = e.toleranciaAte,
+        itensAtivos = ativos, disponiveis = (e.limite - ativos).coerceAtLeast(0),
+    )
+
+    @Test fun `estados do catalogo e avisos`() {
+        val emTeste = status(efetivo(testeAte = hoje.plusDays(20)), ativos = 10)
+        assertEquals(listOf<AvisoPlano>(AvisoPlano.FaixaTeste(hoje.plusDays(20))), emTeste.avisos(hoje))
+        val acabando = status(efetivo(testeAte = hoje.plusDays(7)), ativos = 10)
+        assertEquals(AvisoPlano.TesteTermina(7, 5), acabando.avisos(hoje)[1])
+        assertEquals(AvisoPlano.TesteTermina(0, 5), status(efetivo(testeAte = hoje), 10).avisos(hoje)[1])
+        val tolerancia = status(efetivo(testeAte = hoje.minusDays(2)), ativos = 10)
+        assertEquals(listOf<AvisoPlano>(AvisoPlano.Tolerancia(OrigemLimite.TESTE, hoje.plusDays(5), 5)), tolerancia.avisos(hoje))
+        val pausados = status(efetivo(testeAte = hoje.minusDays(8)), ativos = 12)
+        assertEquals(5, pausados.itensPublicados)
+        assertEquals(7, pausados.pausadosLimite)
+        assertTrue(pausados.noLimite)
+        assertEquals(listOf<AvisoPlano>(AvisoPlano.ItensPausados(7)), pausados.avisos(hoje))
+        assertFalse(status(efetivo(testeAte = hoje.minusDays(8)), ativos = 4).noLimite)
+    }
+
+    @Test fun `estado do item vem do banco`() {
+        assertEquals(EstadoItem.PAUSADO_LIMITE, EstadoItem.doCodigo("pausado_limite"))
+        assertEquals(EstadoItem.ATIVO, EstadoItem.doCodigo(null))
+        assertTrue(EstadoItem.ATIVO.publicado)
+        assertFalse(EstadoItem.PAUSADO.publicado)
+    }
+
+    @Test fun `preco do plano a partir de centavos`() {
+        assertEquals("R$ 9,99 por mês", PrecoPlano.porMes(999))
+        assertEquals("R$ 19,99 por mês", PrecoPlano.porMes(1999))
+        assertEquals("R$ 29,99 por mês", PrecoPlano.porMes(2999))
     }
 
     @Test fun `resultado da importacao e lista dos que ficaram de fora`() {
@@ -87,22 +141,38 @@ class CatalogoTest {
     }
 
     @Test fun `mensagem do limite`() {
-        val texto = String.format(strings.getValue("catalogo_limite_texto"), 30, "Grátis")
+        val texto = String.format(strings.getValue("catalogo_limite_texto"), 5, "Grátis")
         assertEquals(
-            "Você chegou ao limite de 30 itens do plano Grátis. Seus itens continuam publicados e você pode " +
+            "Você chegou ao limite de 5 itens do plano Grátis. Seus itens continuam publicados e você pode " +
                 "atualizar os preços quando quiser. Para adicionar mais, veja os planos.",
             texto,
         )
         assertEquals("Ver planos", strings["catalogo_ver_planos"])
         assertEquals("Agora não", strings["catalogo_agora_nao"])
-        assertEquals("Anotado. Avisaremos assim que os planos estiverem disponíveis.", strings["planos_anotado"])
+    }
+
+    @Test fun `mensagens do teste, dos pausados e da assinatura`() {
+        assertEquals("Teste grátis: catálogo liberado até 14/11/2026",
+            String.format(strings.getValue("teste_faixa"), "14/11/2026"))
+        assertEquals(
+            "Seu teste grátis termina em 7 dias. Depois disso, o plano grátis mantém 5 itens ativos. " +
+                "Os outros ficam guardados, só pausados. Veja os planos.",
+            String.format(strings.getValue("teste_termina_dias"), 7, 5),
+        )
+        assertEquals(
+            "Alguns itens foram pausados porque o teste ou o plano terminou. Eles continuam guardados e voltam " +
+                "quando você assinar. Você também pode escolher quais ficam ativos.",
+            strings["itens_pausados_texto"],
+        )
+        assertEquals("Quero assinar o plano Loja do Tabelapp. Meu negócio: Padaria Imperial",
+            String.format(strings.getValue("plano_mensagem_whatsapp"), "Loja", "Padaria Imperial"))
+        assertEquals("Pagamento por Pix. Depois da confirmação, seu plano é ativado.", strings["planos_apoio_pix"])
+        assertEquals("Até 5 itens ativos", String.format(strings.getValue("plano_limite_itens"), 5))
     }
 
     @Test fun `resumo da importacao`() {
         assertEquals("12 itens importados.", String.format(strings.getValue("importacao_importados"), 12))
         assertEquals("3 ficaram de fora porque o plano permite até 30 itens.",
             String.format(strings.getValue("importacao_fora"), 3, 30))
-        assertEquals("Parceiro fundador: catálogo liberado até 10/01/2027",
-            String.format(strings.getValue("fundador_faixa"), "10/01/2027"))
     }
 }

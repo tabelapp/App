@@ -475,12 +475,13 @@ insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
 values ('10000000-0000-4000-b000-000000000001', 'b0000000-0000-4000-a000-00000000000b', '55555555000191',
         'Mercado do Bruno', false, 'aprovado');
 do $$ begin
-  -- Todo PDV novo começa no plano grátis e, no piloto, ganha 90 dias de parceiro fundador.
-  assert (select plano = 'gratis' and fundador_ate = public.hoje() + 90
+  -- Todo PDV novo começa no plano grátis com 30 dias de teste grátis (catálogo do plano mercado).
+  assert (select plano = 'gratis' and teste_ate = public.hoje() + 30 and plano_ate is null
           from public.pdvs where id = '10000000-0000-4000-b000-000000000001');
+  assert (select teste_ate from public.testes_gratis where cnpj = '55555555000191') = public.hoje() + 30;
 end $$;
--- Para testar o plano grátis: o período de fundador já acabou.
-update public.pdvs set fundador_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+-- Para testar o plano grátis: o teste já acabou, e a tolerância (7 dias) também.
+update public.pdvs set teste_ate = public.hoje() - 8 where id = '10000000-0000-4000-b000-000000000001';
 -- Faixa menor só para o teste ficar rápido (as faixas vêm da tabela planos, não do código).
 update public.planos set limite_itens = 3 where codigo = 'gratis';
 set role authenticated;
@@ -492,12 +493,16 @@ insert into public.lojas (id, pdv_id, endereco, bairro, telefone) values
 select pg_temp.espera_erro(
   $q$insert into public.lojas (pdv_id, endereco) values ('10000000-0000-4000-a000-000000000001', 'Invasão')$q$,
   'row-level security');
--- Plano e período de fundador não são alterados pelo app.
+-- Plano, validade do plano e teste grátis não são alterados pelo app.
 select pg_temp.espera_erro(
   $q$update public.pdvs set plano = 'mercado' where id = '10000000-0000-4000-b000-000000000001'$q$, 'permission denied');
 select pg_temp.espera_erro(
-  $q$update public.pdvs set fundador_ate = '2099-01-01' where id = '10000000-0000-4000-b000-000000000001'$q$,
+  $q$update public.pdvs set teste_ate = '2099-01-01' where id = '10000000-0000-4000-b000-000000000001'$q$,
   'permission denied');
+select pg_temp.espera_erro(
+  $q$update public.pdvs set plano_ate = '2099-01-01' where id = '10000000-0000-4000-b000-000000000001'$q$,
+  'permission denied');
+select pg_temp.espera_erro($q$select * from public.testes_gratis$q$, 'permission denied');
 select pg_temp.espera_erro($q$update public.planos set limite_itens = 99999$q$, 'permission denied');
 select pg_temp.espera_erro($q$insert into public.configuracao_app values ('x', '1', null)$q$, 'permission denied');
 
@@ -627,8 +632,8 @@ do $$ begin
           where pdv_id = '10000000-0000-4000-b000-000000000001' and mes = public.competencia_atual());
 end $$;
 
-\echo '== Parceiro fundador: limite do plano mercado; ao acabar, nada some'
-update public.pdvs set fundador_ate = public.hoje() + 10 where id = '10000000-0000-4000-b000-000000000001';
+\echo '== Teste grátis: catálogo do mercado; tolerância; depois, excedentes pausados (nunca apagados)'
+update public.pdvs set teste_ate = public.hoje() + 10 where id = '10000000-0000-4000-b000-000000000001';
 set role authenticated;
 do $$
 declare
@@ -638,13 +643,29 @@ declare
   r record;
 begin
   select * into r from public.status_catalogo(pdv, loja2);
-  assert r.plano = 'gratis' and r.plano_efetivo = 'mercado' and r.limite = 3000 and r.limite_plano = 3, r::text;
+  assert r.plano = 'gratis' and r.plano_efetivo = 'mercado' and r.limite = 3000 and r.limite_plano = 3
+     and r.origem = 'teste' and not r.em_tolerancia and r.fim = public.hoje() + 10, r::text;
   v := public.pdv_salvar_precos(pdv, loja2,
     '[{"produto": "Novo 3", "preco_centavos": 103}, {"produto": "Novo 4", "preco_centavos": 104}]', 'pdv_excel');
   assert (v ->> 'criados')::int = 2 and (v ->> 'fora_do_limite')::int = 0, v::text;
 end $$;
+-- Terminou ontem: tolerância de 7 dias com o limite anterior (nada pausado ainda).
 reset role;
-update public.pdvs set fundador_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set teste_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+set role authenticated;
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  r record;
+begin
+  select * into r from public.status_catalogo(pdv, loja2);
+  assert r.limite = 3000 and r.em_tolerancia and r.tolerancia_ate = public.hoje() + 6 and r.pausados_limite = 0, r::text;
+  assert (select count(*) from public.buscar_cotacoes('novo') where loja_id = loja2) = 4;
+end $$;
+-- Passou a tolerância: plano grátis (aqui 3). Os 2 excedentes ficam pausados, não apagados.
+reset role;
+update public.pdvs set teste_ate = public.hoje() - 8 where id = '10000000-0000-4000-b000-000000000001';
 set role authenticated;
 do $$
 declare
@@ -653,11 +674,14 @@ declare
   v jsonb;
   r record;
 begin
-  -- Voltou ao grátis com 5 itens (acima de 3): nada foi despublicado...
   select * into r from public.status_catalogo(pdv, loja2);
-  assert r.plano_efetivo = 'gratis' and r.itens_ativos = 5 and r.disponiveis = 0, r::text;
-  assert (select count(*) from public.buscar_cotacoes('novo') where loja_id = loja2) = 4;
-  -- ...atualizar continua livre; criar não.
+  assert r.plano_efetivo = 'gratis' and r.origem = 'gratis' and r.itens_ativos = 5 and r.itens_publicados = 3
+     and r.pausados_limite = 2 and r.disponiveis = 0, r::text;
+  assert (select count(*) from public.buscar_cotacoes(null, null, null, 500) where loja_id = loja2) = 3;
+  assert (select count(*) from public.cotacoes where loja_id = loja2) = 5, 'nada é apagado';
+  assert (select count(*) filter (where estado = 'ativo') = 3 and count(*) filter (where estado = 'pausado_limite') = 2
+          from public.meus_precos(pdv, loja2));
+  -- Atualizar continua livre (até o pausado); criar não.
   v := public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Novo 4", "preco_centavos": 99}]');
   assert (v ->> 'diminuidos')::int = 1, v::text;
   begin
@@ -667,6 +691,39 @@ begin
     assert sqlerrm like '%limite_catalogo%', sqlerrm;
   end;
 end $$;
+-- O PDV escolhe quais ficam no ar: pausa uns e reativa outros (grátis, só até o limite).
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  item uuid;
+begin
+  item := (select id from public.cotacoes where loja_id = loja2 and produto = 'Arroz 5kg');
+  perform public.pdv_pausar_item(item, true);
+  assert (select estado from public.meus_precos(pdv, loja2) where produto = 'Arroz 5kg') = 'pausado';
+  assert (select itens_ativos = 4 and pausados_pdv = 1 and itens_publicados = 3 from public.status_catalogo(pdv, loja2));
+  assert not exists (select 1 from public.buscar_cotacoes('arroz', null, null, 500) where id = item);
+  -- Reativar com 4 ativos para um limite de 3: recusado.
+  begin
+    perform public.pdv_pausar_item(item, false);
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+  -- Pausa mais dois: sobra espaço e o Arroz volta.
+  perform public.pdv_pausar_item((select id from public.cotacoes where loja_id = loja2 and produto = 'Novo 1'), true);
+  perform public.pdv_pausar_item((select id from public.cotacoes where loja_id = loja2 and produto = 'Novo 2'), true);
+  perform public.pdv_pausar_item(item, false);
+  assert (select estado from public.meus_precos(pdv, loja2) where produto = 'Arroz 5kg') = 'ativo';
+  assert exists (select 1 from public.buscar_cotacoes('arroz', null, null, 500) where id = item);
+  assert (select itens_ativos = 3 and pausados_limite = 0 and pausados_pdv = 2 from public.status_catalogo(pdv, loja2));
+end $$;
+-- Outra pessoa não pausa o item alheio.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.pdv_pausar_item((select id from public.cotacoes where produto = 'Novo 3' limit 1), true)$q$,
+  'sem_permissao');
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 
 -- Validações de linha (validade máx. 30 dias, duplicado, preço, unidade).
 select pg_temp.espera_erro(
@@ -698,7 +755,7 @@ select pg_temp.espera_erro(
 do $$
 declare pdv constant uuid := '10000000-0000-4000-b000-000000000001';
 begin
-  assert (select count(*) from public.planos where ativo) = 3;
+  assert (select count(*) from public.planos where ativo) = 4;
   perform public.registrar_interesse_plano(pdv, 'loja');
   perform public.registrar_interesse_plano(pdv, 'loja'); -- repetir não duplica
   assert (select count(*) from public.interesse_planos where pdv_id = pdv and plano = 'loja') = 1;
@@ -734,7 +791,7 @@ begin
   assert (select disponiveis from public.status_catalogo(pdv)) = 1;
 end $$;
 reset role;
-update public.planos set limite_itens = 30 where codigo = 'gratis';
+update public.planos set limite_itens = 5 where codigo = 'gratis';
 set role authenticated;
 
 \echo '== Outro usuário não usa o catálogo do PDV alheio'
@@ -1283,6 +1340,189 @@ select pg_temp.espera_erro(
 reset role;
 do $$ begin
   assert exists (select 1 from public.pdvs where id = current_setting('tabelapp.anunciante')::uuid and status = 'suspenso');
+end $$;
+
+\echo '== Novos planos: 5 grátis / 30 / 300 / 3000, teste por CNPJ, tolerância, Admin ativa'
+reset role;
+do $$ begin
+  assert (select array_agg(codigo || ':' || limite_itens || ':' || preco_referencia_centavos order by ordem)
+          from public.planos where ativo)
+         = array['gratis:5:0', 'essencial:30:999', 'loja:300:1999', 'mercado:3000:2999'];
+  assert (public.config_app('dias_teste_gratis', 'null'))::text = '30';
+  assert (public.config_app('dias_tolerancia', 'null'))::text = '7';
+end $$;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('90000000-0000-4000-a000-000000000009', 'gil@teste.invalid', '{"nome": "Gil", "tipo": "cnpj"}');
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
+values ('90000000-0000-4000-b000-000000000009', '90000000-0000-4000-a000-000000000009', '11444777000161',
+        'Mercearia do Gil', true, 'aprovado');
+insert into public.lojas (id, pdv_id, endereco, bairro) values
+  ('90000000-0000-4000-c000-000000000009', '90000000-0000-4000-b000-000000000009', 'Rua G, 9', 'Centro');
+set role authenticated;
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$
+declare
+  pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+  r record;
+  v jsonb;
+begin
+  -- Teste grátis de 30 dias com o catálogo do mercado (3000).
+  select * into r from public.status_catalogo(pdv);
+  assert r.origem = 'teste' and r.limite = 3000 and r.teste_ate = public.hoje() + 30 and r.limite_gratis = 5
+     and r.whatsapp_contato = '5524988029067', r::text;
+  v := public.pdv_salvar_precos(pdv, null, '[{"produto": "G1", "preco_centavos": 100}, {"produto": "G2", "preco_centavos": 100},
+    {"produto": "G3", "preco_centavos": 100}, {"produto": "G4", "preco_centavos": 100},
+    {"produto": "G5", "preco_centavos": 100}, {"produto": "G6", "preco_centavos": 100}]');
+  assert (v ->> 'criados')::int = 6, v::text;
+end $$;
+-- Fim do teste e da tolerância: grátis com 5. O 6º fica pausado; criar o 7º é bloqueado.
+reset role;
+update public.pdvs set teste_ate = public.hoje() - 8 where id = '90000000-0000-4000-b000-000000000009';
+set role authenticated;
+do $$
+declare
+  pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+  r record;
+  v jsonb;
+begin
+  select * into r from public.status_catalogo(pdv);
+  assert r.origem = 'gratis' and r.limite = 5 and r.itens_ativos = 6 and r.itens_publicados = 5
+     and r.pausados_limite = 1, r::text;
+  begin
+    perform public.pdv_salvar_precos(pdv, null, '[{"produto": "G7", "preco_centavos": 100}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+  -- Subir, baixar e excluir nunca são bloqueados.
+  v := public.pdv_salvar_precos(pdv, null, '[{"produto": "G1", "preco_centavos": 150}, {"produto": "G2", "preco_centavos": 50}]');
+  assert (v ->> 'aumentados')::int = 1 and (v ->> 'diminuidos')::int = 1, v::text;
+  perform public.pdv_excluir_item((select id from public.cotacoes where produto = 'G6'));
+  select * into r from public.status_catalogo(pdv);
+  assert r.itens_ativos = 5 and r.pausados_limite = 0 and r.disponiveis = 0, r::text;
+  -- Com 5 ativos, o 6º item é bloqueado no grátis.
+  begin
+    perform public.pdv_salvar_precos(pdv, null, '[{"produto": "G6", "preco_centavos": 100}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+end $$;
+-- Só o Admin ativa planos (o dono não muda o próprio plano).
+select pg_temp.espera_erro(
+  $q$select public.admin_definir_plano('90000000-0000-4000-b000-000000000009', 'mercado', public.hoje() + 30)$q$,
+  'sem_permissao');
+select pg_temp.espera_erro($q$select * from public.admin_planos_pdvs()$q$, 'sem_permissao');
+select pg_temp.espera_erro(
+  $q$update public.pdvs set plano = 'mercado' where id = '90000000-0000-4000-b000-000000000009'$q$, 'permission denied');
+select pg_temp.espera_erro(
+  $q$insert into public.assinaturas_log (cnpj, acao, plano) values ('11444777000161', 'ativar', 'mercado')$q$,
+  'row-level security');
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select pg_temp.espera_erro(
+  $q$select public.admin_definir_plano('90000000-0000-4000-b000-000000000009', 'gratis', public.hoje() + 30)$q$,
+  'plano_invalido');
+select pg_temp.espera_erro(
+  $q$select public.admin_definir_plano('90000000-0000-4000-b000-000000000009', 'loja', public.hoje() - 1)$q$,
+  'validade_invalida');
+do $$
+declare pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+begin
+  perform public.admin_definir_plano(pdv, 'essencial', public.hoje() + 30, 'Pix recebido');
+  assert (select plano = 'essencial' and plano_ate = public.hoje() + 30 and limite = 30 and origem = 'pago'
+          from public.admin_planos_pdvs('gil'));
+end $$;
+-- Essencial: até 30.
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$
+declare
+  pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+  itens jsonb;
+begin
+  select jsonb_agg(jsonb_build_object('produto', 'E' || n, 'preco_centavos', 100)) into itens from generate_series(1, 25) n;
+  perform public.pdv_salvar_precos(pdv, null, itens, 'pdv_excel');
+  assert (select itens_ativos = 30 and limite = 30 and disponiveis = 0 from public.status_catalogo(pdv));
+  begin
+    perform public.pdv_salvar_precos(pdv, null, '[{"produto": "E31", "preco_centavos": 100}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+end $$;
+-- Loja (300) e Mercado (3000); renovar o mesmo plano.
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+begin
+  perform public.admin_definir_plano(pdv, 'loja', public.hoje() + 30);
+  assert (select limite from public.admin_planos_pdvs('11444777')) = 300;
+  perform public.admin_definir_plano(pdv, 'mercado', public.hoje() + 30);
+  assert (select limite from public.admin_planos_pdvs('gil')) = 3000;
+  perform public.admin_definir_plano(pdv, 'mercado', public.hoje() + 60, 'Renovação');
+  assert (select array_agg(acao order by id) from public.assinaturas_log where pdv_id = pdv)
+         = array['ativar', 'trocar', 'trocar', 'renovar'];
+  assert (select validade_anterior = public.hoje() + 30 and validade_nova = public.hoje() + 60
+          from public.assinaturas_log where pdv_id = pdv order by id desc limit 1);
+end $$;
+-- Plano pago vencido: tolerância; depois, excedentes pausados; renovar devolve tudo.
+reset role;
+update public.pdvs set plano_ate = public.hoje() - 1 where id = '90000000-0000-4000-b000-000000000009';
+set role authenticated;
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert (select limite = 3000 and origem = 'pago' and em_tolerancia and pausados_limite = 0
+          from public.status_catalogo('90000000-0000-4000-b000-000000000009'));
+end $$;
+reset role;
+update public.pdvs set plano_ate = public.hoje() - 8 where id = '90000000-0000-4000-b000-000000000009';
+set role authenticated;
+do $$ begin
+  assert (select limite = 5 and origem = 'gratis' and itens_ativos = 30 and itens_publicados = 5 and pausados_limite = 25
+          from public.status_catalogo('90000000-0000-4000-b000-000000000009'));
+  assert (select count(*) from public.buscar_cotacoes(null, null, null, 500)
+          where loja_id = '90000000-0000-4000-c000-000000000009') = 5;
+end $$;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select public.admin_definir_plano('90000000-0000-4000-b000-000000000009', 'loja', public.hoje() + 30);
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert (select limite = 300 and itens_publicados = 30 and pausados_limite = 0
+          from public.status_catalogo('90000000-0000-4000-b000-000000000009')), 'renovar reativa os itens';
+  assert (select count(*) from public.buscar_cotacoes(null, null, null, 500)
+          where loja_id = '90000000-0000-4000-c000-000000000009') = 30;
+  assert (select count(*) from public.assinaturas_log) = 0, 'registro de assinaturas é só do Admin';
+end $$;
+-- Tolerância configurável (0 = sem tolerância).
+reset role;
+update public.configuracao_app set valor = '0' where chave = 'dias_tolerancia';
+update public.pdvs set plano_ate = public.hoje() - 1 where id = '90000000-0000-4000-b000-000000000009';
+set role authenticated;
+do $$ begin
+  assert (select limite = 5 and not em_tolerancia from public.status_catalogo('90000000-0000-4000-b000-000000000009'));
+end $$;
+reset role;
+update public.configuracao_app set valor = '7' where chave = 'dias_tolerancia';
+-- Cancelar: volta ao grátis e fica registrado.
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare pdv constant uuid := '90000000-0000-4000-b000-000000000009';
+begin
+  perform public.admin_cancelar_plano(pdv, 'Pedido do cliente');
+  assert (select plano = 'gratis' and plano_ate is null from public.admin_planos_pdvs('gil'));
+  assert (select acao from public.assinaturas_log where pdv_id = pdv order by id desc limit 1) = 'cancelar';
+end $$;
+-- Um teste por CNPJ: excluir e recadastrar não reinicia o teste.
+reset role;
+update public.testes_gratis set teste_ate = public.hoje() - 20 where cnpj = '11444777000161';
+delete from public.pdvs where id = '90000000-0000-4000-b000-000000000009';
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
+values ('90000000-0000-4000-b000-00000000000a', '90000000-0000-4000-a000-000000000009', '11444777000161',
+        'Mercearia do Gil', true, 'aprovado');
+do $$ begin
+  assert (select teste_ate from public.pdvs where id = '90000000-0000-4000-b000-00000000000a') = public.hoje() - 20,
+    'o teste não reinicia';
+  assert exists (select 1 from public.assinaturas_log where cnpj = '11444777000161'), 'o registro de assinaturas fica';
 end $$;
 
 \echo 'OK — todos os testes do banco passaram'

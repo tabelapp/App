@@ -58,7 +58,8 @@ object Erros {
     /** Aviso quando o leitor de QR Code do Google não abre (primeiro uso, Play Services baixando). */
     fun leitorIndisponivel(): String = texto(R.string.erro_leitor_indisponivel)
 
-    private fun texto(id: Int): String =
+    /** Texto do strings.xml fora de um Composable (ex.: mensagens do ViewModel). */
+    fun texto(id: Int): String =
         if (::contexto.isInitialized) contexto.getString(id) else ErrosServidor.GENERICA
 
     // ------------------------------------------------------------------ servidor

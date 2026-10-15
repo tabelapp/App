@@ -61,28 +61,61 @@
     <string name="catalogo_limite_texto">Você chegou ao limite de %1$d itens do plano %2$s. Seus itens continuam publicados e você pode atualizar os preços quando quiser. Para adicionar mais, veja os planos.</string>
     <string name="catalogo_ver_planos">Ver planos</string>
     <string name="catalogo_agora_nao">Agora não</string>
-    <string name="catalogo_resumo">Catálogo: %1$d de %2$d itens</string>
+    <string name="catalogo_resumo">Catálogo: %1$d de %2$d itens no ar</string>
     <string name="catalogo_plano">Plano %1$s</string>
-    <string name="catalogo_explicacao">Atualizar preço, validade e OBS é sempre livre e ilimitado. O limite conta só os itens publicados ao mesmo tempo, e excluir um item libera espaço.</string>
-    <string name="catalogo_acima_do_limite">Você tem mais itens do que o plano %1$s permite (%2$d). Nada sai do ar: você só não consegue adicionar itens novos por enquanto.</string>
+    <string name="catalogo_explicacao">Atualizar preço, validade e OBS é sempre livre e ilimitado. O limite conta só os itens ativos ao mesmo tempo. Excluir ou pausar um item libera espaço.</string>
+    <string name="catalogo_plano_ate">Plano até %1$s</string>
+    <string name="catalogo_pausados_pdv">%1$d pausado(s) por você (não contam no limite)</string>
 
-    <!-- Parceiro fundador (piloto Petrópolis) -->
-    <string name="fundador_faixa">Parceiro fundador: catálogo liberado até %1$s</string>
-    <string name="fundador_faltam_dias">Seu período de parceiro fundador termina em %1$d dia(s), em %2$s. Depois disso, o limite passa a ser de %3$d itens do plano %4$s. Nada do que já está publicado sai do ar.</string>
-    <string name="fundador_ultimo_dia">Hoje é o último dia do seu período de parceiro fundador. A partir de amanhã, o limite passa a ser de %1$d itens do plano %2$s. Nada do que já está publicado sai do ar.</string>
+    <!-- Teste grátis de 30 dias e fim do plano -->
+    <string name="teste_faixa">Teste grátis: catálogo liberado até %1$s</string>
+    <string name="teste_termina_dias">Seu teste grátis termina em %1$d dias. Depois disso, o plano grátis mantém %2$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
+    <string name="teste_termina_amanha">Seu teste grátis termina amanhã. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
+    <string name="teste_termina_hoje">Seu teste grátis termina hoje. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
+    <string name="plano_termina_dias">Seu plano %1$s termina em %2$d dias, em %3$s. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
+    <string name="plano_termina_amanha">Seu plano %1$s termina amanhã. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
+    <string name="plano_termina_hoje">Seu plano %1$s termina hoje. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
+    <string name="tolerancia_teste">Seu teste grátis terminou. Até %1$s seu catálogo continua liberado; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados. Veja os planos.</string>
+    <string name="tolerancia_plano">Seu plano terminou. Até %1$s seu catálogo continua como estava; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados. Veja os planos.</string>
+    <string name="itens_pausados_texto">Alguns itens foram pausados porque o teste ou o plano terminou. Eles continuam guardados e voltam quando você assinar. Você também pode escolher quais ficam ativos.</string>
 
-    <!-- Tela de planos (sem cobrança por enquanto) -->
+    <!-- Itens da tabela: pausar e reativar -->
+    <string name="item_estado_pausado">Pausado por você</string>
+    <string name="item_estado_pausado_limite">Pausado (limite do plano)</string>
+    <string name="item_estado_vencido">Vencido</string>
+    <string name="item_pausar">Pausar</string>
+    <string name="item_reativar">Reativar</string>
+    <string name="item_pausado_ok">Item pausado. Ele fica guardado e não aparece na busca.</string>
+    <string name="item_reativado_ok">Item reativado.</string>
+
+    <!-- Tela de planos (assinatura pelo WhatsApp, sem cobrança no app) -->
     <string name="planos_titulo">Planos</string>
-    <string name="planos_intro">Atualizar preços é sempre livre e ilimitado em todos os planos. O que muda é quantos itens você pode ter publicados ao mesmo tempo.</string>
-    <string name="planos_ainda_sem_cobranca">Os planos pagos ainda não estão disponíveis. Toque em “Quero ser avisado” e falamos com você assim que estiverem.</string>
+    <string name="planos_intro">Atualizar preços é sempre livre e ilimitado em todos os planos. O que muda é quantos itens você pode ter ativos ao mesmo tempo.</string>
+    <string name="planos_apoio_pix">Pagamento por Pix. Depois da confirmação, seu plano é ativado.</string>
     <string name="plano_limite_itens">Até %1$d itens ativos</string>
     <string name="plano_gratis">Grátis</string>
-    <string name="plano_preco_em_breve">Preço em breve</string>
-    <string name="plano_preco_referencia">Preço de referência: %1$s</string>
     <string name="plano_atual">Seu plano</string>
-    <string name="plano_quero_ser_avisado">Quero ser avisado</string>
-    <string name="planos_anotado">Anotado. Avisaremos assim que os planos estiverem disponíveis.</string>
+    <string name="plano_assinar_whatsapp">Assinar pelo WhatsApp</string>
+    <string name="plano_mensagem_whatsapp">Quero assinar o plano %1$s do Tabelapp. Meu negócio: %2$s</string>
     <string name="planos_fechar">Fechar</string>
+
+    <!-- Admin: planos dos PDVs -->
+    <string name="admin_planos_titulo">Planos dos PDVs</string>
+    <string name="admin_planos_texto">Ative, renove ou cancele o plano pago depois de confirmar o Pix. Sem cálculo proporcional.</string>
+    <string name="admin_planos_abrir">Planos dos PDVs</string>
+    <string name="admin_planos_vazio">Nenhum estabelecimento encontrado.</string>
+    <string name="admin_plano_atual">Plano: %1$s</string>
+    <string name="admin_plano_ate">Plano até %1$s</string>
+    <string name="admin_teste_ate">Teste até %1$s</string>
+    <string name="admin_plano_vale_hoje">Vale hoje: %1$d itens (%2$s)</string>
+    <string name="admin_plano_ativar">Ativar ou renovar</string>
+    <string name="admin_plano_cancelar">Cancelar plano</string>
+    <string name="admin_plano_dialogo_titulo">Plano de %1$s</string>
+    <string name="admin_plano_validade">Válido até (dd/mm/aaaa)</string>
+    <string name="admin_plano_observacao">Observação (opcional)</string>
+    <string name="admin_plano_salvar">Salvar</string>
+    <string name="admin_plano_cancelar_texto">O PDV volta ao plano grátis agora. Se ainda estiver no teste grátis, o teste continua.</string>
+    <string name="admin_plano_data_invalida">Data inválida. Use dd/mm/aaaa, a partir de hoje.</string>
 
     <!-- Importação da planilha com o limite do catálogo -->
     <string name="importacao_importados">%1$d itens importados.</string>
