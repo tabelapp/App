@@ -302,8 +302,8 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
   `ui/tema/Tema.kt` (`CoresTabelapp`); `res/values/colors.xml` espelha as poucas usadas fora do Compose.
 - Preços sempre brancos e em negrito. Amarelo da marca só no título "Tabelapp" da busca e no contorno de
   2 dp dos dois banners (inclusive "Anuncie aqui") e do card mais barato (regra do selo inalterada).
-- Laranja (`Destaque`) para seleção, links e botões principais. Ícone do app na tela inicial mantém as
-  cores da logomarca.
+- ~~Laranja~~ amarelo da marca (`Destaque`) para seleção, links e botões principais (trocado em
+  16/10/2026, ver abaixo). Ícone do app na tela inicial mantém as cores da logomarca.
 
 ## Segurança (resumo)
 
@@ -341,3 +341,17 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
 - Termos e política: "as condições comerciais são informadas fora do aplicativo".
 - Preços e contratação ficam no site (`site/planos.html`). O teste `app sem superficie de venda`
   (core) falha se algum texto do app voltar a falar de compra.
+
+## Identidade visual: amarelo da marca e abertura (16/10/2026)
+
+- **Um amarelo só:** `#FDDE03` (`CoresTabelapp.AmareloMarca` = `Destaque`) substitui o laranja e o antigo
+  `#FFE000`. Aba ativa, links, ícones selecionados, botões cheios, pino selecionado do mapa e os
+  contornos de 2 dp (banners e card mais barato) usam o mesmo amarelo.
+- Fundo da aba ativa / containers de destaque: amarelo-escuro `#4A4100` (texto `#FFF3A6`); texto sobre
+  botão amarelo: `#1A1600`. Contrastes: amarelo sobre o fundo 13,3:1; texto sobre o botão 13,5:1;
+  ícone da aba ativa 7,6:1; vermelho `#B00000` sobre o amarelo 5,5:1. Preços continuam brancos.
+- **Abertura:** tela toda amarela, a lupa da marca (vetor `drawable/lupa_marca.xml`: disco amarelo, aro
+  e cabo pretos, cifrão `#B00000`), "Tabelapp" em vermelho escuro e "Quem pesquisa economiza".
+  Android 12+: splash do sistema amarelo com a lupa; a abertura do app continua com a lupa no mesmo
+  lugar e o texto entra (fade, 500 ms). Android 8 a 11: janela amarela e a lupa entra com zoom e fade.
+- O ícone do app não mudou (amarelo `#FFE000` e cifrão `#C00000`: quase iguais aos novos).

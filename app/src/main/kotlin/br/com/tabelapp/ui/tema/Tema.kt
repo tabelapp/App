@@ -11,7 +11,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * Paleta do Tabelapp (tema escuro único, pedido do fundador em 14/10/2026).
+ * Paleta do Tabelapp (tema escuro único, pedido do fundador em 14/10/2026; amarelo da marca
+ * no lugar do laranja em 16/10/2026).
  * TODAS as cores do app saem daqui: para ajustar, mude só este objeto.
  * Contraste conferido (WCAG): textos e preços com pelo menos 4,5:1 contra o fundo onde aparecem.
  */
@@ -36,18 +37,24 @@ object CoresTabelapp {
     val Contorno = Color(0xFFC9CCD1)
     /** Divisórias e contornos discretos. */
     val ContornoSuave = Color(0xFF3F4246)
-    /** Destaque/seleção: aba ativa, links, ícones selecionados, botões principais. */
-    val Destaque = Color(0xFFF08A45)
-    /** Fundo do "pill" selecionado (aba ativa) e de containers de destaque. */
-    val DestaqueFundo = Color(0xFF522E1B)
-    /** Texto sobre o laranja (botões cheios). */
-    val SobreDestaque = Color(0xFF1A0E06)
-    val TextoSobreDestaqueFundo = Color(0xFFFFDCC6)
+    /**
+     * Amarelo da marca (o mesmo da logo e da abertura): ÚNICO amarelo do app. Destaque/seleção
+     * (aba ativa, links, ícones selecionados, botões principais) e os contornos de 2 dp.
+     * Contraste: 13,3:1 sobre o fundo e 11:1 sobre os cards.
+     */
+    val AmareloMarca = Color(0xFFFDDE03)
+    val Destaque = AmareloMarca
+    /** Fundo do "pill" selecionado (aba ativa) e de containers de destaque: amarelo-escuro. */
+    val DestaqueFundo = Color(0xFF4A4100)
+    /** Texto sobre o amarelo (botões cheios): 13,5:1. */
+    val SobreDestaque = Color(0xFF1A1600)
+    /** Texto sobre o amarelo-escuro: 9,1:1. */
+    val TextoSobreDestaqueFundo = Color(0xFFFFF3A6)
+    /** Vermelho escuro da marca (cifrão da lupa e "Tabelapp" na abertura): 5,5:1 sobre o amarelo. */
+    val VermelhoMarca = Color(0xFFB00000)
     val IconeNeutro = Color(0xFFB8BBC0)
     /** Preços: sempre brancos e em negrito. */
     val Preco = Color(0xFFFFFFFF)
-    /** Amarelo da marca: SÓ nos contornos dos banners, do card mais barato e no título do cabeçalho. */
-    val AmareloMarca = Color(0xFFFFE000)
     val WhatsApp = Color(0xFF1FA855)
     val Erro = Color(0xFFFFB4AB)
     val SobreErro = Color(0xFF690005)

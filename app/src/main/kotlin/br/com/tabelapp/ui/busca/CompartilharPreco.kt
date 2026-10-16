@@ -33,8 +33,8 @@ object CompartilharPreco {
     private const val LARGURA = 1080
     private const val ALTURA = 1080
     private const val MARGEM = 72f
-    private val AMARELO = Color.parseColor("#FFE000")
-    private val VERMELHO = Color.parseColor("#C00000")
+    private val AMARELO = Color.parseColor("#FDDE03")
+    private val VERMELHO = Color.parseColor("#B00000")
     private val PRETO = Color.parseColor("#1A1A1A")
     private val CINZA = Color.parseColor("#5F5F5F")
 

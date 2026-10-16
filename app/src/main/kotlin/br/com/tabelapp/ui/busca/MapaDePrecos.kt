@@ -203,7 +203,7 @@ private fun Mapa(
 /** O pino: a lupa da logomarca (a ponta do cabo marca o local) com o preço num balão em cima. */
 @Composable
 private fun EtiquetaPreco(texto: String, maisBarato: Boolean, ativo: Boolean) {
-    // Etiqueta escura com preço branco; a selecionada em laranja (destaque), a mais barata com contorno laranja.
+    // Etiqueta escura com preço branco; a selecionada no amarelo da marca (destaque), a mais barata com contorno laranja.
     val fundo = if (ativo) CoresTabelapp.Destaque else CoresTabelapp.Cartao
     val letra = if (ativo) CoresTabelapp.SobreDestaque else CoresTabelapp.Preco
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
