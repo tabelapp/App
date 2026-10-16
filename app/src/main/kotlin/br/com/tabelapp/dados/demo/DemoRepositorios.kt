@@ -151,7 +151,7 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
         Banner("demo-1", "Supermercado Serra Imperial", "Semana do hortifrúti",
             "Frutas e verduras com até 30% de desconto. Só até domingo!", null),
         Banner("demo-2", "Empório Itaipava", "Queijos e vinhos da serra",
-            "Leve 3, pague 2 em queijos artesanais.", null),
+            "3 por 2 em queijos artesanais.", null),
     )
 
     override suspend fun registrarVisualizacao(bannerId: String) {}
@@ -374,19 +374,17 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
 
     override suspend fun enviarArte(pdvId: String, jpeg: ByteArray): String = "$pdvId/demo-${UUID.randomUUID()}.jpg"
 
-    override suspend fun criarPromocao(
-        pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
-        palavrasChave: List<String>, visualizacoes: Int,
+    override suspend fun adminCriarBanner(
+        pdvId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>, visualizacoes: Int,
     ): String {
         delay(300)
-        val valor = when (visualizacoes) { 100 -> 1000L; 250 -> 2500L; 500 -> 5000L; else -> throw ErroAmigavel("Pacote inválido.") }
+        if (visualizacoes < 1) throw ErroAmigavel("Informe quantas visualizações o banner terá.")
         if (titulo.isBlank()) throw ErroAmigavel("Dê um título para a promoção.")
-        val pagamento = "pag-" + UUID.randomUUID()
+        val id = "promo-" + UUID.randomUUID()
         banco.promocoesDemo += pdvId to PromocaoPdv(
-            "promo-" + UUID.randomUUID(), titulo.trim(), descricao, link, artePath, palavrasChave, "aguardando_pagamento",
-            0, 0, pagamento, valor, visualizacoes,
+            id, titulo.trim(), descricao, link, null, palavrasChave, "ativa", visualizacoes, 0, null, null, 0,
         )
-        return pagamento
+        return id
     }
 
     override suspend fun excluirPromocao(promocaoId: String): Boolean {

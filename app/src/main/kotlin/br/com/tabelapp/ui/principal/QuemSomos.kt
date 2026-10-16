@@ -101,7 +101,7 @@ fun QuemSomos(aoFechar: () -> Unit) {
                 HorizontalDivider()
                 Text("Fale conosco", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    "Dúvidas, sugestões, parcerias ou quer anunciar? Chame a gente no WhatsApp.",
+                    "Dúvidas, sugestões ou parcerias? Chame a gente no WhatsApp.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Button(
@@ -159,8 +159,8 @@ private fun ComoUsar() {
     Passo(
         5, "Para empresas",
         "com uma conta de CNPJ, a aba \"Meu negócio\" permite publicar a tabela de preços da sua loja " +
-            "(digitando ou por planilha) e anunciar no banner da busca. Produtores e marcas que não têm " +
-            "loja também podem se cadastrar como anunciantes.",
+            "(digitando ou por planilha) e acompanhar seus banners na busca. Produtores e marcas que não " +
+            "têm loja também podem se cadastrar como anunciantes.",
     )
     Paragrafo("Dica: confirme sempre o preço na hora da compra — os valores podem mudar sem aviso.")
 }

@@ -8,7 +8,6 @@ import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.MeuPdv
 import br.com.tabelapp.core.Planilha
-import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.core.RascunhoPreco
@@ -50,14 +49,10 @@ data class EstadoPainel(
     val nomeFantasia: String = "",
     val site: String? = null,
     val promocoes: List<PromocaoPdv> = emptyList(),
-    /** Pagamento recém-criado, para abrir o WhatsApp de pagamento. */
-    val pagamentoCriado: PagamentoCriado? = null,
     /** Importação de planilha em andamento (prévia aberta). */
     val planilha: EstadoPlanilha? = null,
-    /** Chegou ao limite do plano ao tentar criar item: mensagem calma com "Ver planos". */
+    /** Chegou ao limite do plano ao tentar criar item: mensagem neutra. */
     val mostrarLimite: Boolean = false,
-    /** Tela "Ver planos" aberta (null = fechada). */
-    val planos: EstadoPlanos? = null,
     /** Resumo da última importação de planilha (mostrado até o PDV fechar). */
     val resultadoImportacao: ResultadoImportacao? = null,
     /** Lojas sendo localizadas no mapa agora. */
@@ -79,13 +74,6 @@ data class EstadoPainel(
         }
 }
 
-/** Tela de planos: faixas e preços da tabela `planos` (assinatura pelo WhatsApp). */
-data class EstadoPlanos(
-    val carregando: Boolean = true,
-    val lista: List<Plano> = emptyList(),
-    val erro: String? = null,
-)
-
 /** Prévia da planilha: linhas válidas, erros e o que ficaria fora do limite do plano. */
 data class EstadoPlanilha(
     val nomeArquivo: String,
@@ -95,9 +83,6 @@ data class EstadoPlanilha(
     val simulacao: ResultadoImportacao? = null,
     val erro: String? = null,
 )
-
-/** Pedido de pagamento recém-criado (promoção/banner), até o Pix automático. */
-data class PagamentoCriado(val codigo: String, val descricao: String, val valorCentavos: Long)
 
 /** Painel do PDV aprovado: tabela de preços oficial, limite do catálogo, cadastro e promoções. */
 class PainelPdvViewModel(
@@ -184,7 +169,7 @@ class PainelPdvViewModel(
                 carregar()
             } catch (ex: ErroAmigavel) {
                 _estado.update {
-                    // Limite do plano: fecha o editor e mostra a mensagem calma com "Ver planos".
+                    // Limite do plano: fecha o editor e mostra a mensagem neutra do limite.
                     if (ex.codigo == "limite_catalogo") it.copy(salvando = false, rascunho = null, mostrarLimite = true)
                     else it.copy(salvando = false, errosEditor = listOfNotNull(ex.message))
                 }
@@ -262,35 +247,6 @@ class PainelPdvViewModel(
         }
     }
 
-    fun criarPromocao(
-        titulo: String, descricao: String, link: String, arteJpeg: ByteArray?, palavras: List<String>, visualizacoes: Int,
-        aoErro: (String) -> Unit, aoTerminar: () -> Unit,
-    ) {
-        viewModelScope.launch {
-            val arte = try {
-                arteJpeg?.let { repositorio.enviarArte(pdv.id, it) }
-            } catch (ex: ErroAmigavel) {
-                // A imagem continua escolhida no formulário: é só tentar de novo.
-                aoErro(if (ex.tipo == null) ex.message.orEmpty() else Erros.texto(TipoErro.FALHA_UPLOAD_FOTO))
-                return@launch
-            }
-            try {
-                val codigo = repositorio.criarPromocao(
-                    pdv.id, titulo, descricao.ifBlank { null }, link.ifBlank { null }, arte, palavras, visualizacoes,
-                )
-                val valor = when (visualizacoes) { 100 -> 1000L; 250 -> 2500L; else -> 5000L }
-                _estado.update {
-                    it.copy(pagamentoCriado = PagamentoCriado(codigo, "Banner \"$titulo\" — $visualizacoes visualizações", valor))
-                }
-                aoTerminar()
-                carregar()
-            } catch (ex: ErroAmigavel) {
-                aoErro(if (ex.tipo == null || ex.tipo == TipoErro.SESSAO_EXPIRADA) ex.message.orEmpty()
-                    else Erros.texto(TipoErro.FALHA_PAGAMENTO))
-            }
-        }
-    }
-
     /** Edita a promoção. Nova imagem: sobe antes; [removerArte] tira a imagem atual. */
     fun editarPromocao(
         p: PromocaoPdv, titulo: String, descricao: String, link: String, arteJpeg: ByteArray?, removerArte: Boolean,
@@ -320,9 +276,9 @@ class PainelPdvViewModel(
     fun excluirPromocao(p: PromocaoPdv) {
         viewModelScope.launch {
             try {
-                val apagada = repositorio.excluirPromocao(p.id)
+                repositorio.excluirPromocao(p.id)
                 _estado.update {
-                    it.copy(mensagem = if (apagada) "Promoção excluída." else "Promoção excluída. O pagamento fica guardado no histórico.")
+                    it.copy(mensagem = "Promoção excluída.")
                 }
                 carregar()
             } catch (ex: ErroAmigavel) {
@@ -331,25 +287,9 @@ class PainelPdvViewModel(
         }
     }
 
-    // ------------------------------------------------------------------ planos
-
-    fun abrirPlanos() {
-        _estado.update { it.copy(mostrarLimite = false, planos = EstadoPlanos()) }
-        viewModelScope.launch {
-            try {
-                val lista = repositorio.planos()
-                _estado.update { e -> e.copy(planos = e.planos?.copy(carregando = false, lista = lista)) }
-            } catch (ex: ErroAmigavel) {
-                _estado.update { e -> e.copy(planos = e.planos?.copy(carregando = false, erro = ex.message)) }
-            }
-        }
-    }
-
-    fun fecharPlanos() = _estado.update { it.copy(planos = null) }
-
     /**
      * Pausar (grátis) ou reativar um item. Reativar só até o limite do plano: acima dele,
-     * a mesma mensagem calma do limite, com "Ver planos".
+     * a mesma mensagem neutra do limite.
      */
     fun pausarItem(p: PrecoPdv, pausar: Boolean) {
         viewModelScope.launch {
@@ -364,15 +304,6 @@ class PainelPdvViewModel(
                     if (ex.codigo == "limite_catalogo") it.copy(mostrarLimite = true) else it.copy(mensagem = ex.message)
                 }
             }
-        }
-    }
-
-    /** Reabre o pedido de pagamento de uma promoção que ainda está aguardando. */
-    fun pagarPromocao(p: PromocaoPdv) {
-        val codigo = p.pagamentoPendenteId ?: return
-        _estado.update {
-            it.copy(pagamentoCriado = PagamentoCriado(codigo, "Banner \"${p.titulo}\" — ${p.visualizacoesPendentes} visualizações",
-                p.valorPendenteCentavos ?: 0))
         }
     }
 
@@ -432,8 +363,6 @@ class PainelPdvViewModel(
         _estado.update { e -> e.copy(planilha = e.planilha?.let(f)) }
 
     fun fecharResultadoImportacao() = _estado.update { it.copy(resultadoImportacao = null) }
-
-    fun fecharPagamento() = _estado.update { it.copy(pagamentoCriado = null) }
 
     fun excluir(item: PrecoPdv) {
         viewModelScope.launch {

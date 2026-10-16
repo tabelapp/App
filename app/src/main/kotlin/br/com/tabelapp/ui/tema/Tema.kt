@@ -58,7 +58,7 @@ object CoresTabelapp {
     val TextoSobreImagem = Color(0xFFFFFFFF)
 }
 
-/** Contorno amarelo de 2 dp: banners pagos (e o "Anuncie aqui") e o card mais barato. Nenhum outro lugar. */
+/** Contorno amarelo de 2 dp: banners (e o espaço do Tabelapp) e o card mais barato. Nenhum outro lugar. */
 val ContornoMarca = BorderStroke(2.dp, CoresTabelapp.AmareloMarca)
 
 /** Contorno neutro de 1 dp (campo de busca, chips e botões contornados). */

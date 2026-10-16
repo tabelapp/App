@@ -140,34 +140,33 @@ class CatalogoTest {
             .findAll(arquivo.readText()).associate { it.groupValues[1] to it.groupValues[2].replace("\\'", "'") }
     }
 
-    @Test fun `mensagem do limite`() {
-        val texto = String.format(strings.getValue("catalogo_limite_texto"), 5, "Grátis")
+    @Test fun `mensagem do limite e neutra`() {
+        assertEquals("Limite do plano atingido. Itens excedentes pausados.", strings["catalogo_limite_atingido"])
         assertEquals(
-            "Você chegou ao limite de 5 itens do plano Grátis. Seus itens continuam publicados e você pode " +
-                "atualizar os preços quando quiser. Para adicionar mais, veja os planos.",
-            texto,
+            "Limite do plano atingido. Itens excedentes pausados. O plano Grátis permite 5 itens ativos; seus itens " +
+                "continuam guardados e você pode atualizar os preços quando quiser.",
+            String.format(strings.getValue("catalogo_limite_texto"), 5, "Grátis"),
         )
-        assertEquals("Ver planos", strings["catalogo_ver_planos"])
-        assertEquals("Agora não", strings["catalogo_agora_nao"])
     }
 
-    @Test fun `mensagens do teste, dos pausados e da assinatura`() {
-        assertEquals("Teste grátis: catálogo liberado até 14/11/2026",
-            String.format(strings.getValue("teste_faixa"), "14/11/2026"))
+    @Test fun `estado do plano para o PDV`() {
+        assertEquals("Plano: Loja", String.format(strings.getValue("catalogo_plano"), "Loja"))
+        assertEquals("Teste grátis até 14/11/2026", String.format(strings.getValue("teste_faixa"), "14/11/2026"))
+        assertEquals("Itens ativos 3 de 30", String.format(strings.getValue("catalogo_resumo"), 3, 30))
+        assertEquals("Itens pausados: 2", String.format(strings.getValue("catalogo_itens_pausados"), 2))
         assertEquals(
             "Seu teste grátis termina em 7 dias. Depois disso, o plano grátis mantém 5 itens ativos. " +
-                "Os outros ficam guardados, só pausados. Veja os planos.",
+                "Os outros ficam guardados, só pausados.",
             String.format(strings.getValue("teste_termina_dias"), 7, 5),
         )
-        assertEquals(
-            "Alguns itens foram pausados porque o teste ou o plano terminou. Eles continuam guardados e voltam " +
-                "quando você assinar. Você também pode escolher quais ficam ativos.",
-            strings["itens_pausados_texto"],
-        )
-        assertEquals("Quero assinar o plano Loja do Tabelapp. Meu negócio: Padaria Imperial",
-            String.format(strings.getValue("plano_mensagem_whatsapp"), "Loja", "Padaria Imperial"))
-        assertEquals("Pagamento por Pix. Depois da confirmação, seu plano é ativado.", strings["planos_apoio_pix"])
         assertEquals("Até 5 itens ativos", String.format(strings.getValue("plano_limite_itens"), 5))
+    }
+
+    /** Decisão do fundador (Google Play): nenhum texto do app vende, cobra ou fala de pagamento. */
+    @Test fun `app sem superficie de venda`() {
+        val proibido = Regex("""(?i)\bassin|\bcontrat[ae]|\bpague|\bpagar\b|pagamento|\bpix\b|R\$|veja os planos|ver planos|anuncie""")
+        val achados = strings.filter { (_, texto) -> proibido.containsMatchIn(texto) }
+        assertEquals(emptyMap<String, String>(), achados)
     }
 
     @Test fun `resumo da importacao`() {

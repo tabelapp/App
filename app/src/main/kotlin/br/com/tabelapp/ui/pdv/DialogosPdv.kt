@@ -6,14 +6,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -21,16 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,13 +48,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.R
 import br.com.tabelapp.core.ContatoTabelapp
-import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.PromocaoPdv
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.ui.comum.WhatsApp
-import br.com.tabelapp.ui.tema.CoresTabelapp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,35 +118,26 @@ private fun Campo(rotulo: String, valor: String, teclado: KeyboardType = Keyboar
     )
 }
 
-/** Pacotes de visualização do banner (briefing): 100/250/500 por R$ 10/25/50. */
-private val pacotes = listOf(100 to 1000L, 250 to 2500L, 500 to 5000L)
-
 /**
- * Nova promoção (banner pago): aparece na busca para quem pesquisa as palavras
- * escolhidas (ou para todos), até acabarem as visualizações compradas.
- * Com [existente], edita a promoção (texto, link, arte e palavras; o pacote não muda)
- * e salva por [aoEditar].
+ * Edita uma promoção (banner) já cadastrada: texto, link, arte e palavras-chave.
+ * Banners são criados e ativados pelo Admin; o app não vende nada (decisão do fundador, Google Play).
  */
 @Composable
 fun DialogoPromocao(
     imagens: Imagens,
-    aoCriar: (titulo: String, descricao: String, link: String, arte: ByteArray?, palavras: List<String>, visualizacoes: Int,
-              aoErro: (String) -> Unit, aoTerminar: () -> Unit) -> Unit,
+    existente: PromocaoPdv,
     aoFechar: () -> Unit,
-    existente: PromocaoPdv? = null,
     aoEditar: (titulo: String, descricao: String, link: String, arte: ByteArray?, removerArte: Boolean, palavras: List<String>,
-               aoErro: (String) -> Unit, aoTerminar: () -> Unit) -> Unit = { _, _, _, _, _, _, _, _ -> },
+               aoErro: (String) -> Unit, aoTerminar: () -> Unit) -> Unit,
 ) {
     val escopo = rememberCoroutineScope()
     val contexto = LocalContext.current
-    val editando = existente != null
-    var titulo by rememberSaveable { mutableStateOf(existente?.titulo.orEmpty()) }
-    var descricao by rememberSaveable { mutableStateOf(existente?.descricao.orEmpty()) }
-    var link by rememberSaveable { mutableStateOf(existente?.link.orEmpty()) }
-    var palavras by rememberSaveable { mutableStateOf(existente?.palavrasChave?.joinToString(", ").orEmpty()) }
+    var titulo by rememberSaveable { mutableStateOf(existente.titulo.orEmpty()) }
+    var descricao by rememberSaveable { mutableStateOf(existente.descricao.orEmpty()) }
+    var link by rememberSaveable { mutableStateOf(existente.link.orEmpty()) }
+    var palavras by rememberSaveable { mutableStateOf(existente.palavrasChave.joinToString(", ").orEmpty()) }
     /** Edição: tirar a imagem atual (sem escolher outra). */
     var removerArte by rememberSaveable { mutableStateOf(false) }
-    var pacote by rememberSaveable { mutableStateOf(100) }
     var arte by remember { mutableStateOf<ByteArray?>(null) }
     var miniatura by remember { mutableStateOf<ImageBitmap?>(null) }
     var enviando by remember { mutableStateOf(false) }
@@ -170,7 +154,7 @@ fun DialogoPromocao(
 
     AlertDialog(
         onDismissRequest = { if (!enviando) aoFechar() },
-        title = { Text(if (editando) "Editar promoção" else "Nova promoção (banner)") },
+        title = { Text("Editar promoção") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -188,13 +172,13 @@ fun DialogoPromocao(
                     Text(
                         when {
                             arte != null -> "Trocar imagem"
-                            editando && existente?.artePath != null && !removerArte -> "Trocar a imagem atual"
+                            existente.artePath != null && !removerArte -> "Trocar a imagem atual"
                             else -> "Imagem do banner (opcional)"
                         }
                     )
                 }
                 // Edição: a imagem atual continua, a menos que troque ou tire.
-                if (editando && existente?.artePath != null && arte == null) {
+                if (existente.artePath != null && arte == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             if (removerArte) "Sem imagem (o banner mostra o título e o texto)." else "Imagem atual mantida.",
@@ -217,20 +201,9 @@ fun DialogoPromocao(
                 Campo("Palavras-chave (separe por vírgula)", palavras) { palavras = it.take(300) }
                 Text("Ex.: cerveja, carne. O banner aparece quando a busca tiver uma delas. Em branco: aparece para todos.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (existente != null) {
-                    // O pacote já comprado não muda na edição.
-                    if (existente.visualizacoesContratadas > 0) {
-                        Text("Visualizações: ${existente.visualizacoesExibidas} de ${existente.visualizacoesContratadas} (não mudam)",
-                            style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                    }
-                } else {
-                    Text("Pacote de visualizações", fontWeight = FontWeight.SemiBold)
-                    pacotes.forEach { (vis, valor) ->
-                        Row(Modifier.fillMaxWidth().clickable { pacote = vis }, verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = pacote == vis, onClick = { pacote = vis })
-                            Text("$vis visualizações — ${Dinheiro.formatar(valor)}")
-                        }
-                    }
+                if (existente.visualizacoesContratadas > 0) {
+                    Text("Visualizações: ${existente.visualizacoesExibidas} de ${existente.visualizacoesContratadas}",
+                        style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                 }
                 erro?.let {
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -249,56 +222,12 @@ fun DialogoPromocao(
                 if (link.isNotBlank() && !link.trim().startsWith("http")) link = "https://" + link.trim()
                 enviando = true
                 val lista = palavras.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-                if (editando) {
-                    aoEditar(titulo, descricao, link, arte, removerArte, lista, { e -> erro = e; enviando = false }, { enviando = false })
-                } else {
-                    aoCriar(titulo, descricao, link, arte, lista, pacote, { e -> erro = e; enviando = false }, { enviando = false })
-                }
+                aoEditar(titulo, descricao, link, arte, removerArte, lista, { e -> erro = e; enviando = false }, { enviando = false })
             }) {
                 if (enviando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                else Text(if (editando) "Salvar" else "Criar e pagar")
+                else Text("Salvar")
             }
         },
         dismissButton = { TextButton(onClick = aoFechar, enabled = !enviando) { Text("Cancelar") } },
-    )
-}
-
-/**
- * Pedido de pagamento criado. Até o Pix automático, o pagamento é combinado pelo
- * WhatsApp do Tabelapp e confirmado pelo Admin (o banner entra no ar / as
- * operações são liberadas na hora da confirmação).
- */
-@Composable
-fun DialogoPagamento(pdvNome: String, pagamento: PagamentoCriado, aoFechar: () -> Unit) {
-    val contexto = LocalContext.current
-    AlertDialog(
-        onDismissRequest = aoFechar,
-        title = { Text("Falta só o pagamento") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(pagamento.descricao, fontWeight = FontWeight.SemiBold)
-                Text("Valor: ${Dinheiro.formatar(pagamento.valorCentavos)}", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
-                Text(
-                    "Por enquanto o pagamento (Pix) é combinado pelo WhatsApp do Tabelapp. Assim que confirmarmos, " +
-                        "seu pedido é ativado automaticamente. Código do pedido: ${pagamento.codigo.take(8).uppercase()}.",
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                WhatsApp.abrirConversa(
-                    contexto, ContatoTabelapp.WHATSAPP,
-                    Mensagens.pagamento(pdvNome, pagamento.descricao, pagamento.valorCentavos, pagamento.codigo),
-                )
-                aoFechar()
-            }) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Pagar pelo WhatsApp")
-            }
-        },
-        dismissButton = { TextButton(onClick = aoFechar) { Text("Depois") } },
-        modifier = Modifier.padding(8.dp),
     )
 }

@@ -34,7 +34,8 @@ Podemos remover preços, suspender estabelecimentos ou bloquear contas que descu
 - Quem cadastra um estabelecimento declara ser responsável por ele. O cadastro passa por verificação (alvará) antes de publicar preços.
 - Os preços publicados pelo estabelecimento são de responsabilidade dele e devem ser os praticados na loja, com validade de até 30 dias.
 - O catálogo tem um limite de itens publicados ao mesmo tempo, conforme o plano. Atualizar preços é sempre livre.
-- Banners patrocinados seguem o pacote de visualizações contratado. Enquanto o pagamento automático não existe, ele é combinado pelo WhatsApp e confirmado pela nossa equipe.
+- Banners patrocinados ficam no ar pelo número de visualizações combinado com a nossa equipe.
+- O aplicativo não vende planos, banners nem qualquer outro produto. As condições comerciais são informadas fora do aplicativo.
 
 ## Limitação de responsabilidade
 

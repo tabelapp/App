@@ -43,7 +43,7 @@ class DocumentosTest {
     }
 
     @Test fun `erros do servidor viram mensagem amigavel`() {
-        assertTrue(ErrosServidor.traduzir("""{"code":"P0001","message":"cota_excedida"}""").contains("R$ 10"))
+        assertTrue(ErrosServidor.traduzir("""{"code":"P0001","message":"cota_excedida"}""").startsWith("Limite do plano atingido"))
         assertEquals(ErrosServidor.GENERICA, ErrosServidor.traduzir("timeout"))
     }
 }

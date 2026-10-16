@@ -18,7 +18,7 @@ O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarã
 
 **Localização:** quando você permite, o app usa a sua localização no próprio celular para mostrar a distância até as lojas e o seu ponto no mapa. Ela é enviada ao servidor apenas para calcular distâncias na busca e não é guardada. A única exceção é quando o dono de um estabelecimento toca em "Estou na loja": aí a posição do celular é guardada como a posição da loja no mapa (e aparece na busca).
 
-**Uso do app:** listas de compras, preços que você denuncia como "não confere", interesse em planos e a contagem de visualizações de banners (uma por pessoa por dia, para não cobrar a mais dos anunciantes).
+**Uso do app:** listas de compras, preços que você denuncia como "não confere", e a contagem de visualizações de banners (uma por pessoa por dia, para a contagem ser justa com os anunciantes).
 
 **Erros:** quando algo falha, um registro técnico fica guardado só no seu celular, sem CPF, para ajudar a entender o problema.
 
@@ -27,7 +27,7 @@ O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarã
 - Mostrar e comparar preços, montar listas e relatórios.
 - Manter a sua conta e a segurança do app (evitar preços falsos e abusos).
 - Verificar estabelecimentos e exibir os dados deles na busca.
-- Melhorar o app e ajustar os planos com base no uso (dados agregados).
+- Melhorar o app com base no uso (dados agregados).
 - Falar com você quando você pedir (por exemplo, "Quero ser avisado").
 
 As bases legais são a execução do serviço que você pediu, o nosso legítimo interesse em manter o app seguro e confiável e, quando for o caso, o seu consentimento (como a localização).

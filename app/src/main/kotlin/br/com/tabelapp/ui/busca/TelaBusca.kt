@@ -141,12 +141,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
         }
     }
 
-    fun tocarBanner(banner: Banner?) {
-        if (banner == null) {
-            WhatsApp.abrirConversa(contexto, ContatoTabelapp.WHATSAPP, Mensagens.QUERO_ANUNCIAR)
-        } else {
-            banner.link?.let { abrir(contexto, Intent(Intent.ACTION_VIEW, it.toUri())) }
-        }
+    fun tocarBanner(banner: Banner) {
+        banner.link?.let { abrir(contexto, Intent(Intent.ACTION_VIEW, it.toUri())) }
     }
 
     Scaffold(

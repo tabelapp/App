@@ -76,7 +76,7 @@ data class EstadoPlanosPdvs(
     val mensagem: String? = null,
 )
 
-/** Admin: ativa, renova, troca ou cancela o plano pago de um PDV (depois de confirmar o Pix). */
+/** Admin: ativa, renova, troca ou cancela o plano de um PDV e cria banners (tudo combinado fora do app). */
 class PlanosPdvsViewModel(private val repositorio: PdvRepositorio) : ViewModel() {
     private val _estado = MutableStateFlow(EstadoPlanosPdvs())
     val estado: StateFlow<EstadoPlanosPdvs> = _estado.asStateFlow()
@@ -113,6 +113,12 @@ class PlanosPdvsViewModel(private val repositorio: PdvRepositorio) : ViewModel()
         "${pdv.nomeFantasia}: plano cancelado (voltou ao grátis)."
     }
 
+    fun criarBanner(pdv: PlanoPdvAdmin, titulo: String, descricao: String, link: String, palavras: List<String>, visualizacoes: Int) =
+        agir(pdv) {
+            repositorio.adminCriarBanner(pdv.id, titulo, descricao.ifBlank { null }, link.ifBlank { null }, palavras, visualizacoes)
+            "${pdv.nomeFantasia}: banner \"${titulo.trim()}\" no ar com $visualizacoes visualizações."
+        }
+
     private fun agir(pdv: PlanoPdvAdmin, acao: suspend () -> String) {
         _estado.update { it.copy(ocupado = pdv.id, erro = null, mensagem = null) }
         viewModelScope.launch {
@@ -140,6 +146,7 @@ fun TelaPlanosPdvs(repositorio: PdvRepositorio, aoFechar: () -> Unit) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     var ativando by remember { mutableStateOf<PlanoPdvAdmin?>(null) }
     var cancelando by remember { mutableStateOf<PlanoPdvAdmin?>(null) }
+    var criandoBanner by remember { mutableStateOf<PlanoPdvAdmin?>(null) }
 
     Dialog(onDismissRequest = aoFechar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize()) {
@@ -178,6 +185,7 @@ fun TelaPlanosPdvs(repositorio: PdvRepositorio, aoFechar: () -> Unit) {
                         ocupado = estado.ocupado == pdv.id,
                         aoAtivar = { ativando = pdv },
                         aoCancelar = { cancelando = pdv },
+                        aoCriarBanner = { criandoBanner = pdv },
                     )
                 }
             }
@@ -193,6 +201,17 @@ fun TelaPlanosPdvs(repositorio: PdvRepositorio, aoFechar: () -> Unit) {
                 ativando = null
             },
             aoFechar = { ativando = null },
+        )
+    }
+
+    criandoBanner?.let { pdv ->
+        DialogoCriarBanner(
+            pdv = pdv,
+            aoSalvar = { titulo, descricao, link, palavras, visualizacoes ->
+                vm.criarBanner(pdv, titulo, descricao, link, palavras, visualizacoes)
+                criandoBanner = null
+            },
+            aoFechar = { criandoBanner = null },
         )
     }
 
@@ -224,7 +243,9 @@ fun TelaPlanosPdvs(repositorio: PdvRepositorio, aoFechar: () -> Unit) {
 }
 
 @Composable
-private fun CartaoPlanoPdv(pdv: PlanoPdvAdmin, ocupado: Boolean, aoAtivar: () -> Unit, aoCancelar: () -> Unit) {
+private fun CartaoPlanoPdv(
+    pdv: PlanoPdvAdmin, ocupado: Boolean, aoAtivar: () -> Unit, aoCancelar: () -> Unit, aoCriarBanner: () -> Unit,
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(pdv.nomeFantasia, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -248,6 +269,9 @@ private fun CartaoPlanoPdv(pdv: PlanoPdvAdmin, ocupado: Boolean, aoAtivar: () ->
                 Button(onClick = aoAtivar, enabled = !ocupado, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.admin_plano_ativar))
                 }
+            }
+            OutlinedButton(onClick = aoCriarBanner, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.admin_banner_criar))
             }
         }
     }
@@ -304,6 +328,56 @@ private fun DialogoDefinirPlano(
                 onClick = { val p = escolhido; if (p != null && validade != null) aoSalvar(p, validade, obs) },
                 enabled = escolhido != null && validade != null,
             ) { Text(stringResource(R.string.admin_plano_salvar)) }
+        },
+        dismissButton = { TextButton(onClick = aoFechar) { Text("Cancelar") } },
+    )
+}
+
+/** Admin: banner já no ar, com as visualizações combinadas fora do app. Imagem: o dono põe em "Meu negócio". */
+@Composable
+private fun DialogoCriarBanner(
+    pdv: PlanoPdvAdmin,
+    aoSalvar: (titulo: String, descricao: String, link: String, palavras: List<String>, visualizacoes: Int) -> Unit,
+    aoFechar: () -> Unit,
+) {
+    var titulo by remember { mutableStateOf("") }
+    var descricao by remember { mutableStateOf("") }
+    var link by remember { mutableStateOf("") }
+    var palavras by remember { mutableStateOf("") }
+    var visualizacoes by remember { mutableStateOf("100") }
+    var erro by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = aoFechar,
+        title = { Text(stringResource(R.string.admin_banner_titulo, pdv.nomeFantasia)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.admin_banner_texto), style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(titulo, { titulo = it.take(80) }, label = { Text("Título") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(descricao, { descricao = it.take(500) }, label = { Text("Texto (opcional)") },
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(link, { link = it.take(300) }, label = { Text("Link (opcional)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(palavras, { palavras = it.take(300) }, label = { Text("Palavras-chave (vírgula)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(visualizacoes, { visualizacoes = it.filter(Char::isDigit).take(6) },
+                    label = { Text("Visualizações") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val vis = visualizacoes.toIntOrNull() ?: 0
+                when {
+                    titulo.isBlank() -> erro = "Dê um título para o banner."
+                    vis < 1 -> erro = "Informe quantas visualizações o banner terá."
+                    else -> {
+                        val l = link.trim().let { if (it.isNotEmpty() && !it.startsWith("http")) "https://$it" else it }
+                        aoSalvar(titulo, descricao, l, palavras.split(',').map { it.trim() }.filter { it.isNotEmpty() }, vis)
+                    }
+                }
+            }) { Text(stringResource(R.string.admin_plano_salvar)) }
         },
         dismissButton = { TextButton(onClick = aoFechar) { Text("Cancelar") } },
     )

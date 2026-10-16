@@ -99,7 +99,6 @@ fun compartilharModeloPlanilha(contexto: Context) {
 fun DialogoPlanilha(
     estado: EstadoPlanilha,
     aoImportar: () -> Unit,
-    aoVerPlanos: () -> Unit,
     aoFechar: () -> Unit,
 ) {
     val sim = estado.simulacao
@@ -125,9 +124,6 @@ fun DialogoPlanilha(
                     Text("Preço menor: ${sim.diminuidos} · Sem mudança: ${sim.inalterados}")
                     if (sim.foraDoLimite > 0) {
                         Text(stringResource(R.string.importacao_previa_fora, sim.foraDoLimite, sim.limite))
-                        TextButton(onClick = aoVerPlanos, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.catalogo_ver_planos))
-                        }
                     }
                 }
                 estado.erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }

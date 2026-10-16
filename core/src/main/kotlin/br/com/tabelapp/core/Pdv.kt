@@ -262,7 +262,7 @@ data class PromocaoPdv(
 ) {
     val rotuloStatus: String
         get() = when (status) {
-            "aguardando_pagamento" -> "Aguardando pagamento"
+            "aguardando_pagamento" -> "Aguardando ativação"
             "ativa" -> "No ar"
             "pausada" -> "Pausada"
             "esgotada" -> "Visualizações esgotadas"

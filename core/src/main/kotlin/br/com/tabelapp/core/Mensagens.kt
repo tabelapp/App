@@ -9,12 +9,6 @@ object Mensagens {
             PrecoExibido.sufixo(c.unidade) + " no Tabelapp e gostaria de mais informações."
 
     const val FALE_CONOSCO = "Olá! Vim pelo app Tabelapp e gostaria de falar com vocês."
-    const val QUERO_ANUNCIAR = "Olá! Tenho um comércio e quero anunciar no Tabelapp."
-
-    /** PDV combinando o pagamento (até o Pix automático). */
-    fun pagamento(pdvNome: String, descricao: String, valorCentavos: Long, codigo: String): String =
-        "Olá! Sou do *$pdvNome* e quero pagar: $descricao — ${Dinheiro.formatar(valorCentavos)}. " +
-            "Código do pedido: ${codigo.take(8).uppercase()}"
 
     /** Dono de estabelecimento suspenso pedindo para conversar sobre a suspensão. */
     fun suspensao(pdvNome: String, cnpj: String): String =

@@ -759,16 +759,14 @@ class SupabasePdvRepositorio(
         caminho
     }
 
-    override suspend fun criarPromocao(
-        pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
-        palavrasChave: List<String>, visualizacoes: Int,
+    override suspend fun adminCriarBanner(
+        pdvId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>, visualizacoes: Int,
     ): String = traduzindoErros {
-        supabase.postgrest.rpc("criar_promocao", buildJsonObject {
+        supabase.postgrest.rpc("admin_criar_banner", buildJsonObject {
             put("p_pdv_id", pdvId)
             put("p_titulo", titulo.trim())
             put("p_descricao", descricao?.trim())
             put("p_link", link?.trim())
-            put("p_arte_path", artePath)
             put("p_palavras_chave", buildJsonArray { palavrasChave.forEach { add(JsonPrimitive(it)) } })
             put("p_visualizacoes", visualizacoes)
         }).decodeAs<String>()

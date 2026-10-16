@@ -35,8 +35,8 @@
     <string name="erro_falha_envio_nf_titulo">Ainda não foi enviado</string>
     <string name="erro_falha_envio_nf_texto">Não conseguimos enviar agora, mas seus dados continuam aqui. Tente de novo.</string>
 
-    <string name="erro_falha_pagamento_titulo">O pagamento não foi concluído</string>
-    <string name="erro_falha_pagamento_texto">O pagamento não foi concluído. Nada foi cobrado indevidamente. Tente novamente ou fale com a gente.</string>
+    <string name="erro_falha_pagamento_titulo">Não foi possível concluir</string>
+    <string name="erro_falha_pagamento_texto">Não foi possível concluir agora. Tente novamente em instantes ou fale com a gente.</string>
 
     <string name="erro_inesperado_titulo">Algo não saiu como esperado</string>
     <string name="erro_inesperado_texto">Algo não saiu como esperado, mas já estamos cientes. Tente de novo em instantes.</string>
@@ -58,26 +58,26 @@
     <string name="erro_leitura_nf_texto">A página da Sefaz abriu, mas não encontramos os produtos dela. Você pode tentar de novo ou consultar pela chave de acesso. Só enviamos preços lidos direto da nota.</string>
     <!-- Catálogo do PDV: limite por número de itens ativos (tabela planos no banco) -->
     <string name="catalogo_limite_titulo">Seu catálogo chegou ao limite</string>
-    <string name="catalogo_limite_texto">Você chegou ao limite de %1$d itens do plano %2$s. Seus itens continuam publicados e você pode atualizar os preços quando quiser. Para adicionar mais, veja os planos.</string>
-    <string name="catalogo_ver_planos">Ver planos</string>
-    <string name="catalogo_agora_nao">Agora não</string>
-    <string name="catalogo_resumo">Catálogo: %1$d de %2$d itens no ar</string>
-    <string name="catalogo_plano">Plano %1$s</string>
+    <string name="catalogo_limite_texto">Limite do plano atingido. Itens excedentes pausados. O plano %2$s permite %1$d itens ativos; seus itens continuam guardados e você pode atualizar os preços quando quiser.</string>
+    <string name="catalogo_resumo">Itens ativos %1$d de %2$d</string>
+    <string name="catalogo_plano">Plano: %1$s</string>
     <string name="catalogo_explicacao">Atualizar preço, validade e OBS é sempre livre e ilimitado. O limite conta só os itens ativos ao mesmo tempo. Excluir ou pausar um item libera espaço.</string>
     <string name="catalogo_plano_ate">Plano até %1$s</string>
+    <string name="catalogo_itens_pausados">Itens pausados: %1$d</string>
+    <string name="catalogo_limite_atingido">Limite do plano atingido. Itens excedentes pausados.</string>
     <string name="catalogo_pausados_pdv">%1$d pausado(s) por você (não contam no limite)</string>
 
     <!-- Teste grátis de 30 dias e fim do plano -->
-    <string name="teste_faixa">Teste grátis: catálogo liberado até %1$s</string>
-    <string name="teste_termina_dias">Seu teste grátis termina em %1$d dias. Depois disso, o plano grátis mantém %2$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
-    <string name="teste_termina_amanha">Seu teste grátis termina amanhã. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
-    <string name="teste_termina_hoje">Seu teste grátis termina hoje. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados. Veja os planos.</string>
-    <string name="plano_termina_dias">Seu plano %1$s termina em %2$d dias, em %3$s. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
-    <string name="plano_termina_amanha">Seu plano %1$s termina amanhã. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
-    <string name="plano_termina_hoje">Seu plano %1$s termina hoje. Para continuar com o mesmo catálogo, fale com a gente para renovar.</string>
-    <string name="tolerancia_teste">Seu teste grátis terminou. Até %1$s seu catálogo continua liberado; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados. Veja os planos.</string>
-    <string name="tolerancia_plano">Seu plano terminou. Até %1$s seu catálogo continua como estava; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados. Veja os planos.</string>
-    <string name="itens_pausados_texto">Alguns itens foram pausados porque o teste ou o plano terminou. Eles continuam guardados e voltam quando você assinar. Você também pode escolher quais ficam ativos.</string>
+    <string name="teste_faixa">Teste grátis até %1$s</string>
+    <string name="teste_termina_dias">Seu teste grátis termina em %1$d dias. Depois disso, o plano grátis mantém %2$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="teste_termina_amanha">Seu teste grátis termina amanhã. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="teste_termina_hoje">Seu teste grátis termina hoje. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="plano_termina_dias">Seu plano %1$s termina em %2$d dias, em %3$s.</string>
+    <string name="plano_termina_amanha">Seu plano %1$s termina amanhã.</string>
+    <string name="plano_termina_hoje">Seu plano %1$s termina hoje.</string>
+    <string name="tolerancia_teste">Seu teste grátis terminou. Até %1$s seu catálogo continua liberado; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados.</string>
+    <string name="tolerancia_plano">Seu plano terminou. Até %1$s seu catálogo continua como estava; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados.</string>
+    <string name="itens_pausados_texto">Limite do plano atingido. Itens excedentes pausados. Eles continuam guardados, e você pode escolher quais ficam ativos.</string>
 
     <!-- Validade da oferta do PDV (lista de itens e botão de data) -->
     <string name="pdv_oferta_valida_ate">Oferta válida até %1$s</string>
@@ -91,21 +91,17 @@
     <string name="item_pausado_ok">Item pausado. Ele fica guardado e não aparece na busca.</string>
     <string name="item_reativado_ok">Item reativado.</string>
 
-    <!-- Tela de planos (assinatura pelo WhatsApp, sem cobrança no app) -->
-    <string name="planos_titulo">Planos</string>
-    <string name="planos_intro">Atualizar preços é sempre livre e ilimitado em todos os planos. O que muda é quantos itens você pode ter ativos ao mesmo tempo.</string>
-    <string name="planos_apoio_pix">Pagamento por Pix. Depois da confirmação, seu plano é ativado.</string>
+    <!-- Planos: textos usados pela tela do Admin -->
     <string name="plano_limite_itens">Até %1$d itens ativos</string>
-    <string name="plano_gratis">Grátis</string>
-    <string name="plano_atual">Seu plano</string>
-    <string name="plano_assinar_whatsapp">Assinar pelo WhatsApp</string>
-    <string name="plano_mensagem_whatsapp">Quero assinar o plano %1$s do Tabelapp. Meu negócio: %2$s</string>
     <string name="planos_fechar">Fechar</string>
 
     <!-- Admin: planos dos PDVs -->
     <string name="admin_planos_titulo">Planos dos PDVs</string>
-    <string name="admin_planos_texto">Ative, renove ou cancele o plano pago depois de confirmar o Pix. Sem cálculo proporcional.</string>
+    <string name="admin_planos_texto">Ative, renove ou cancele o plano do PDV. Sem cálculo proporcional.</string>
     <string name="admin_planos_abrir">Planos dos PDVs</string>
+    <string name="admin_banner_criar">Criar banner</string>
+    <string name="admin_banner_titulo">Banner de %1$s</string>
+    <string name="admin_banner_texto">O banner entra no ar na hora, com as visualizações combinadas. A imagem o dono coloca em \"Meu negócio\" (editar promoção).</string>
     <string name="admin_planos_vazio">Nenhum estabelecimento encontrado.</string>
     <string name="admin_plano_atual">Plano: %1$s</string>
     <string name="admin_plano_ate">Plano até %1$s</string>
@@ -238,19 +234,23 @@
     <string name="admin_mapa_botao">Localizar lojas sem pino</string>
 
     <!-- Arte do banner pago -->
+    <string name="promocoes_titulo">Seus banners</string>
+    <string name="promocoes_vazio">Nenhum banner ativo.</string>
+    <string name="promocoes_texto">Seus banners aparecem na busca (no topo e no lugar do 5º card). Aqui você edita o texto, o link, a imagem e as palavras-chave.</string>
+    <string name="promocao_excluir_texto">O banner sai da busca. Isso não dá para desfazer.</string>
     <string name="promocao_arte_tamanho">Tamanho da arte: 1200 × 400 pixels (proporção 3 × 1). Formatos: JPG ou PNG, até 10 MB.</string>
     <string name="promocao_arte_dica">Deixe textos e logotipo no centro, longe das bordas: em celulares mais estreitos as laterais são cortadas. Sem imagem, o banner mostra o título e o texto nas cores do Tabelapp.</string>
 
     <!-- Empresa anunciante (sem ponto de venda) -->
     <string name="anunciante_opcao_loja_titulo">Tenho loja ou ponto de venda</string>
-    <string name="anunciante_opcao_loja_texto">Publico minha tabela de preços e posso anunciar no banner. Precisa da foto do alvará.</string>
+    <string name="anunciante_opcao_loja_texto">Publico minha tabela de preços. Precisa da foto do alvará.</string>
     <string name="anunciante_opcao_anunciante_titulo">Anunciante</string>
-    <string name="anunciante_opcao_anunciante_texto">Produtor, marca ou prestador que não vende direto ao público: anuncia no banner da busca, sem loja nem tabela de preços. Precisa do comprovante do CNPJ.</string>
-    <string name="anunciante_intro">Cadastre sua empresa para anunciar no banner da busca. Para evitar fraudes, pedimos o comprovante do CNPJ: nossa equipe confere se você responde pela empresa antes de liberar.</string>
+    <string name="anunciante_opcao_anunciante_texto">Produtor, marca ou prestador que não vende direto ao público: aparece nos banners da busca, sem loja nem tabela de preços. Precisa do comprovante do CNPJ.</string>
+    <string name="anunciante_intro">Cadastre sua empresa como anunciante. Para evitar fraudes, pedimos o comprovante do CNPJ: nossa equipe confere se você responde pela empresa antes de liberar.</string>
     <string name="anunciante_trocar_para_loja">Tenho loja ou ponto de venda? Trocar</string>
     <string name="anunciante_trocar_para_anunciante">Não tenho loja, sou anunciante? Trocar</string>
     <string name="anunciante_documento">Fotografe o alvará, o cartão CNPJ ou o contrato social, com o CNPJ bem legível.</string>
     <string name="anunciante_endereco">Endereço da empresa, só para a nossa análise: não aparece como loja na busca nem no mapa.</string>
-    <string name="anunciante_painel">Conta de anunciante: crie banners para aparecer na busca.</string>
+    <string name="anunciante_painel">Conta de anunciante: seus banners aparecem aqui quando estiverem ativos.</string>
     <string name="admin_tipo_anunciante">ANUNCIANTE (sem ponto de venda)</string>
 </resources>

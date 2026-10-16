@@ -37,15 +37,15 @@ import kotlinx.coroutines.delay
 /**
  * Espaço do banner patrocinado, do mesmo tamanho de um card de preço ([ALTURA_CARTAO]).
  * A busca tem dois: no topo e no lugar do 5º card. Com vários banners, alterna a cada
- * 6 segundos. Sem nenhum, mostra o "Anuncie aqui" do próprio Tabelapp — o espaço
- * nunca fica vazio.
+ * 6 segundos. Sem nenhum, mostra uma mensagem do próprio Tabelapp (sem convite de
+ * venda: o app da Play não tem superfície de venda) — o espaço nunca fica vazio.
  */
 @Composable
 fun BannerPatrocinado(
     banners: List<Banner>,
     aoExibir: (Banner) -> Unit,
-    /** Toque no banner (null = espaço "Anuncie aqui"). */
-    aoTocar: (Banner?) -> Unit,
+    /** Toque em um banner (o espaço do Tabelapp não reage ao toque). */
+    aoTocar: (Banner) -> Unit,
     modifier: Modifier = Modifier,
     /** Margem lateral (0 quando já está dentro da lista de cards, que tem a própria margem). */
     margemLateral: Dp = 12.dp,
@@ -66,14 +66,14 @@ fun BannerPatrocinado(
             .fillMaxWidth()
             .height(ALTURA_CARTAO)
             .clip(RoundedCornerShape(12.dp))
-            // Contorno amarelo da marca (banner pago ou "Anuncie aqui"), sem preenchimento amarelo.
+            // Contorno amarelo da marca (banner ou espaço do Tabelapp), sem preenchimento amarelo.
             .border(ContornoMarca, RoundedCornerShape(12.dp))
-            .clickable { aoTocar(atual) },
+            .clickable(enabled = atual != null) { atual?.let(aoTocar) },
     ) {
         Crossfade(targetState = atual, label = "banner") { b ->
             val url = b?.imagemUrl
             when {
-                b == null -> AnuncieAqui()
+                b == null -> EspacoTabelapp()
                 url != null -> ImagemRemota(
                     url = url, descricao = b.titulo, modifier = Modifier.fillMaxSize(),
                     semImagem = { BannerTexto(b) },
@@ -114,19 +114,17 @@ private fun BannerTexto(b: Banner) {
     }
 }
 
-/** Espaço livre: convite para o comércio anunciar. */
+/** Espaço sem banner: mensagem do Tabelapp, sem convite de compra nem toque. */
 @Composable
-private fun AnuncieAqui() {
+private fun EspacoTabelapp() {
     Column(
         Modifier.fillMaxSize().background(CoresTabelapp.Cartao).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
     ) {
-        Text("Anuncie aqui", color = CoresTabelapp.TextoPrincipal, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Tabelapp", color = CoresTabelapp.TextoPrincipal, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
-            "Sua marca em destaque para quem está pesquisando preços agora.",
+            "Quem pesquisa economiza. Compare antes de comprar.",
             color = CoresTabelapp.TextoSecundario, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
-        Text("Toque aqui e fale com a gente pelo WhatsApp.", color = CoresTabelapp.TextoSecundario, style = MaterialTheme.typography.labelMedium,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

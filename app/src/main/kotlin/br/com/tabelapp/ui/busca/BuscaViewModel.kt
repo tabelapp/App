@@ -42,7 +42,7 @@ data class EstadoBusca(
     /** Posição real do usuário, se ele deu permissão. */
     val posicao: PontoGeo? = null,
     val mostrarDisclaimer: Boolean = false,
-    /** Banners patrocinados para a busca atual (vazio = espaço "Anuncie aqui"). */
+    /** Banners patrocinados para a busca atual (vazio = espaço do Tabelapp). */
     val banners: List<Banner> = emptyList(),
     /** Autocompletar: produtos com preço que combinam com o que está sendo digitado. */
     val sugestoes: List<SugestaoProduto> = emptyList(),

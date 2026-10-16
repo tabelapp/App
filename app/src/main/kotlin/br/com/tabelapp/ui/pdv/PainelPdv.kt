@@ -22,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -70,7 +69,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
-import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.EstadoItem
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.MeuPdv
@@ -98,7 +96,6 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     var excluindo by remember { mutableStateOf<PrecoPdv?>(null) }
     var excluindoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var editandoCadastro by remember { mutableStateOf(false) }
-    var criandoPromocao by remember { mutableStateOf(false) }
     var editandoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var confirmandoLocal by remember { mutableStateOf(false) }
     val pedirLocalizacao = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -160,7 +157,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         }
         // Anunciante (sem ponto de venda): não tem tabela de preços, só promoções.
         if (!anunciante) {
-            item { estado.catalogo?.let { CartaoCatalogo(it, aoVerPlanos = vm::abrirPlanos) } }
+            item { estado.catalogo?.let { CartaoCatalogo(it) } }
             item {
                 Button(onClick = vm::novoItem, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Add, contentDescription = null)
@@ -232,25 +229,15 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         }
         item { Column {
             if (!anunciante) HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            Text("Promoções (banner na busca)", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.promocoes_titulo), fontWeight = FontWeight.Bold)
             Text(
-                "Seu banner aparece na busca (no topo e no lugar do 5º card) para quem procura as palavras " +
-                    "escolhidas. Pacotes de 100, 250 ou 500 visualizações.",
+                stringResource(if (estado.promocoes.isEmpty()) R.string.promocoes_vazio else R.string.promocoes_texto),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } }
-        item {
-            Button(onClick = { criandoPromocao = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Campaign, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Criar promoção")
-            }
-        }
         items(estado.promocoes, key = { "promo-" + it.id }) { p ->
-            CartaoPromocao(
-                p, aoPagar = { vm.pagarPromocao(p) }, aoEditar = { editandoPromocao = p }, aoExcluir = { excluindoPromocao = p },
-            )
+            CartaoPromocao(p, aoEditar = { editandoPromocao = p }, aoExcluir = { excluindoPromocao = p })
         }
     }
 
@@ -284,25 +271,11 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         }
     }
 
-    if (criandoPromocao) {
-        DialogoPromocao(
-            imagens = container.imagens,
-            aoCriar = { titulo, descricao, link, arte, palavras, vis, aoErro, aoTerminar ->
-                vm.criarPromocao(titulo, descricao, link, arte, palavras, vis, aoErro) {
-                    aoTerminar()
-                    criandoPromocao = false
-                }
-            },
-            aoFechar = { criandoPromocao = false },
-        )
-    }
-
     editandoPromocao?.let { promo ->
         DialogoPromocao(
             imagens = container.imagens,
-            aoCriar = { _, _, _, _, _, _, _, _ -> },
-            aoFechar = { editandoPromocao = null },
             existente = promo,
+            aoFechar = { editandoPromocao = null },
             aoEditar = { titulo, descricao, link, arte, removerArte, palavras, aoErro, aoTerminar ->
                 vm.editarPromocao(promo, titulo, descricao, link, arte, removerArte, palavras, aoErro) {
                     aoTerminar()
@@ -316,33 +289,19 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         DialogoPlanilha(
             estado = p,
             aoImportar = vm::importarPlanilha,
-            aoVerPlanos = vm::abrirPlanos,
             aoFechar = vm::fecharPlanilha,
         )
     }
 
     estado.resultadoImportacao?.let { r ->
-        DialogoResultadoImportacao(r, aoVerPlanos = vm::abrirPlanos, aoFechar = vm::fecharResultadoImportacao)
+        DialogoResultadoImportacao(r, aoFechar = vm::fecharResultadoImportacao)
     }
 
     // Chegou ao limite do plano: mensagem calma, sem culpa.
     if (estado.mostrarLimite) {
         estado.catalogo?.let { c ->
-            DialogoLimite(c, aoVerPlanos = vm::abrirPlanos, aoFechar = vm::fecharLimite)
+            DialogoLimite(c, aoFechar = vm::fecharLimite)
         }
-    }
-
-    estado.planos?.let { p ->
-        TelaPlanos(
-            estado = p,
-            catalogo = estado.catalogo,
-            nomeNegocio = estado.nomeFantasia,
-            aoFechar = vm::fecharPlanos,
-        )
-    }
-
-    estado.pagamentoCriado?.let { pg ->
-        DialogoPagamento(pdvNome = estado.nomeFantasia, pagamento = pg, aoFechar = vm::fecharPagamento)
     }
 
     excluindoPromocao?.let { p ->
@@ -350,12 +309,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             onDismissRequest = { excluindoPromocao = null },
             title = { Text("Excluir a promoção \"${p.titulo}\"?") },
             text = {
-                Text(
-                    if (p.visualizacoesContratadas == 0) "O pedido de pagamento também é cancelado."
-                    else "O banner sai do ar e some da sua lista (o pagamento fica guardado no histórico). " +
-                        "As ${(p.visualizacoesContratadas - p.visualizacoesExibidas).coerceAtLeast(0)} visualizações " +
-                        "que faltam não são devolvidas."
-                )
+                Text(stringResource(R.string.promocao_excluir_texto))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -397,7 +351,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
 }
 
 @Composable
-private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoEditar: () -> Unit, aoExcluir: () -> Unit) {
+private fun CartaoPromocao(p: PromocaoPdv, aoEditar: () -> Unit, aoExcluir: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -408,7 +362,7 @@ private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoEditar: () -> 
                         style = MaterialTheme.typography.labelMedium,
                         color = when (p.status) {
                             "ativa" -> MaterialTheme.colorScheme.primary
-                            "aguardando_pagamento" -> MaterialTheme.colorScheme.error
+                            "aguardando_pagamento" -> MaterialTheme.colorScheme.onSurfaceVariant
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
@@ -423,11 +377,6 @@ private fun CartaoPromocao(p: PromocaoPdv, aoPagar: () -> Unit, aoEditar: () -> 
             if (p.palavrasChave.isNotEmpty()) {
                 Text("Palavras: ${p.palavrasChave.joinToString(", ")}", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (p.pagamentoPendenteId != null) {
-                TextButton(onClick = aoPagar) {
-                    Text("Pagar ${p.valorPendenteCentavos?.let { Dinheiro.formatar(it) }.orEmpty()}".trim())
-                }
             }
         }
     }

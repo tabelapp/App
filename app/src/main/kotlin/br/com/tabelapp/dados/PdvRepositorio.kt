@@ -78,10 +78,12 @@ interface PdvRepositorio {
     suspend fun promocoes(pdvId: String): List<PromocaoPdv>
     /** Sobe a arte do banner (JPEG) e devolve o caminho no armazenamento. */
     suspend fun enviarArte(pdvId: String, jpeg: ByteArray): String
-    /** Cria a promoção (aguardando pagamento) e devolve o código do pagamento. */
-    suspend fun criarPromocao(
-        pdvId: String, titulo: String, descricao: String?, link: String?, artePath: String?,
-        palavrasChave: List<String>, visualizacoes: Int,
+    /**
+     * Admin: cria o banner já no ar, com as visualizações combinadas fora do app (o app não vende).
+     * O dono ajusta texto, link, imagem e palavras depois, em "Meu negócio". Devolve o id da promoção.
+     */
+    suspend fun adminCriarBanner(
+        pdvId: String, titulo: String, descricao: String?, link: String?, palavrasChave: List<String>, visualizacoes: Int,
     ): String
     /**
      * Exclui a promoção: true = apagada (sem pagamento); false = já tinha pagamento: sai do ar e da
