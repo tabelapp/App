@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone do app: a lupa com o cifrão da logomarca (fundo amarelo no ic_launcher). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centralizado na área visível do ícone (72 dp no meio dos 108). -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.05"
+        android:scaleY="1.05"
+        android:translateX="2"
+        android:translateY="4">
+    <!-- cabo da lupa -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M61,59 L72,70" />
+    <!-- aro da lupa -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="6"
+        android:pathData="M31,46 A17,17 0 1,1 65,46 A17,17 0 1,1 31,46 Z" />
+    <!-- cifrão -->
+    <path
+        android:strokeColor="#C00000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M48,34.5 L48,57.5" />
+    <path
+        android:strokeColor="#C00000"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M52.8,37.8 A5.5,5.5 0 1,0 48,46 A5.5,5.5 0 1,1 43.2,54.2" />
+    </group>
+</vector>

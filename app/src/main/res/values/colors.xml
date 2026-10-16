@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Espelho de ui/tema/Tema.kt (CoresTabelapp) para o que não é Compose: janela de abertura,
+         barras do sistema e a lupa da tela de login. Mudou lá, mude aqui também. -->
+    <color name="topo">#283847</color>
+    <color name="fundo">#16171C</color>
+    <color name="barra_inferior">#232428</color>
+    <color name="destaque">#F08A45</color>
+    <color name="texto_principal">#ECEDEF</color>
+
+    <!-- Ícone do app na tela do celular: as cores da logomarca continuam (fora do tema do app). -->
+    <color name="fundo_icone">#FFE000</color>
+</resources>

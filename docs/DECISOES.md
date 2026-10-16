@@ -1,0 +1,343 @@
+# Decisões técnicas e premissas
+
+Registro do que foi decidido ao montar a base do MVP, principalmente onde o briefing deixou margem
+para interpretação. Os itens marcados com **⚠️ confirmar** são premissas que o fundador deve validar.
+
+## Stack
+
+| Escolha | Por quê |
+|---|---|
+| **Kotlin + Jetpack Compose** (Android nativo, minSdk 26 / Android 8.0) | Plataforma decidida no briefing. Compose é o padrão atual do Android. Android 8+ cobre praticamente todos os aparelhos em uso. |
+| **Supabase** (Postgres + Auth + Storage) | Sem servidor próprio para manter. Login Google/e-mail pronto (e SMS/WhatsApp OTP via provedores no futuro). Postgres permite colocar as regras de cota e permissões no próprio banco. Plano gratuito cobre o piloto. |
+| Regras de negócio **no banco** (funções SQL + RLS) | O app não consegue burlar o limite do catálogo nem gravar preço direto: toda escrita em `cotacoes` passa por funções que validam. |
+| Módulo **`core`** em Kotlin puro | Regras de apresentação e cálculo (OBS, ordenação, lista de compras, chave de NF, planilha) testáveis sem emulador. |
+| Sem Hilt / sem navigation-compose por enquanto | Menos dependências e menos coisa para aprender; dá para adicionar quando o app crescer. |
+| Dinheiro em **centavos** (inteiro) | Evita erro de arredondamento (R$ 0,10 + R$ 0,20 ≠ R$ 0,30 em ponto flutuante). |
+
+## Busca de preços
+
+- A busca ignora acento e maiúscula e exige **todas** as palavras: "feijao preto" acha
+  "Feijão Preto 1kg"; "feijão 5kg" não acha nada.
+- Sem termo, a tela mostra os **últimos preços lançados**, dos mais recentes para os mais antigos.
+- Com termo, a ordem padrão é **menor preço**. As 5 ordenações do briefing são aplicadas no app;
+  tocar de novo na ordenação ativa volta à ordem padrão.
+- **Destaque do mais barato:** só quando há uma busca (na tela inicial os produtos são variados, não faz
+  sentido). Em caso de empate, todos os empatados são destacados.
+- **"Mais perto"**: usa a última localização conhecida do celular (pede permissão na hora). Sem
+  permissão/GPS, usa o centro de Petrópolis como referência. PDV sem coordenadas vai para o fim.
+- PDVs com a mesma rede aparecem uma vez **por loja** (cada loja tem endereço e telefone próprios).
+
+## Validade (confirmado pelo fundador)
+
+Todo preço tem validade, e a busca só mostra preços dentro dela.
+
+| Fonte | Validade |
+|---|---|
+| PDV (manual ou planilha) | de hoje até no máximo 30 dias; se não informar, 30 dias |
+| Nota Fiscal | O preço é o **praticado na data da nota** (vale até a meia-noite daquele dia). Na busca, o campo validade mostra **"Preço praticado dia dd/mm/aaaa"** (a data da NF) e o preço **fica visível por 7 dias** a partir dela. Só são aceitas notas dos últimos 7 dias; a data precisa bater com o mês/ano de emissão da chave. |
+| Encarte de usuário | **a data impressa no encarte** (até 30 dias). O app tenta ler a data nas fotos ("válido até 30/09", "ofertas de 20 a 26/09"); se não achar, o usuário escolhe no calendário. Sem validade, não publica. |
+
+## Cadastro do PDV (decisão do fundador: comprovação pelo alvará)
+
+Para ninguém cadastrar uma empresa que não é sua:
+
+1. A conta precisa ser do tipo **CNPJ**. O dono digita o CNPJ (dígitos verificadores conferidos) e o
+   app consulta a **Receita Federal** pela BrasilAPI (gratuita, sem chave). Nome, endereço e telefone
+   vêm preenchidos; o que a Receita respondeu (inclusive a situação) fica guardado para o Admin.
+   **Qualquer situação do CNPJ é aceita** (decisão do fundador): o que se confirma é que quem cadastra
+   responde pela empresa.
+2. O dono envia a **foto do alvará** (bucket privado `alvaras/<id-do-usuário>/…`, só ele e o Admin
+   veem). O app lê a foto no celular (OCR do Google, baixado pelo Google Play) e diz se achou o CNPJ.
+3. O pedido fica **pendente**; só o **Admin aprova** (aba "Admin": dados informados × Receita, foto
+   do alvará, se o app achou o CNPJ) ou **rejeita com motivo** — o dono vê o motivo e pode reenviar.
+4. Enquanto não for aprovado, o PDV **não publica preço nem promoção** e suas lojas não aparecem para
+   ligar notas fiscais (trava no banco, não só no app). O Admin pode suspender um PDV aprovado depois
+   (fraude descoberta): os preços oficiais dele saem da busca.
+5. Ninguém cria PDV direto na tabela, nem muda CNPJ/situação pelo app; alvará, dados da Receita e
+   motivo de rejeição não são visíveis para outros usuários.
+6. CNPJ já aprovado não pode ser cadastrado de novo; CNPJ com pedido pendente de outra pessoa também
+   não (fica para o suporte resolver). Pedido rejeitado pode ser refeito por qualquer um.
+
+- **Por que o app não aprova sozinho:** a leitura roda no celular, que pode ser adulterado — o
+  resultado é só um indício para o Admin. E o alvará costuma ficar **exposto na parede da loja**:
+  qualquer pessoa consegue fotografá-lo. Por isso a aprovação é humana. ⚠️ Se o volume crescer,
+  dá para automatizar no servidor (OCR na nuvem, ex.: Google Cloud Vision) e/ou exigir uma prova
+  mais forte (Pix de R$ 1 feito da conta bancária da empresa, que traz o CNPJ de quem pagou).
+
+## Limite do catálogo do PDV (decisão do fundador, 12/10/2026 — substituiu a cota de 50 operações)
+
+- **Limite = itens ATIVOS** (não excluídos e dentro da validade). Varejo: por loja. **Rede: o catálogo
+  único da rede** (não multiplica pelo número de lojas).
+- **Só criar ou reativar item** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
+  **nunca contam e nunca são bloqueados**; excluir libera espaço. Item vencido não conta, e renovar a
+  validade dele é atualização (nunca bloqueada).
+- **Planos (15/10/2026, substituiu o "parceiro fundador"):** tabela **`planos`** — grátis 5 · essencial 30
+  (R$ 9,99) · loja 300 (R$ 19,99) · mercado 3000 (R$ 29,99) por mês, preço em centavos na coluna
+  `preco_referencia_centavos` (nome antigo mantido). Aplicados uma vez (marcador `planos_2026_10_aplicados`);
+  depois, ajuste por SQL sem publicar app.
+- **Teste grátis:** `pdvs.teste_ate` (era `fundador_ate`) = cadastro + `dias_teste_gratis` (30), com o limite
+  do `plano_teste` (mercado). PDVs existentes: data da migração + 30. **Um teste por CNPJ**: a tabela
+  `testes_gratis` guarda o prazo por CNPJ (recadastro não reinicia).
+- **Limite efetivo** (`_limite_efetivo`): o maior entre plano pago (até `plano_ate`), teste (até `teste_ate`) e
+  grátis; até `dias_tolerancia` (7; pode ser 0) depois do fim, o limite anterior continua valendo.
+- **Pausa calculada, sem job:** passada a tolerância, ficam no ar os itens não pausados atualizados mais
+  recentemente, até o limite; os outros são **pausados na leitura** (`_cotacoes_ocultas`), nunca apagados.
+  Renovar/assinar devolve tudo na hora. O PDV pode **pausar/reativar** itens (`cotacoes.pausado`,
+  `pdv_pausar_item`); reativar só até o limite. A busca e as sugestões filtram os pausados.
+- **Assinatura manual:** "Assinar pelo WhatsApp" (número em `configuracao_app.whatsapp_contato`); o Admin
+  ativa/renova/troca/cancela em "Planos dos PDVs" (`admin_definir_plano`, `admin_cancelar_plano`), com
+  registro em `assinaturas_log` (só o Admin). Sem Pix automático nem Google Play Billing por enquanto.
+- **Planilha:** importa as atualizações e os itens novos até o espaço disponível, na ordem da planilha,
+  numa transação só; devolve quantos e quais ficaram de fora (o app oferece baixar a lista).
+- **Assinatura por PDV (CNPJ), não por loja** (decisão do fundador, 15/10/2026): mantido como está. No
+  varejo, cada loja tem o próprio limite; no modo rede, a lista é única. Hoje o cadastro cria uma loja
+  por CNPJ; rever se "cadastrar mais lojas" for implementado.
+- `interesse_planos` ficou intacta, sem uso ("Quero ser avisado" saiu do app). A tabela `pagamentos`
+  continua só para os banners. O pacote de +50 operações foi removido (`comprar_pacote_operacoes`).
+- A verificação é **no banco** (`pdv_salvar_precos`, erro `limite_catalogo`): versões antigas do app não
+  burlam. `cota_status()` ficou só para apps antigos (mostra o limite do catálogo).
+- **Medição:** `operacoes_log` continua registrando criar/subir/baixar/editar/excluir, sem bloquear nada;
+  a visão `uso_pdv_mensal` resume por PDV e mês (+ itens ativos hoje).
+- **Serviços (MEIs):** `cotacoes.unidade` (unidade, kg, litro, metro, m2, hora, visita, diaria, servico;
+  padrão unidade) e `a_partir_de`. No card: "a partir de R$ 80,00 / hora" na linha do preço; a ordenação
+  usa o valor numérico. NF e encarte usam sempre "unidade".
+- Um produto é identificado pelo **nome normalizado** dentro da loja ("Arroz 5kg" = "ARROZ  5KG").
+
+## Preço confiável (decisão do fundador, 13/10/2026)
+
+Caso real: NF do Burger King com "Pão, carne e queijo" a R$ 4,00 (rateio de um combo de R$ 31) apareceu
+como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio, fidelidade ou balcão.
+
+- **ⓘ em todo card** → "Sobre este preço" (texto diferente para usuário/NF e para estabelecimento), com
+  "Esse preço não confere".
+- **Linha fixa sob o contador** da busca: "Preços informados por terceiros e sujeitos a alteração.
+  Confirme na loja." (uma vez, sem pop-up). O disclaimer da primeira abertura continua.
+- **Selo "MENOR PREÇO LANÇADO"** (era "MAIS BARATO"), na linha do PDV (o card não cresce). Regra no app
+  (`core/SeloPreco.kt`) com parâmetros em `configuracao_app`:
+  - preço **atípico** (< `preco_atipico_fracao` × mediana dos demais resultados, com pelo menos
+    `preco_atipico_min_resultados`) não recebe o selo e mostra "Confira na loja";
+  - prefere **PDV cadastrado** quando o preço dele é igual ou até `selo_tolerancia_pdv` acima;
+  - **item de combo** (marcado no envio da NF, `cotacoes.parte_de_combo`) nunca recebe o selo e mostra
+    "Parte de combo";
+  - com `denuncias_limite` denúncias, mostra "Confira na loja" e perde o selo (nada é apagado).
+- **Denúncia leve** (`denuncias_preco`, uma por pessoa por cotação, motivo opcional). Ninguém lê as dos
+  outros; o Admin vê `denuncias_mais_frequentes`. A busca recebe só o total.
+- **Compartilhar** termina com "Preço informado por usuário/estabelecimento e sujeito a alteração.
+  Confirme na loja. Visto no Tabelapp."
+
+## Nota Fiscal pelo QR Code (sem digitação — decisão do fundador)
+
+1. O usuário lê o QR Code do cupom com o **leitor do Google Play Services** (tela pronta do Google,
+   não precisa pedir permissão de câmera). Se o leitor não abrir, dá para colar o **link** do QR Code.
+   Só a chave de 44 dígitos não basta: a consulta na Sefaz precisa do link completo.
+2. A chave dentro do QR é validada (44 dígitos + dígito verificador) e precisa ser do RJ.
+3. O app abre o link da Sefaz-RJ **dentro do próprio celular** (WebView, na conexão do usuário — o portal
+   bloqueia servidores, briefing seção 8) e lê produtos, preços unitários, estabelecimento e data da
+   página (`LeitorNfce` no `core`). O portal redireciona para uma página em `http://`; o app libera
+   texto claro **só** para `*.fazenda.rj.gov.br` (`network_security_config.xml`).
+4. O CNPJ do emitente vem na própria chave. Se for de um PDV cadastrado, a nota é ligada à loja (se a
+   rede tiver várias lojas, o usuário escolhe qual — a única escolha da tela). O banco recusa ligar a
+   chave a uma loja de outro CNPJ (`loja_nao_confere`).
+5. **Uma única tela de resumo** com tudo o que foi lido; o usuário só confirma o envio.
+   **Não há como digitar produto, preço, estabelecimento ou data**: o que vai para a busca é
+   exatamente o que está na nota. Se a leitura falhar, a nota não é enviada (tentar de novo / ler outra),
+   e o usuário pode mandar a página para análise (sem scripts, CPF mascarado).
+   Linhas repetidas (mesmo produto e preço) viram uma.
+
+## Nota Fiscal — ajustes do lançamento (pedidos do fundador)
+
+- A aba chama **"Enviar preços"** (ícone de QR Code). Texto da tela: "O Tabelapp guarda somente as
+  informações do vendedor, produtos e preços. As informações do comprador nunca serão armazenadas."
+- **Entrada manual:** em vez de colar o link, a pessoa digita os **44 números** da chave. O app abre a
+  consulta pública da Sefaz-RJ pela chave (`www.fazenda.rj.gov.br/nfce/consulta`, endereço impresso
+  no cupom), preenche a chave sozinho (e também a copia) e a pessoa resolve a verificação da Sefaz.
+  ⚠️ Confirmar com uma nota real: o formulário da Sefaz pode mudar.
+- **Nome do ponto de venda:** a nota traz a razão social. O app consulta o CNPJ na Receita (BrasilAPI)
+  e usa o **nome fantasia** quando houver (e o endereço da Receita, se a página da nota não mostrar).
+  Sem nome fantasia, a pessoa pode **sugerir** como o lugar é conhecido. Para não ser mal usado
+  (concorrente, fraude), a sugestão só vale **confirmada**: só sugere quem enviou uma NF daquele CNPJ,
+  e o nome entra na busca quando **2 pessoas diferentes** sugerem o mesmo nome ou o **Admin aprova**.
+  Até lá, a busca mostra a razão social. Nome confirmado não muda por novas sugestões.
+- **NF-e em PDF:** depois de enviar, o app "imprime" em PDF a mesma página da Sefaz e oferece
+  "Compartilhe essa NF-e em PDF": a pessoa escolhe para onde (WhatsApp, e-mail, Drive, salvar no celular).
+
+## Lista de compras
+
+- O usuário tem várias listas (até 50, com até 300 itens cada). **Cada alteração é salva na hora**:
+  ele monta a lista no tempo dele.
+- **Busca inteligente** ao adicionar: enquanto digita, o app sugere os produtos que **têm preço válido
+  agora** (todas as palavras, sem acento), com o menor preço e em quantos lugares aparecem. Também dá
+  para adicionar o texto como foi digitado. O mesmo produto adicionado de novo soma a quantidade.
+- **Pesquisar melhores preços:** o app busca cada item (mesma busca da tela principal) e monta:
+  1. **Num lugar só** — os pontos de venda ordenados por quem tem mais itens da lista e, em empate,
+     pelo menor total (com o que falta em cada um);
+  2. **Item a item** — o preço mais barato de cada item, onde estiver, com o total e em quantos lugares.
+- Os dois relatórios vão **direto para o WhatsApp** como mensagem de texto (negrito do WhatsApp,
+  rodapé "Quem pesquisa economiza" + link do app). Sem WhatsApp instalado, abre a escolha de app.
+- O **card de preço** também é enviado direto pelo WhatsApp (imagem + texto), não mais pelo menu geral.
+- Relatório "no mapa": cálculo pronto no `core`, falta a chave da API de mapas.
+
+## Histórico de preços (decisão do fundador: vital para o projeto)
+
+- **Nenhum preço é apagado da história.** A busca mostra só o que está dentro da validade (NF: 7 dias;
+  PDV: até 30), mas toda criação, alteração ou exclusão em `cotacoes` vira uma linha em
+  `historico_precos` (produto, preço, data, loja/CNPJ, nome e endereço do ponto de venda), mesmo que a
+  cotação, a loja ou o usuário sejam excluídos depois. Ninguém altera nem apaga o histórico pelo app;
+  por enquanto só o Admin lê. É a base para o histórico de preços completo no futuro.
+
+## Nota Fiscal — regras gerais
+
+- Uma chamada `enviar_nota_fiscal` grava todos os itens da nota de uma vez (depois da tela de
+  confirmação única), com a data da compra (lida da Sefaz ou informada pelo usuário; padrão hoje). Limite técnico de 500 itens por nota, só para evitar abuso.
+- Chave de acesso é opcional; se vier, precisa ter 44 dígitos e **não pode repetir** (mesma nota enviada
+  duas vezes é recusada). O app também valida o dígito verificador (`ChaveAcessoNfe` no `core`).
+- CPF do comprador não é pedido nem guardado em lugar nenhum.
+
+## Encartes, Admin e promoções
+
+- **⏸️ Envio de encarte pelo usuário: SUSPENSO** (decisão do fundador — vulnerável a preço errado
+  ou inventado). A aba saiu do app, a função `publicar_encarte` não pode mais ser chamada pelo app/API
+  (migração `20260924000900`) e o leitor (`LeitorEncarte`, no `core`, com testes) ficou guardado. O
+  app anterior com a aba está no histórico do Git (commit `e9fc8a4`). Como funcionava:
+- Encarte de usuário comum (**decisão do fundador: sem fila do Admin, sem digitação**):
+  1. O usuário tira ou escolhe **até 5 fotos** (câmera ou galeria).
+  2. O app **lê o texto das fotos no próprio celular** com o OCR do Google (ML Kit, modelo embutido no
+     app: gratuito, sem internet, nada vai para terceiros). O `LeitorEncarte` do `core` usa a
+     **posição** de cada linha para ligar cada preço ao nome do produto (nome acima ou à esquerda,
+     nome em duas linhas, centavos em fonte menor "4," + "99", "De R$ 6,99 Por R$ 4,99" vale o
+     "por", preço "kg"), e procura a validade impressa.
+  3. **Uma tela de resumo** com os produtos e preços lidos: o usuário **só pode desmarcar** o que foi
+     lido errado — não digita produto nem preço. Informa o estabelecimento (busca os cadastrados, ou
+     nome livre + endereço) e confere a validade (lida do encarte ou escolhida no calendário).
+  4. Ao confirmar, as fotos (reduzidas para 1600 px / JPEG 80%) vão para o bucket privado
+     `encartes/<id-do-usuário>/…` (guardadas para conferência) e a função `publicar_encarte` grava os
+     preços **direto na busca** (fonte `usuario_encarte`), validade = data do encarte (hoje até 30
+     dias). Máx. 200 produtos por encarte e 10 encartes por usuário por dia; produto repetido entra uma vez.
+  5. "Meus encartes" mostra o que o usuário publicou e quantos preços cada um gerou.
+  - ⚠️ OCR de encarte erra (layout livre, letras decorativas). A confirmação do usuário é a trava; se
+    a qualidade não bastar, o próximo passo é ler as fotos com IA de visão (mais precisa, mas tem custo
+    por foto e precisa de uma chave de API guardada numa Edge Function do Supabase).
+  - As funções de fila do Admin (`aprovar_encarte` / `rejeitar_encarte`) continuam no banco, mas o
+    app não manda mais encartes para a fila.
+- Encarte do próprio PDV usado como arte de banner: publicação imediata, não passa pela fila.
+- Admin é definido **direto no banco** (ninguém consegue se promover pelo app).
+- Promoção: segmentação por raio (a partir de uma loja) e/ou palavras-chave do termo buscado.
+  Visualizações são contadas por `registrar_visualizacao_promocao`; ao esgotar, o banner sai.
+- **Pix:** a criação da cobrança e o webhook do Mercado Pago ficarão numa Edge Function do Supabase
+  (usa a chave secreta, nunca no app). O webhook chama `confirmar_pagamento`, que é idempotente.
+- **Pagamento manual (até o Pix automático)** — migração `20261010001600`: o PDV cria a promoção
+  (`criar_promocao`: título, texto, link, imagem, palavras-chave, pacote de 100/250/500 visualizações por
+  R$ 10/25/50). Fica um pagamento `pendente`
+  (provedor `manual`, máx. 5 em aberto); o app abre o WhatsApp do Tabelapp com o código do pedido. O Admin
+  confere o Pix e toca em "Pago" (`admin_confirmar_pagamento` → `confirmar_pagamento`). O banner tocado
+  abre o link do anunciante.
+- **Encerrar promoção** (`encerrar_promocao`): sem pagamento confirmado, é apagada; com pagamento, sai
+  do ar ("pausada") e fica no histórico financeiro.
+- **Planilha do PDV:** Excel (.xlsx) ou .csv (Produto, Preço, Validade, OBS), lida no celular
+  (`LeitorPlanilha`), validada linha a linha (`Planilha.validar`); antes de gravar, a prévia mostra
+  novos/aumentos/baixas e o que ficaria fora do limite do plano (`pdv_salvar_precos` com `p_simular`). Linhas com
+  erro ficam de fora. O app oferece um modelo .csv.
+- **Dados do PDV editáveis** (`atualizar_pdv`, `atualizar_loja`): nome de exibição, site, endereço,
+  telefone e WhatsApp. O WhatsApp da loja passa a ser o contato do card de preço.
+
+## Lançamentos repetidos (migração `20261010001700`)
+
+- **No banco:** o mesmo produto, no mesmo local, no mesmo dia e pelo mesmo preço é um lançamento só.
+  Os repetidos que já existiam foram apagados (do banco e do histórico, por serem cópias idênticas) e
+  um gatilho ignora os novos repetidos — a nota é aceita normalmente, só o item igual não entra.
+  Dias ou preços diferentes continuam todos guardados.
+- "Local" = loja cadastrada; sem loja, o CNPJ da nota; sem nota, nome + endereço digitados.
+  "Dia" = data da compra na NF (nos outros, o dia do lançamento). O preço oficial do PDV já é um item
+  só por loja e fica de fora.
+- **Na busca:** para cada produto em cada local aparece só o lançamento mais recente (no empate, o
+  preço oficial do PDV).
+
+## Moderação do Admin (migração `20261013002100`)
+
+- **Preços denunciados** (aba Admin): lista da visão `denuncias_mais_frequentes`, com os motivos.
+  *Remover* apaga o preço da busca — o histórico guarda a linha como "excluido". *Manter* apaga as
+  denúncias daquele preço (ele volta a poder ganhar o selo).
+- **Remover qualquer preço:** para o Admin, o ⓘ do card mostra "Remover este preço", com confirmação.
+- **Suspender um estabelecimento aprovado:** exige motivo. Nada é apagado: os preços oficiais e os
+  banners só deixam de aparecer na busca, e o PDV não consegue publicar enquanto estiver suspenso. O dono
+  vê "Cadastro suspenso" + motivo em "Meu negócio", com botão para falar no WhatsApp. *Reativar* devolve
+  tudo como estava.
+- Toda ação fica registrada na tabela `moderacoes` (só o Admin lê).
+
+## Coordenadas das lojas (migração `20261013002200`)
+
+- O app localiza o endereço da loja no próprio aparelho (Geocoder do Android, sem chave e sem custo) e
+  grava a coordenada em `lojas` pela função `definir_coordenadas_loja` (dono do PDV ou Admin; só aceita
+  ponto dentro do Brasil).
+- Quando: ao abrir o painel do PDV (cobre loja recém-aprovada, endereço editado e lojas antigas). Mudou o
+  endereço sem coordenada nova? O banco apaga a antiga (pino errado é pior que nenhum) e o painel localiza
+  de novo.
+- Endereço não encontrado: o dono toca em **"Estou na loja"** e a localização do celular vira o pino
+  (`coordenadas_origem = 'aparelho'`). Pode usar também para ajustar um pino impreciso.
+- Admin: botão **"Localizar lojas sem pino"** (função `admin_lojas_sem_coordenadas`).
+- Com coordenada gravada, o mapa usa o ponto exato e a busca calcula a distância no card.
+
+## Ajustes antes do lançamento (14/10/2026)
+
+- **Sem "Faz parte de combo?"** no envio da NF (confundia). A coluna `parte_de_combo` continua no banco
+  (sempre falsa para novos envios); os avisos de preço e o "Esse preço não confere" cobrem os combos.
+- **Busca:** banner do tamanho de um card (124 dp), segundo banner no lugar do 5º card (os banners são
+  intercalados entre os dois espaços), bloco de busca do mesmo tamanho (campo + botão único "Filtros" com
+  ordenação e "Ver no mapa" + contador e aviso ao lado) e autocompletar igual ao da lista de compras.
+- **Arte do banner:** 1200 × 400 px (3 × 1), JPG ou PNG até 10 MB; textos no centro (laterais podem ser
+  cortadas em celulares estreitos).
+- **Sem barreira de cidade:** textos sem "Petrópolis", cidade e UF obrigatórias no cadastro (sem padrão),
+  localização de endereços em todo o Brasil. Continua só RJ: a leitura da NF (cada estado tem o seu portal
+  da Sefaz) — ver pendências.
+- **Empresa anunciante** (migrações `20261014002300` e `20261014002400`): conta CNPJ sem ponto de venda
+  (produtor, marca, prestador). Mesmo tratamento do estabelecimento: CNPJ consultado na Receita, endereço da
+  empresa e **comprovante do CNPJ obrigatório** (alvará, cartão CNPJ ou contrato social), aprovação do
+  Admin. O endereço fica em `pdvs` (não vira loja: não aparece na busca nem no mapa). Telefone/WhatsApp
+  obrigatório. No painel, só promoções. `pdvs.tipo` = `loja` | `anunciante`.
+- **Correção:** CNPJ suspenso não pode ser recadastrado (o recadastro apagava o cadastro suspenso).
+
+## Paleta escura (14/10/2026)
+
+- Tema escuro único (não segue o sistema, sem cores dinâmicas do Android 12+). Todas as cores ficam em
+  `ui/tema/Tema.kt` (`CoresTabelapp`); `res/values/colors.xml` espelha as poucas usadas fora do Compose.
+- Preços sempre brancos e em negrito. Amarelo da marca só no título "Tabelapp" da busca e no contorno de
+  2 dp dos dois banners (inclusive "Anuncie aqui") e do card mais barato (regra do selo inalterada).
+- Laranja (`Destaque`) para seleção, links e botões principais. Ícone do app na tela inicial mantém as
+  cores da logomarca.
+
+## Segurança (resumo)
+
+- Nada é acessível sem login.
+- Preços são visíveis para qualquer usuário logado, mas só são gravados pelas funções do banco.
+- Listas, pagamentos e encartes enviados: cada um vê só os seus.
+- `operacoes_log`, `status_catalogo` e `uso_pdv_mensal`: só o dono do PDV (e o Admin). `planos` e
+  `configuracao_app`: só leitura no app. `interesse_planos`: o PDV insere e vê só o próprio.
+- Colunas sensíveis (tipo de usuário → admin, contadores de visualização, status de pagamento) não
+  podem ser alteradas pelo app.
+
+## Pendências herdadas do briefing (seção 10)
+
+- Fluxo do login por WhatsApp (o Supabase suporta OTP por WhatsApp via Twilio — avaliar custo).
+- Notificação ao Admin sobre novas pendências.
+- Chave da API de mapas (para o relatório "no mapa" da lista de compras).
+- Política de privacidade e termos de uso (obrigatórios para publicar na Play Store).
+
+## App da Google Play sem superfície de venda (16/10/2026)
+
+Decisão do fundador, por causa da política de pagamentos da Google Play:
+
+- **O app não vende nada.** Planos e anúncios são vendidos **fora do app** (site, WhatsApp, visita).
+  A ativação continua **manual pelo Admin**.
+- O PDV vê só o **estado**: "Plano: X", "Teste grátis até dd/mm", "Itens ativos X de Y",
+  "Itens pausados: N" e, no limite, a mensagem neutra "Limite do plano atingido. Itens excedentes
+  pausados." Sem preço, sem botão de compra, sem link de pagamento.
+- Saíram do app: tela de planos com valores, "Assinar pelo WhatsApp", Pix, criação e pagamento de
+  banner pelo PDV e o espaço "Anuncie aqui" (virou uma mensagem do Tabelapp, sem toque).
+- **Banners:** o Admin cria o banner já no ar (Admin → Planos dos PDVs → Criar banner, função
+  `admin_criar_banner`), com as visualizações combinadas fora do app. O dono edita texto, link,
+  imagem e palavras-chave em "Meu negócio".
+- WhatsApp no app só para suporte, falar com a loja e compartilhar preço.
+- A tela do Admin mantém tudo (inclusive preços dos planos); só contas de Admin a veem.
+- Termos e política: "as condições comerciais são informadas fora do aplicativo".
+- Preços e contratação ficam no site (`site/planos.html`). O teste `app sem superficie de venda`
+  (core) falha se algum texto do app voltar a falar de compra.

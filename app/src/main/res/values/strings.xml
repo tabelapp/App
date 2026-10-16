@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tabelapp</string>
+
+    <!--
+      Mensagens de erro: tom calmo, curto, sem culpar o usuário, sem códigos técnicos.
+      Cada tipo (core/Erros.kt → TipoErro) tem erro_<tipo>_titulo e erro_<tipo>_texto;
+      a dica é opcional. O teste core/.../TextosErroTest confere que nenhum tipo fica sem texto.
+    -->
+    <string name="erro_sefaz_indisponivel_titulo">A Sefaz não respondeu agora</string>
+    <string name="erro_sefaz_indisponivel_texto">Isso acontece de vez em quando e não foi culpa sua. O site da Receita do estado limita alguns acessos para se proteger. Sua nota está segura e você não perdeu nada.</string>
+    <string name="erro_sefaz_indisponivel_dica">Tente trocar entre Wi-Fi e dados móveis, ou aguarde alguns minutos.</string>
+
+    <string name="erro_sem_internet_titulo">Você está sem internet</string>
+    <string name="erro_sem_internet_texto">Parece que você está sem internet. Conecte-se e tente de novo. Seus dados não foram perdidos.</string>
+
+    <string name="erro_camera_negada_titulo">Precisamos da câmera</string>
+    <string name="erro_camera_negada_texto">Precisamos da câmera para ler o QR Code. Você pode liberar nas configurações, ou preencher a nota manualmente.</string>
+
+    <string name="erro_qr_invalido_titulo">Não conseguimos ler esse código</string>
+    <string name="erro_qr_invalido_texto">Não conseguimos ler esse código. Tente chegar mais perto, com boa luz, ou preencha manualmente.</string>
+
+    <string name="erro_servidor_instavel_titulo">Uma instabilidade rápida</string>
+    <string name="erro_servidor_instavel_texto">Estamos com uma instabilidade rápida. Tente novamente em instantes.</string>
+
+    <string name="erro_sessao_expirada_titulo">Sua sessão terminou</string>
+    <string name="erro_sessao_expirada_texto">Sua sessão terminou por segurança. Entre de novo para continuar.</string>
+
+    <string name="erro_busca_vazia_titulo">Nada por aqui ainda</string>
+    <string name="erro_busca_vazia_texto">Ainda não encontramos preços para isso. Que tal tentar outro nome, ou ser o primeiro a cadastrar?</string>
+
+    <string name="erro_falha_upload_foto_titulo">A foto não foi enviada</string>
+    <string name="erro_falha_upload_foto_texto">Não conseguimos enviar a foto. Verifique a conexão e tente de novo.</string>
+
+    <string name="erro_falha_envio_nf_titulo">Ainda não foi enviado</string>
+    <string name="erro_falha_envio_nf_texto">Não conseguimos enviar agora, mas seus dados continuam aqui. Tente de novo.</string>
+
+    <string name="erro_falha_pagamento_titulo">Não foi possível concluir</string>
+    <string name="erro_falha_pagamento_texto">Não foi possível concluir agora. Tente novamente em instantes ou fale com a gente.</string>
+
+    <string name="erro_inesperado_titulo">Algo não saiu como esperado</string>
+    <string name="erro_inesperado_texto">Algo não saiu como esperado, mas já estamos cientes. Tente de novo em instantes.</string>
+
+    <!-- Botões das telas de erro -->
+    <string name="erro_botao_tentar_de_novo">Tentar de novo</string>
+    <string name="erro_botao_preencher_manualmente">Preencher manualmente</string>
+    <string name="erro_botao_abrir_configuracoes">Abrir configurações</string>
+    <string name="erro_botao_entrar_de_novo">Entrar de novo</string>
+    <string name="erro_botao_fale_conosco">Falar com a gente</string>
+    <string name="erro_botao_enviar_precos">Enviar preços de uma nota</string>
+    <string name="erro_botao_voltar_ao_inicio">Voltar ao início</string>
+    <string name="erro_botao_ok">Entendi</string>
+    <string name="erro_aguarde_segundos">Você pode tentar de novo em %1$d s</string>
+    <string name="erro_leitor_indisponivel">Não deu para abrir o leitor de QR Code agora. Tente de novo em instantes, ou digite os 44 números da nota abaixo.</string>
+    <string name="erro_nota_diferente_titulo">Essa não é a mesma nota</string>
+    <string name="erro_nota_diferente_texto">A nota aberta na Sefaz não é a mesma da chave informada. Confira os números e tente de novo.</string>
+    <string name="erro_leitura_nf_titulo">Não conseguimos ler os produtos</string>
+    <string name="erro_leitura_nf_texto">A página da Sefaz abriu, mas não encontramos os produtos dela. Você pode tentar de novo ou consultar pela chave de acesso. Só enviamos preços lidos direto da nota.</string>
+    <!-- Catálogo do PDV: limite por número de itens ativos (tabela planos no banco) -->
+    <string name="catalogo_limite_titulo">Seu catálogo chegou ao limite</string>
+    <string name="catalogo_limite_texto">Limite do plano atingido. Itens excedentes pausados. O plano %2$s permite %1$d itens ativos; seus itens continuam guardados e você pode atualizar os preços quando quiser.</string>
+    <string name="catalogo_resumo">Itens ativos %1$d de %2$d</string>
+    <string name="catalogo_plano">Plano: %1$s</string>
+    <string name="catalogo_explicacao">Atualizar preço, validade e OBS é sempre livre e ilimitado. O limite conta só os itens ativos ao mesmo tempo. Excluir ou pausar um item libera espaço.</string>
+    <string name="catalogo_plano_ate">Plano até %1$s</string>
+    <string name="catalogo_itens_pausados">Itens pausados: %1$d</string>
+    <string name="catalogo_limite_atingido">Limite do plano atingido. Itens excedentes pausados.</string>
+    <string name="catalogo_pausados_pdv">%1$d pausado(s) por você (não contam no limite)</string>
+
+    <!-- Teste grátis de 30 dias e fim do plano -->
+    <string name="teste_faixa">Teste grátis até %1$s</string>
+    <string name="teste_termina_dias">Seu teste grátis termina em %1$d dias. Depois disso, o plano grátis mantém %2$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="teste_termina_amanha">Seu teste grátis termina amanhã. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="teste_termina_hoje">Seu teste grátis termina hoje. Depois disso, o plano grátis mantém %1$d itens ativos. Os outros ficam guardados, só pausados.</string>
+    <string name="plano_termina_dias">Seu plano %1$s termina em %2$d dias, em %3$s.</string>
+    <string name="plano_termina_amanha">Seu plano %1$s termina amanhã.</string>
+    <string name="plano_termina_hoje">Seu plano %1$s termina hoje.</string>
+    <string name="tolerancia_teste">Seu teste grátis terminou. Até %1$s seu catálogo continua liberado; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados.</string>
+    <string name="tolerancia_plano">Seu plano terminou. Até %1$s seu catálogo continua como estava; depois, o plano grátis mantém %2$d itens ativos e os outros ficam guardados, só pausados.</string>
+    <string name="itens_pausados_texto">Limite do plano atingido. Itens excedentes pausados. Eles continuam guardados, e você pode escolher quais ficam ativos.</string>
+
+    <!-- Validade da oferta do PDV (lista de itens e botão de data) -->
+    <string name="pdv_oferta_valida_ate">Oferta válida até %1$s</string>
+
+    <!-- Itens da tabela: pausar e reativar -->
+    <string name="item_estado_pausado">Pausado por você</string>
+    <string name="item_estado_pausado_limite">Pausado (limite do plano)</string>
+    <string name="item_estado_vencido">Vencido</string>
+    <string name="item_pausar">Pausar</string>
+    <string name="item_reativar">Reativar</string>
+    <string name="item_pausado_ok">Item pausado. Ele fica guardado e não aparece na busca.</string>
+    <string name="item_reativado_ok">Item reativado.</string>
+
+    <!-- Planos: textos usados pela tela do Admin -->
+    <string name="plano_limite_itens">Até %1$d itens ativos</string>
+    <string name="planos_fechar">Fechar</string>
+
+    <!-- Admin: planos dos PDVs -->
+    <string name="admin_planos_titulo">Planos dos PDVs</string>
+    <string name="admin_planos_texto">Ative, renove ou cancele o plano do PDV. Sem cálculo proporcional.</string>
+    <string name="admin_planos_abrir">Planos dos PDVs</string>
+    <string name="admin_banner_criar">Criar banner</string>
+    <string name="admin_banner_titulo">Banner de %1$s</string>
+    <string name="admin_banner_texto">O banner entra no ar na hora, com as visualizações combinadas. A imagem o dono coloca em \"Meu negócio\" (editar promoção).</string>
+    <string name="admin_planos_vazio">Nenhum estabelecimento encontrado.</string>
+    <string name="admin_plano_atual">Plano: %1$s</string>
+    <string name="admin_plano_ate">Plano até %1$s</string>
+    <string name="admin_teste_ate">Teste até %1$s</string>
+    <string name="admin_plano_vale_hoje">Vale hoje: %1$d itens (%2$s)</string>
+    <string name="admin_plano_ativar">Ativar ou renovar</string>
+    <string name="admin_plano_cancelar">Cancelar plano</string>
+    <string name="admin_plano_dialogo_titulo">Plano de %1$s</string>
+    <string name="admin_plano_validade">Válido até (dd/mm/aaaa)</string>
+    <string name="admin_plano_observacao">Observação (opcional)</string>
+    <string name="admin_plano_salvar">Salvar</string>
+    <string name="admin_plano_cancelar_texto">O PDV volta ao plano grátis agora. Se ainda estiver no teste grátis, o teste continua.</string>
+    <string name="admin_plano_data_invalida">Data inválida. Use dd/mm/aaaa, a partir de hoje.</string>
+
+    <!-- Importação da planilha com o limite do catálogo -->
+    <string name="importacao_importados">%1$d itens importados.</string>
+    <string name="importacao_fora">%1$d ficaram de fora porque o plano permite até %2$d itens.</string>
+    <string name="importacao_previa_entram">Vão entrar %1$d itens (novos e atualizados).</string>
+    <string name="importacao_previa_fora">%1$d itens novos ficariam de fora porque o plano permite até %2$d itens. As atualizações de preço entram todas.</string>
+    <string name="importacao_baixar_fora">Baixar a lista dos que ficaram de fora</string>
+
+    <!-- Editor de item: unidade e “a partir de” (serviços, MEIs) -->
+    <string name="item_unidade">Unidade do preço</string>
+    <string name="item_a_partir_de">Preço “a partir de” (bom para serviços)</string>
+    <string name="item_novo_no_catalogo">Item novo: ocupa 1 lugar no catálogo.</string>
+    <string name="item_atualizacao_livre">Atualização: sempre livre.</string>
+    <!-- Preço confiável: avisos, selo e denúncia -->
+    <string name="selo_menor_preco">MENOR PREÇO LANÇADO</string>
+    <string name="chip_confira_na_loja">Confira na loja</string>
+    <string name="chip_parte_de_combo">Parte de combo</string>
+    <string name="sobre_preco_icone">Sobre este preço</string>
+    <string name="sobre_preco_titulo">Sobre este preço</string>
+    <string name="sobre_preco_usuario">Este valor foi informado por um usuário a partir de uma nota fiscal e pode ter sido praticado em uma promoção, combo ou condição específica do estabelecimento. Os preços podem mudar sem aviso e seguem a política de cada loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_estabelecimento">Preço informado pelo próprio estabelecimento. Pode mudar sem aviso, conforme a política da loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_entendi">Entendi</string>
+    <string name="sobre_preco_nao_confere">Esse preço não confere</string>
+    <string name="aviso_resultados">Preços informados por terceiros e sujeitos a alteração. Confirme na loja.</string>
+    <string name="denuncia_titulo">O que não confere?</string>
+    <string name="denuncia_texto">Escolha um motivo, se quiser, e envie. Isso nos ajuda a revisar este preço.</string>
+    <string name="denuncia_motivo_combo">Era de combo ou promoção</string>
+    <string name="denuncia_motivo_preco_mudou">Preço mudou</string>
+    <string name="denuncia_motivo_produto_errado">Produto errado</string>
+    <string name="denuncia_motivo_outro">Outro</string>
+    <string name="denuncia_enviar">Enviar</string>
+    <string name="denuncia_cancelar">Cancelar</string>
+    <string name="denuncia_obrigado">Obrigado! Isso ajuda a manter os preços confiáveis.</string>
+    <string name="compartilhar_aviso_usuario">Preço informado por usuário e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
+    <string name="compartilhar_aviso_estabelecimento">Preço informado por estabelecimento e sujeito a alteração. Confirme na loja. Visto no Tabelapp.</string>
+    <!-- Minha conta, termos e privacidade -->
+    <string name="legal_termos">Termos de uso</string>
+    <string name="legal_privacidade">Política de privacidade</string>
+    <string name="legal_aceite">Li e aceito os Termos de uso e a Política de privacidade.</string>
+    <string name="legal_aceite_obrigatorio">Para criar a conta, leia e aceite os Termos de uso e a Política de privacidade.</string>
+    <string name="legal_fechar">Fechar</string>
+    <string name="menu_minha_conta">Minha conta</string>
+    <string name="conta_titulo">Minha conta</string>
+    <string name="conta_nome">Seu nome</string>
+    <string name="conta_salvar_nome">Salvar nome</string>
+    <string name="conta_nome_salvo">Nome atualizado.</string>
+    <string name="conta_email">E-mail: %1$s</string>
+    <string name="conta_tipo_pessoa">Conta de pessoa (pesquisa de preços)</string>
+    <string name="conta_tipo_estabelecimento">Conta de estabelecimento</string>
+    <string name="conta_tipo_admin">Conta de administração</string>
+    <string name="conta_documentos">Documentos</string>
+    <string name="conta_excluir">Excluir minha conta</string>
+    <string name="conta_excluir_explicacao">Você pode excluir a sua conta quando quiser. Os preços que você enviou continuam ajudando a cidade, mas sem nenhuma ligação com você.</string>
+    <string name="conta_excluir_titulo">Excluir a sua conta?</string>
+    <string name="conta_excluir_texto">Isso apaga a sua conta, as suas listas de compras e os seus dados pessoais, e não dá para desfazer. Os preços que você enviou ficam no histórico, sem identificar você.</string>
+    <string name="conta_excluir_texto_pdv">Como a sua conta é de estabelecimento, o cadastro da empresa, as lojas, a tabela de preços e as promoções também saem do Tabelapp.</string>
+    <string name="conta_excluir_digite">Para confirmar, digite EXCLUIR</string>
+    <string name="conta_excluir_palavra">EXCLUIR</string>
+    <string name="conta_excluir_confirmar">Excluir conta</string>
+    <string name="conta_excluir_cancelar">Cancelar</string>
+
+    <!-- Moderação do Admin -->
+    <string name="admin_denunciados_titulo">Preços denunciados (%1$d)</string>
+    <string name="admin_denunciados_texto">Pessoas tocaram em \"Esse preço não confere\". Remover tira o preço da busca (fica no histórico). Manter limpa as denúncias.</string>
+    <string name="admin_denunciados_vazio">Nenhum preço denunciado agora.</string>
+    <plurals name="admin_denuncias">
+        <item quantity="one">%1$d denúncia</item>
+        <item quantity="other">%1$d denúncias</item>
+    </plurals>
+    <string name="admin_motivo_combo">combo/promoção: %1$d</string>
+    <string name="admin_motivo_mudou">preço mudou: %1$d</string>
+    <string name="admin_motivo_produto">produto errado: %1$d</string>
+    <string name="admin_motivo_outro">outro: %1$d</string>
+    <string name="admin_fonte_oficial">preço oficial do estabelecimento</string>
+    <string name="admin_fonte_cliente">enviado por cliente</string>
+    <string name="admin_combo">parte de combo</string>
+    <string name="admin_manter">Manter</string>
+    <string name="admin_remover">Remover</string>
+    <string name="admin_remover_este_preco">Remover este preço (Admin)</string>
+    <string name="admin_remover_titulo">Remover este preço?</string>
+    <string name="admin_remover_texto">%1$s — %2$s em %3$s. O preço sai da busca na hora e fica guardado no histórico como removido.</string>
+    <string name="admin_estabelecimentos_titulo">Estabelecimentos</string>
+    <string name="admin_estabelecimentos_texto">Suspender tira os preços oficiais e os banners da busca, sem apagar nada. O dono vê o motivo em \"Meu negócio\". Reativar devolve tudo como estava.</string>
+    <string name="admin_estabelecimentos_busca">Buscar por nome ou CNPJ</string>
+    <string name="admin_estabelecimentos_buscar">Buscar</string>
+    <string name="admin_estabelecimentos_vazio">Nenhum estabelecimento aprovado encontrado.</string>
+    <string name="admin_estabelecimento_dono">Dono: %1$s</string>
+    <string name="admin_estabelecimento_itens">Itens publicados: %1$d</string>
+    <string name="admin_status_ativo">ATIVO</string>
+    <string name="admin_status_suspenso">SUSPENSO</string>
+    <string name="admin_suspender">Suspender</string>
+    <string name="admin_suspender_titulo">Suspender %1$s?</string>
+    <string name="admin_suspender_texto">Os preços oficiais e os banners saem da busca. Nenhum dado é apagado e você pode reativar depois.</string>
+    <string name="admin_suspender_motivo">Motivo (o dono vai ver)</string>
+    <string name="admin_reativar">Reativar</string>
+    <string name="admin_reativar_titulo">Reativar %1$s?</string>
+    <string name="admin_reativar_texto">Os preços oficiais e os banners voltam para a busca na hora.</string>
+
+    <!-- Estabelecimento suspenso (Meu negócio) -->
+    <string name="pdv_suspenso_titulo">Cadastro suspenso</string>
+    <string name="pdv_suspenso_motivo">Motivo: %1$s</string>
+    <string name="pdv_suspenso_texto">Enquanto o cadastro estiver suspenso, seus preços e banners não aparecem na busca. Nada foi apagado: ao reativar, tudo volta como estava. Fale com a gente para resolver.</string>
+    <string name="pdv_suspenso_fale_conosco">Fale conosco (WhatsApp)</string>
+
+    <!-- Pino da loja no mapa -->
+    <string name="loja_mapa_ok">Loja no mapa (pelo endereço)</string>
+    <string name="loja_mapa_ok_aparelho">Loja no mapa (pela localização do celular)</string>
+    <string name="loja_mapa_ajustar">Ajustar</string>
+    <string name="loja_mapa_localizando">Localizando a loja no mapa…</string>
+    <string name="loja_mapa_sem_pino">A loja ainda não está no mapa.</string>
+    <string name="loja_mapa_nao_achou">Não encontramos este endereço no mapa. Confira o endereço em \"Editar dados\" ou, estando na loja, marque pelo celular.</string>
+    <string name="loja_mapa_estou_titulo">Marcar a loja pelo celular?</string>
+    <string name="loja_mapa_estou_texto">Vamos usar a sua localização atual como o ponto da loja no mapa. Faça isso só quando estiver dentro da loja.</string>
+    <string name="loja_mapa_estou_confirmar">Estou na loja</string>
+    <string name="admin_mapa_titulo">Lojas no mapa</string>
+    <string name="admin_mapa_texto">Coloca no mapa as lojas cadastradas que ainda não têm pino, localizando o endereço de cada uma.</string>
+    <string name="admin_mapa_botao">Localizar lojas sem pino</string>
+
+    <!-- Arte do banner pago -->
+    <string name="promocoes_titulo">Seus banners</string>
+    <string name="promocoes_vazio">Nenhum banner ativo.</string>
+    <string name="promocoes_texto">Seus banners aparecem na busca (no topo e no lugar do 5º card). Aqui você edita o texto, o link, a imagem e as palavras-chave.</string>
+    <string name="promocao_excluir_texto">O banner sai da busca. Isso não dá para desfazer.</string>
+    <string name="promocao_arte_tamanho">Tamanho da arte: 1200 × 400 pixels (proporção 3 × 1). Formatos: JPG ou PNG, até 10 MB.</string>
+    <string name="promocao_arte_dica">Deixe textos e logotipo no centro, longe das bordas: em celulares mais estreitos as laterais são cortadas. Sem imagem, o banner mostra o título e o texto nas cores do Tabelapp.</string>
+
+    <!-- Empresa anunciante (sem ponto de venda) -->
+    <string name="anunciante_opcao_loja_titulo">Tenho loja ou ponto de venda</string>
+    <string name="anunciante_opcao_loja_texto">Publico minha tabela de preços. Precisa da foto do alvará.</string>
+    <string name="anunciante_opcao_anunciante_titulo">Anunciante</string>
+    <string name="anunciante_opcao_anunciante_texto">Produtor, marca ou prestador que não vende direto ao público: aparece nos banners da busca, sem loja nem tabela de preços. Precisa do comprovante do CNPJ.</string>
+    <string name="anunciante_intro">Cadastre sua empresa como anunciante. Para evitar fraudes, pedimos o comprovante do CNPJ: nossa equipe confere se você responde pela empresa antes de liberar.</string>
+    <string name="anunciante_trocar_para_loja">Tenho loja ou ponto de venda? Trocar</string>
+    <string name="anunciante_trocar_para_anunciante">Não tenho loja, sou anunciante? Trocar</string>
+    <string name="anunciante_documento">Fotografe o alvará, o cartão CNPJ ou o contrato social, com o CNPJ bem legível.</string>
+    <string name="anunciante_endereco">Endereço da empresa, só para a nossa análise: não aparece como loja na busca nem no mapa.</string>
+    <string name="anunciante_painel">Conta de anunciante: seus banners aparecem aqui quando estiverem ativos.</string>
+    <string name="admin_tipo_anunciante">ANUNCIANTE (sem ponto de venda)</string>
+</resources>

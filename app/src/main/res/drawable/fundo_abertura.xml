@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Janela de abertura (Android 8 a 11): fundo escuro do tema com a lupa da marca no centro. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/fundo" />
+    <item
+        android:width="192dp"
+        android:height="192dp"
+        android:gravity="center"
+        android:drawable="@drawable/logo_abertura" />
+</layer-list>

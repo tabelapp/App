@@ -1,0 +1,58 @@
+[versions]
+agp = "8.11.1"
+kotlin = "2.3.21"
+coroutines = "1.10.2"
+serialization = "1.9.0"
+supabase = "3.6.0"
+ktor = "3.4.3"
+composeBom = "2025.06.01"
+activityCompose = "1.12.4"
+lifecycle = "2.9.1"
+coreKtx = "1.16.0"
+junit = "4.13.2"
+jsoup = "1.23.2"
+codeScanner = "16.1.0"
+textRecognition = "19.0.1"
+mapsCompose = "6.12.2"
+playServicesMaps = "19.2.0"
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+
+supabase-bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabase" }
+supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt" }
+supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
+supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt" }
+supabase-compose-auth = { module = "io.github.jan-tennert.supabase:compose-auth" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
+
+junit = { module = "junit:junit", version.ref = "junit" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+# Leitor de QR Code do Google (tela pronta, não precisa pedir permissão de câmera).
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
+# Leitura do texto da foto do alvará no celular (modelo baixado pelo Google Play, APK fica leve).
+play-services-text-recognition = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "textRecognition" }
+# Mapa de preços ("Ver no mapa"): Google Maps para Compose.
+maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
