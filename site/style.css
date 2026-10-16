@@ -1,4 +1,4 @@
-/* Tabelapp — site estático. Mesma paleta escura do app; o amarelo da marca só em detalhes. */
+/* Tabelapp — site estático. Mesma paleta escura do app; destaque no amarelo da marca (o mesmo da logo). */
 :root {
   --fundo: #16171C;
   --topo: #283847;
@@ -7,9 +7,9 @@
   --texto: #ECEDEF;
   --texto-2: #A9ACB1;
   --contorno: #3F4246;
-  --destaque: #F08A45;
-  --sobre-destaque: #1A0E06;
-  --amarelo: #FFE000;
+  --amarelo: #FDDE03;
+  --destaque: var(--amarelo);
+  --sobre-destaque: #1A1600;
   --whatsapp: #1FA855;
 }
 * { box-sizing: border-box; }
