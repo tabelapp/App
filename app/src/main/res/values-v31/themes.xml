@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+: a abertura é a tela de splash do sistema. Fundo escuro e a lupa da marca no centro. -->
+    <!-- Android 12+: splash do sistema no amarelo da marca com a lupa no centro; depois a abertura
+         do app (RaizApp, TelaAbertura) continua no mesmo amarelo, com a lupa no mesmo lugar. -->
     <style name="Theme.Tabelapp" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/fundo</item>
         <item name="android:statusBarColor">@color/topo</item>
         <item name="android:navigationBarColor">@color/barra_inferior</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:colorAccent">@color/destaque</item>
-        <item name="android:windowSplashScreenBackground">@color/fundo</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/logo_abertura</item>
+        <item name="android:windowSplashScreenBackground">@color/amarelo_marca</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/lupa_marca</item>
     </style>
 </resources>
