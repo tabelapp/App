@@ -1,8 +1,8 @@
 # Termos de Uso do Tabelapp
 
-Versão de 13 de outubro de 2026.
+Versão de 16 de outubro de 2026.
 
-Ao criar uma conta ou usar o Tabelapp, você concorda com estes termos. Leia com calma; se tiver dúvidas, fale com a gente pelo WhatsApp (24) 98802-9067 ou pelo e-mail tabelapp.economia@gmail.com.
+Ao criar uma conta ou usar o Tabelapp, você concorda com estes termos. O Tabelapp é mantido por Thomaz Correa Guimarães da Cunha (pessoa física). Leia com calma; se tiver dúvidas, fale com a gente pelo e-mail tabelapp.economia@gmail.com.
 
 ## O que é o Tabelapp
 
