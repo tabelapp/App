@@ -1525,4 +1525,33 @@ do $$ begin
   assert exists (select 1 from public.assinaturas_log where cnpj = '11444777000161'), 'o registro de assinaturas fica';
 end $$;
 
+\echo '== Banner criado pelo Admin (o app não vende: combinado fora do app)'
+set role authenticated;
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  begin
+    perform public.admin_criar_banner('90000000-0000-4000-b000-00000000000a', 'X', null, null, null, 100);
+    assert false, 'só o Admin cria banner';
+  exception when raise_exception then
+    assert sqlerrm = 'sem_permissao';
+  end;
+end $$;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare promo uuid;
+begin
+  promo := public.admin_criar_banner('90000000-0000-4000-b000-00000000000a', '  Semana do Gil ', 'Tudo fresco',
+                                     null, array['gil', ' ', 'gil'], 250);
+  assert (select status = 'ativa' and visualizacoes_contratadas = 250 and titulo = 'Semana do Gil'
+                 and palavras_chave = array['gil'] from public.promocoes where id = promo);
+  assert not exists (select 1 from public.pagamentos where promocao_id = promo), 'sem registro de pagamento';
+  begin
+    perform public.admin_criar_banner('90000000-0000-4000-b000-00000000000a', 'X', null, null, null, 0);
+    assert false, 'visualizações inválidas';
+  exception when raise_exception then
+    assert sqlerrm = 'pacote_invalido';
+  end;
+end $$;
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'
