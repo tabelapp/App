@@ -1,12 +1,12 @@
 # Política de Privacidade do Tabelapp
 
-Versão de 13 de outubro de 2026.
+Versão de 16 de outubro de 2026.
 
 O Tabelapp reúne preços de produtos e serviços para que as pessoas possam comparar antes de comprar. Esta política explica, de forma simples, quais dados usamos, por que usamos e quais são os seus direitos, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, a LGPD).
 
 ## Quem é o responsável
 
-O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarães da Cunha, criador do Tabelapp. Fale com a gente pelo WhatsApp (24) 98802-9067 ou pelo e-mail tabelapp.economia@gmail.com.
+O responsável pelo tratamento dos dados (controlador) é o Tabelapp, mantido por Thomaz Correa Guimarães da Cunha (pessoa física). Contato oficial: tabelapp.economia@gmail.com.
 
 ## Quais dados usamos
 
@@ -32,6 +32,8 @@ O responsável pelo tratamento dos dados (controlador) é Thomaz Correa Guimarã
 
 As bases legais são a execução do serviço que você pediu, o nosso legítimo interesse em manter o app seguro e confiável e, quando for o caso, o seu consentimento (como a localização).
 
+Se você escolher gerar a cópia da nota em PDF, ela é criada no seu próprio celular e vai só para onde você mandar; o Tabelapp não guarda essa cópia.
+
 ## O que fica público
 
 Os preços, os produtos e os dados do estabelecimento (nome, endereço, telefone e site) aparecem na busca para quem usa o app. Quem enviou cada preço nunca aparece.
@@ -48,11 +50,15 @@ Não vendemos dados. Usamos serviços de terceiros para o app funcionar:
 
 ## Por quanto tempo guardamos
 
-Os dados da conta ficam enquanto a conta existir. Os preços ficam guardados como histórico de preços da cidade; quando você exclui a sua conta, eles continuam no histórico, mas sem nenhuma ligação com você.
+Os dados da conta ficam enquanto a conta existir. Quando você exclui a conta, apagamos a conta, as listas e os dados pessoais na hora. Ficam guardados:
+
+- Os preços enviados, como histórico de preços da cidade, sem nenhuma ligação com você.
+- Para empresas: o CNPJ e as datas do teste grátis e dos planos ativados, para controle do teste (um por CNPJ) e registro das contratações.
+- Fotos de documentos e artes de banner enviadas são apagadas pela nossa equipe em até 30 dias depois da exclusão da conta.
 
 ## Seus direitos
 
-Você pode, a qualquer momento: saber quais dados temos, corrigir dados, pedir a portabilidade, revogar consentimentos e excluir a sua conta. Em "Minha conta", no menu do app, você edita o seu nome e exclui a conta. Se não tiver mais o app instalado, peça a exclusão pelo WhatsApp ou pelo e-mail acima. Para os demais pedidos, fale com a gente. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
+Você pode, a qualquer momento: saber quais dados temos, corrigir dados, pedir a portabilidade, revogar consentimentos e excluir a sua conta. Em "Minha conta", no menu do app, você edita o seu nome e exclui a conta. Se não tiver mais o app instalado, peça a exclusão pelo e-mail tabelapp.economia@gmail.com, com o assunto "Excluir conta" (atendimento em até 30 dias). Para os demais pedidos, fale com a gente. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
 
 ## Segurança
 

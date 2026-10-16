@@ -1,14 +1,14 @@
 /*
- * Configuração do site do Tabelapp: o ÚNICO lugar para trocar o contato.
- * whatsapp: só números, com 55 + DDD (é o mesmo número do app, em
- * app/.../core/ContatoTabelapp.kt). Deixe "" para esconder os botões de WhatsApp.
+ * Número de WhatsApp dos botões do site: o ÚNICO lugar para trocá-lo.
+ * Só números, com 55 + DDD (o mesmo do app, em core/.../Pdv.kt, ContatoTabelapp).
+ * Deixe "" para esconder os botões de WhatsApp.
+ * O e-mail de contato é fixo nas páginas (scripts/gerar-site.py, EMAIL).
  */
 window.TABELAPP = {
-  whatsapp: "5524988029067",
-  email: "tabelapp.economia@gmail.com"
+  whatsapp: "5524988029067"
 };
 
-/* Preenche os links de contato marcados nas páginas (não precisa mexer aqui). */
+/* Preenche os botões de WhatsApp marcados nas páginas (não precisa mexer aqui). */
 document.addEventListener("DOMContentLoaded", function () {
   var c = window.TABELAPP || {};
   document.querySelectorAll("[data-whatsapp]").forEach(function (el) {
@@ -16,11 +16,5 @@ document.addEventListener("DOMContentLoaded", function () {
     var msg = el.getAttribute("data-whatsapp");
     el.href = "https://wa.me/" + c.whatsapp + (msg ? "?text=" + encodeURIComponent(msg) : "");
     el.hidden = false;
-  });
-  document.querySelectorAll("[data-email]").forEach(function (el) {
-    if (!c.email) return;
-    var assunto = el.getAttribute("data-email");
-    el.href = "mailto:" + c.email + (assunto ? "?subject=" + encodeURIComponent(assunto) : "");
-    if (!el.textContent.trim()) el.textContent = c.email;
   });
 });
