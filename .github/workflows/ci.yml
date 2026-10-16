@@ -30,6 +30,8 @@ jobs:
         run: scripts/juntar-migracoes.sh --conferir
       - name: Site em dia com os textos do app (python3 scripts/gerar-site.py)
         run: python3 scripts/gerar-site.py && git diff --exit-code -- site
+      - name: Site sem link quebrado (python3 scripts/conferir-site.py)
+        run: python3 scripts/conferir-site.py
 
   android:
     name: App Android (testes + APK de debug)

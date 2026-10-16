@@ -6,7 +6,8 @@
 - index.html, planos.html e excluir-conta.html saem de scripts/site/*.html
   (só o miolo da página; cabeçalho e rodapé são aplicados aqui).
 
-O contato (WhatsApp e e-mail) fica só em site/config.js.
+Contato oficial: EMAIL abaixo (link mailto: estático, funciona sem JavaScript).
+O número de WhatsApp dos botões fica só em site/config.js.
 
 Uso: python3 scripts/gerar-site.py
 """
@@ -18,6 +19,7 @@ RAIZ = pathlib.Path(__file__).resolve().parent.parent
 TEXTOS_APP = RAIZ / "app/src/main/res/raw"
 FONTES = RAIZ / "scripts/site"
 DESTINO = RAIZ / "site"
+EMAIL = "tabelapp.economia@gmail.com"
 
 # A lupa com cifrão da logomarca (app/src/main/res/drawable/logo_lupa.xml).
 LOGO = (
@@ -60,8 +62,7 @@ MODELO = """<!doctype html>
 </main>
 <footer><div class="barra">
 <p><strong>Tabelapp — Quem pesquisa economiza</strong></p>
-<p>Contato: <a data-email="Contato pelo site"></a> · <a data-whatsapp="Olá! Vim pelo site do Tabelapp." hidden>WhatsApp</a></p>
-<p>CNPJ: em breve</p>
+<p>Fale com a gente: <a href="mailto:{email}">{email}</a></p>
 </div></footer>
 </body>
 </html>
@@ -76,7 +77,7 @@ def pagina(arquivo: str, titulo: str, corpo: str, texto_longo: bool, descricao: 
     (DESTINO / arquivo).write_text(
         MODELO.format(
             titulo=html.escape(titulo), descricao=html.escape(descricao), favicon=FAVICON, logo=LOGO, menu=menu,
-            classe=' class="texto"' if texto_longo else "", corpo=corpo.strip(),
+            classe=' class="texto"' if texto_longo else "", corpo=corpo.strip(), email=EMAIL,
         ),
         encoding="utf-8",
     )
@@ -85,7 +86,9 @@ def pagina(arquivo: str, titulo: str, corpo: str, texto_longo: bool, descricao: 
 
 def inline(texto: str) -> str:
     t = html.escape(texto)
-    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)
+    t = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)
+    # O e-mail de contato vira link (mailto:), igual ao rodapé.
+    return t.replace(EMAIL, f'<a href="mailto:{EMAIL}">{EMAIL}</a>')
 
 
 def converter(md: str) -> tuple[str, str]:

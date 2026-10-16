@@ -39,9 +39,11 @@ O site fica em `site/` e é publicado pela automação `.github/workflows/site.y
 | **Exclusão de conta** | https://tabelapp.github.io/App/excluir-conta.html |
 | Planos (venda fora do app) | https://tabelapp.github.io/App/planos.html |
 
-- O WhatsApp e o e-mail do site ficam **só** em `site/config.js`.
-- Rodapé: "CNPJ: em breve". Quando houver CNPJ, troque em `scripts/gerar-site.py` (modelo) e rode
-  `python3 scripts/gerar-site.py`.
+- Contato oficial: **tabelapp.economia@gmail.com** (link mailto: em todas as páginas, definido em
+  `scripts/gerar-site.py`). O número dos botões de WhatsApp fica só em `site/config.js`.
+- O site não cita CNPJ do Tabelapp (ainda não existe). O responsável aparece como "Tabelapp, mantido
+  por Thomaz Correa Guimarães da Cunha (pessoa física)" na privacidade e nos termos.
+- `python3 scripts/conferir-site.py` confere links (nenhum 404 em /App/), menu e contato; o CI roda.
 - Privacidade e termos saem dos mesmos textos do app (`app/src/main/res/raw/*.md`). Mudou o texto?
   Rode `python3 scripts/gerar-site.py`; o CI falha se o site estiver desatualizado.
 
