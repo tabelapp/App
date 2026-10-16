@@ -4,7 +4,7 @@
 Essenciais para lançar:
 - [x] **Conta do usuário:** editar nome e **excluir a conta pelo app** ("Minha conta", no menu da busca).
 - [x] **Política de privacidade e termos de uso:** textos em `app/src/main/res/raw/*.md`, no menu, em Minha conta
-      e com aceite no cadastro. Páginas web em `docs/site/` (falta publicar).
+      e com aceite no cadastro. Páginas web em `site/` (GitHub Pages, ver docs/PUBLICACAO.md).
 - [x] **Moderação do Admin no app:** preços denunciados (Remover/Manter), "Remover este preço" no ⓘ do card,
       suspender/reativar um PDV aprovado com motivo (o dono vê em "Meu negócio").
 - [x] **Coordenadas das lojas cadastradas:** o painel do PDV localiza o endereço e grava no banco (loja nova,
@@ -43,7 +43,7 @@ Serviços:
 - [ ] **Sua conta como Admin** no banco (SQL do README, passo 9), se ainda não fez.
 
 Jurídico e negócio:
-- [ ] **Publicar a Política de Privacidade e os Termos** num endereço web (`docs/site/`); revisão de advogado.
+- [ ] **Publicar a Política de Privacidade e os Termos** num endereço web (`site/`, GitHub Pages); revisão de advogado.
 - [ ] **Recebimento por Pix:** chave Pix e rotina de conferir o pagamento antes de ativar plano/banner no Admin.
 - [ ] Conferir o **WhatsApp do Tabelapp** em `configuracao_app.whatsapp_contato` (usado em "Assinar pelo WhatsApp").
 - [ ] Definir o **link de download** usado no compartilhamento.

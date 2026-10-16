@@ -28,6 +28,8 @@ jobs:
       - run: scripts/testar-banco.sh
       - name: instalar_tudo.sql em dia com as migrações
         run: scripts/juntar-migracoes.sh --conferir
+      - name: Site em dia com os textos do app (python3 scripts/gerar-site.py)
+        run: python3 scripts/gerar-site.py && git diff --exit-code -- site
 
   android:
     name: App Android (testes + APK de debug)

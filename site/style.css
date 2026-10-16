@@ -1,0 +1,56 @@
+/* Tabelapp — site estático. Mesma paleta escura do app; o amarelo da marca só em detalhes. */
+:root {
+  --fundo: #16171C;
+  --topo: #283847;
+  --cartao: #26282B;
+  --superficie: #2A2C30;
+  --texto: #ECEDEF;
+  --texto-2: #A9ACB1;
+  --contorno: #3F4246;
+  --destaque: #F08A45;
+  --sobre-destaque: #1A0E06;
+  --amarelo: #FFE000;
+  --whatsapp: #1FA855;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--fundo); color: var(--texto);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--destaque); }
+header.topo { background: var(--topo); border-bottom: 2px solid var(--amarelo); }
+.barra { max-width: 960px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.marca { display: flex; align-items: center; gap: 10px; color: var(--texto); text-decoration: none; font-weight: 800; font-size: 22px; }
+.marca svg { width: 36px; height: 36px; flex: none; }
+nav { display: flex; gap: 4px 16px; flex-wrap: wrap; margin-left: auto; }
+nav a { color: var(--texto); text-decoration: none; font-size: 15px; padding: 4px 0; }
+nav a[aria-current="page"] { color: var(--destaque); font-weight: 700; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+main.texto { max-width: 760px; }
+h1 { font-size: 28px; line-height: 1.25; margin: 8px 0 12px; }
+h2 { font-size: 20px; margin-top: 32px; }
+p, li { color: var(--texto); }
+.sub { color: var(--texto-2); }
+.hero { padding: 24px 0 8px; }
+.hero h1 { font-size: 34px; }
+.grade { display: grid; gap: 16px; grid-template-columns: 1fr; margin-top: 20px; }
+@media (min-width: 640px) { .grade { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .grade.quatro { grid-template-columns: repeat(4, 1fr); } }
+.cartao { background: var(--cartao); border: 1px solid var(--contorno); border-radius: 12px; padding: 18px; }
+.cartao h3 { margin: 0 0 6px; font-size: 18px; }
+.cartao.destaque { border: 2px solid var(--amarelo); }
+.preco { font-size: 28px; font-weight: 800; color: #FFFFFF; margin: 6px 0 0; }
+.preco small { font-size: 15px; font-weight: 400; color: var(--texto-2); }
+.itens { color: var(--texto-2); margin: 2px 0 0; }
+.botao {
+  display: inline-block; background: var(--destaque); color: var(--sobre-destaque); font-weight: 700;
+  text-decoration: none; padding: 12px 20px; border-radius: 24px; margin-top: 12px;
+}
+.botao.whatsapp { background: var(--whatsapp); color: #FFFFFF; }
+.aviso { background: var(--superficie); border-left: 3px solid var(--amarelo); padding: 12px 16px; border-radius: 6px; margin: 20px 0; }
+ol li, ul li { margin: 4px 0; }
+footer { border-top: 1px solid var(--contorno); color: var(--texto-2); font-size: 14px; }
+footer .barra { display: block; padding: 20px 16px 32px; }
+footer p { margin: 4px 0; color: var(--texto-2); }
+footer strong { color: var(--texto); }
