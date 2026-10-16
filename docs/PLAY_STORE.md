@@ -1,5 +1,7 @@
 # Versão para a Play Store — passo a passo
 
+> Guia completo de publicação (conta, teste fechado, Data safety, ficha da loja): `docs/PUBLICACAO.md`.
+
 O app já está pronto para gerar o pacote da Play Store (AAB). Falta só a **chave de envio**, que
 você cria e guarda. **Nunca envie a senha ou o arquivo da chave para ninguém** (nem para o Claude):
 eles vão só para os secrets do GitHub, cadastrados por você.

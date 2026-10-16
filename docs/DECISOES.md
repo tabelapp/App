@@ -321,3 +321,23 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
 - Notificação ao Admin sobre novas pendências.
 - Chave da API de mapas (para o relatório "no mapa" da lista de compras).
 - Política de privacidade e termos de uso (obrigatórios para publicar na Play Store).
+
+## App da Google Play sem superfície de venda (16/10/2026)
+
+Decisão do fundador, por causa da política de pagamentos da Google Play:
+
+- **O app não vende nada.** Planos e anúncios são vendidos **fora do app** (site, WhatsApp, visita).
+  A ativação continua **manual pelo Admin**.
+- O PDV vê só o **estado**: "Plano: X", "Teste grátis até dd/mm", "Itens ativos X de Y",
+  "Itens pausados: N" e, no limite, a mensagem neutra "Limite do plano atingido. Itens excedentes
+  pausados." Sem preço, sem botão de compra, sem link de pagamento.
+- Saíram do app: tela de planos com valores, "Assinar pelo WhatsApp", Pix, criação e pagamento de
+  banner pelo PDV e o espaço "Anuncie aqui" (virou uma mensagem do Tabelapp, sem toque).
+- **Banners:** o Admin cria o banner já no ar (Admin → Planos dos PDVs → Criar banner, função
+  `admin_criar_banner`), com as visualizações combinadas fora do app. O dono edita texto, link,
+  imagem e palavras-chave em "Meu negócio".
+- WhatsApp no app só para suporte, falar com a loja e compartilhar preço.
+- A tela do Admin mantém tudo (inclusive preços dos planos); só contas de Admin a veem.
+- Termos e política: "as condições comerciais são informadas fora do aplicativo".
+- Preços e contratação ficam no site (`site/planos.html`). O teste `app sem superficie de venda`
+  (core) falha se algum texto do app voltar a falar de compra.
