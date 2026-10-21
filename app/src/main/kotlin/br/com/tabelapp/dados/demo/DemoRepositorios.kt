@@ -3,6 +3,7 @@ package br.com.tabelapp.dados.demo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import br.com.tabelapp.core.Banner
+import br.com.tabelapp.core.BannerDenunciado
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.ConfigConfianca
@@ -144,15 +145,16 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
             .filter { it.id !in banco.removidos && it.pdvId !in suspensos }
     }
 
-    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> =
+    override suspend fun banners(termo: String?, posicao: PontoGeo?): List<Banner> = (
         banco.promocoesDemo.filter { it.second.status == "ativa" }.map { (_, p) ->
             Banner(p.id, "Seu banner (demonstração)", p.titulo, p.descricao, null, p.link)
         } + listOf(
-        Banner("demo-1", "Supermercado Serra Imperial", "Semana do hortifrúti",
-            "Frutas e verduras com até 30% de desconto. Só até domingo!", null),
-        Banner("demo-2", "Empório Itaipava", "Queijos e vinhos da serra",
-            "3 por 2 em queijos artesanais.", null),
-    )
+            Banner("demo-1", "Supermercado Serra Imperial", "Semana do hortifrúti",
+                "Frutas e verduras com até 30% de desconto. Só até domingo!", null),
+            Banner("demo-2", "Empório Itaipava", "Queijos e vinhos da serra",
+                "3 por 2 em queijos artesanais.", null),
+        )
+    ).filter { it.id !in banco.bannersPausados }
 
     override suspend fun registrarVisualizacao(bannerId: String) {}
 
@@ -161,6 +163,14 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
     override suspend fun denunciar(cotacaoId: String, motivo: String?): Boolean {
         delay(200)
         return banco.denuncias.add(cotacaoId)
+    }
+
+    override suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean {
+        delay(200)
+        val banner = banners(null, null).firstOrNull { it.id == promocaoId } ?: return false
+        if (promocaoId in banco.bannersDenunciados) return false
+        banco.bannersDenunciados[promocaoId] = banner to motivo
+        return true
     }
 }
 
@@ -180,6 +190,9 @@ class DemoBanco {
     val denuncias = mutableSetOf<String>()
     /** Preços removidos pelo Admin na demonstração. */
     val removidos = mutableSetOf<String>()
+    /** Banners denunciados (com o motivo) e pausados pelo Admin na demonstração. */
+    val bannersDenunciados = mutableMapOf<String, Pair<Banner, String?>>()
+    val bannersPausados = mutableSetOf<String>()
 }
 
 /** Planos da demonstração (no app real vêm da tabela `planos`). */
@@ -523,6 +536,29 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
     override suspend fun manterCotacao(cotacaoId: String) {
         delay(200)
         banco.denuncias -= cotacaoId
+    }
+
+    override suspend fun bannersDenunciados(): List<BannerDenunciado> {
+        delay(200)
+        return banco.bannersDenunciados.map { (id, par) ->
+            val (b, motivo) = par
+            BannerDenunciado(
+                id, b.pdvNome, b.titulo, b.descricao, b.link, denuncias = 1,
+                enganoso = if (motivo == "enganoso") 1 else 0, ofensivo = if (motivo == "ofensivo") 1 else 0,
+                golpe = if (motivo == "golpe") 1 else 0, outros = if (motivo == null || motivo == "outro") 1 else 0,
+            )
+        }
+    }
+
+    override suspend fun pausarBanner(promocaoId: String, motivo: String?) {
+        delay(200)
+        banco.bannersPausados += promocaoId
+        banco.bannersDenunciados -= promocaoId
+    }
+
+    override suspend fun manterBanner(promocaoId: String) {
+        delay(200)
+        banco.bannersDenunciados -= promocaoId
     }
 
     override suspend fun estabelecimentos(busca: String?): List<PdvAdmin> {

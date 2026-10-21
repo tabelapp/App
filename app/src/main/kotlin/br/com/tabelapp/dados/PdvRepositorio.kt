@@ -1,5 +1,6 @@
 package br.com.tabelapp.dados
 
+import br.com.tabelapp.core.BannerDenunciado
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.DadosReceita
 import br.com.tabelapp.core.LojaPdv
@@ -117,6 +118,15 @@ interface PdvRepositorio {
     // --- Moderação (Admin) ---
     /** Preços com denúncia "Esse preço não confere", os mais denunciados primeiro. */
     suspend fun precosDenunciados(): List<PrecoDenunciado>
+
+    /** Banners denunciados, os mais denunciados primeiro. */
+    suspend fun bannersDenunciados(): List<BannerDenunciado>
+
+    /** Tira o banner do ar (fica pausado; o dono vê em "Meu negócio"). */
+    suspend fun pausarBanner(promocaoId: String, motivo: String? = null)
+
+    /** O banner está certo: limpa as denúncias. */
+    suspend fun manterBanner(promocaoId: String)
 
     /** Tira o preço da busca (fica no histórico como excluído). */
     suspend fun removerCotacao(cotacaoId: String, motivo: String? = null)
