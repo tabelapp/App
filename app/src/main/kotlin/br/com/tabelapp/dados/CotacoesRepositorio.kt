@@ -26,4 +26,10 @@ interface CotacoesRepositorio {
      * @return false se a pessoa já tinha avisado sobre este preço.
      */
     suspend fun denunciar(cotacaoId: String, motivo: String?): Boolean
+
+    /**
+     * "Denunciar este banner". @param motivo enganoso | ofensivo | golpe | outro (opcional).
+     * @return false se a pessoa já tinha denunciado este banner.
+     */
+    suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean
 }

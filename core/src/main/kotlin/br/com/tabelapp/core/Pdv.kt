@@ -199,6 +199,20 @@ data class NomeSugerido(
 )
 
 /** Preço denunciado ("Esse preço não confere"), na fila de moderação do Admin. */
+/** Banner com denúncias ("Denunciar este banner"), na fila do Admin. */
+data class BannerDenunciado(
+    val promocaoId: String,
+    val pdvNome: String,
+    val titulo: String,
+    val descricao: String?,
+    val link: String?,
+    val denuncias: Int,
+    val enganoso: Int,
+    val ofensivo: Int,
+    val golpe: Int,
+    val outros: Int,
+)
+
 data class PrecoDenunciado(
     val cotacaoId: String,
     val produto: String,

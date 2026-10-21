@@ -53,6 +53,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
+import br.com.tabelapp.core.BannerDenunciado
 import br.com.tabelapp.core.Cnpj
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.MapaPrecos
@@ -88,6 +89,7 @@ data class EstadoAdmin(
     val nomes: List<NomeSugerido> = emptyList(),
     val pagamentos: List<PagamentoPendente> = emptyList(),
     val denunciados: List<PrecoDenunciado> = emptyList(),
+    val bannersDenunciados: List<BannerDenunciado> = emptyList(),
     val estabelecimentos: List<PdvAdmin> = emptyList(),
     val buscaPdv: String = "",
     val buscandoPdv: Boolean = false,
@@ -116,11 +118,12 @@ class AdminViewModel(
                 val nomes = repositorio.nomesSugeridos()
                 val pagamentos = repositorio.pagamentosPendentes()
                 val denunciados = repositorio.precosDenunciados()
+                val banners = repositorio.bannersDenunciados()
                 val estabelecimentos = repositorio.estabelecimentos(_estado.value.buscaPdv)
                 _estado.update {
                     it.copy(
                         carregando = false, pendentes = lista, nomes = nomes, pagamentos = pagamentos,
-                        denunciados = denunciados, estabelecimentos = estabelecimentos,
+                        denunciados = denunciados, bannersDenunciados = banners, estabelecimentos = estabelecimentos,
                     )
                 }
             } catch (e: ErroAmigavel) {
@@ -164,6 +167,21 @@ class AdminViewModel(
             try {
                 if (confirmar) repositorio.confirmarPagamento(p.id) else repositorio.cancelarPagamento(p.id)
                 _estado.update { e -> e.copy(ocupado = null, pagamentos = e.pagamentos.filter { it.id != p.id }) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(ocupado = null, erro = e.message) }
+            }
+        }
+    }
+
+    /** Banner denunciado: [pausar] tira do ar; senão mantém e limpa as denúncias. */
+    fun moderarBanner(b: BannerDenunciado, pausar: Boolean) {
+        _estado.update { it.copy(ocupado = b.promocaoId, erro = null) }
+        viewModelScope.launch {
+            try {
+                if (pausar) repositorio.pausarBanner(b.promocaoId) else repositorio.manterBanner(b.promocaoId)
+                _estado.update { e ->
+                    e.copy(ocupado = null, bannersDenunciados = e.bannersDenunciados.filter { it.promocaoId != b.promocaoId })
+                }
             } catch (e: ErroAmigavel) {
                 _estado.update { it.copy(ocupado = null, erro = e.message) }
             }
@@ -372,6 +390,24 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                             ocupado = estado.ocupado == p.cotacaoId,
                             aoRemover = { removendo = p },
                             aoManter = { vm.moderarPreco(p, remover = false) },
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.admin_banners_titulo, estado.bannersDenunciados.size),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(stringResource(R.string.admin_banners_texto), style = MaterialTheme.typography.bodySmall)
+                    if (estado.bannersDenunciados.isEmpty()) {
+                        Text(stringResource(R.string.admin_banners_vazio), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    estado.bannersDenunciados.forEach { b ->
+                        CartaoBannerDenunciado(
+                            b = b,
+                            ocupado = estado.ocupado == b.promocaoId,
+                            aoPausar = { vm.moderarBanner(b, pausar = true) },
+                            aoManter = { vm.moderarBanner(b, pausar = false) },
                         )
                     }
                     SecaoEstabelecimentos(
@@ -599,6 +635,33 @@ private fun CartaoPagamento(p: PagamentoPendente, ocupado: Boolean, aoConfirmar:
                 OutlinedButton(onClick = aoCancelar, enabled = !ocupado, modifier = Modifier.weight(1f)) { Text("Cancelar pedido") }
                 Button(onClick = aoConfirmar, enabled = !ocupado, modifier = Modifier.weight(1f)) {
                     if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Pago")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CartaoBannerDenunciado(b: BannerDenunciado, ocupado: Boolean, aoPausar: () -> Unit, aoManter: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(b.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(b.pdvNome, style = MaterialTheme.typography.bodySmall)
+            b.descricao?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            b.link?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Text(
+                pluralStringResource(R.plurals.admin_denuncias, b.denuncias, b.denuncias),
+                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error,
+            )
+            Text(stringResource(R.string.admin_banner_motivos, b.enganoso, b.ofensivo, b.golpe, b.outros),
+                style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = aoManter, enabled = !ocupado, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.admin_manter))
+                }
+                Button(onClick = aoPausar, enabled = !ocupado, modifier = Modifier.weight(1f)) {
+                    if (ocupado) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Text(stringResource(R.string.admin_banner_pausar))
                 }
             }
         }

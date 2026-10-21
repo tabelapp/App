@@ -122,6 +122,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
     val contexto = LocalContext.current
     var pdvAberto by remember { mutableStateOf<Cotacao?>(null) }
     var sobrePreco by remember { mutableStateOf<Cotacao?>(null) }
+    var denunciandoBanner by remember { mutableStateOf<Banner?>(null) }
     var verMapa by remember { mutableStateOf(false) }
 
     // No mapa, mostramos onde a pessoa está: pede a permissão (uma vez) ao abrir. Negar não impede o mapa.
@@ -169,7 +170,10 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
     ) { margens ->
         Column(Modifier.padding(margens).fillMaxSize()) {
             // Topo, bloco de busca e cards têm a mesma altura (a de um card de preço).
-            BannerPatrocinado(estado.bannersTopo, aoExibir = vm::bannerExibido, aoTocar = ::tocarBanner)
+            BannerPatrocinado(
+                estado.bannersTopo, aoExibir = vm::bannerExibido, aoTocar = ::tocarBanner,
+                aoDenunciar = { denunciandoBanner = it },
+            )
             BlocoBusca(
                 estado = estado,
                 vm = vm,
@@ -209,6 +213,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                                         estado.bannersMeio,
                                         aoExibir = vm::bannerExibido,
                                         aoTocar = ::tocarBanner,
+                                        aoDenunciar = { denunciandoBanner = it },
                                         margemLateral = 0.dp,
                                         modifier = Modifier.padding(bottom = 4.dp),
                                     )
@@ -259,6 +264,14 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
     }
 
     pdvAberto?.let { c -> DialogoPdv(c, aoFechar = { pdvAberto = null }) }
+
+    denunciandoBanner?.let { b ->
+        FolhaDenunciarBanner(
+            banner = b,
+            aoDenunciar = { motivo -> vm.denunciarBanner(b, motivo) },
+            aoFechar = { denunciandoBanner = null },
+        )
+    }
 
     sobrePreco?.let { c ->
         FolhaSobrePreco(

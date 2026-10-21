@@ -2,6 +2,7 @@ package br.com.tabelapp.dados.supabase
 
 import androidx.compose.runtime.Composable
 import br.com.tabelapp.core.Banner
+import br.com.tabelapp.core.BannerDenunciado
 import br.com.tabelapp.core.CadastroPdv
 import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
@@ -382,6 +383,13 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
             put("p_motivo", motivo)
         }).decodeAs<Boolean>()
     }
+
+    override suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean = traduzindoErros {
+        supabase.postgrest.rpc("denunciar_banner", buildJsonObject {
+            put("p_promocao_id", promocaoId)
+            put("p_motivo", motivo)
+        }).decodeAs<Boolean>()
+    }
 }
 
 @Serializable
@@ -599,6 +607,20 @@ private data class NomeSugeridoDto(
     val sugestoes: Int,
     @SerialName("razao_social") val razaoSocial: String? = null,
     val endereco: String? = null,
+)
+
+@Serializable
+private data class BannerDenunciadoDto(
+    @SerialName("promocao_id") val promocaoId: String,
+    @SerialName("pdv_nome") val pdvNome: String,
+    val titulo: String,
+    val descricao: String? = null,
+    val link: String? = null,
+    val denuncias: Int,
+    val enganoso: Int = 0,
+    val ofensivo: Int = 0,
+    val golpe: Int = 0,
+    val outros: Int = 0,
 )
 
 @Serializable
@@ -1043,6 +1065,29 @@ class SupabasePdvRepositorio(
 
     override suspend fun manterCotacao(cotacaoId: String) = traduzindoErros {
         supabase.postgrest.rpc("admin_manter_cotacao", buildJsonObject { put("p_cotacao_id", cotacaoId) })
+        Unit
+    }
+
+    override suspend fun bannersDenunciados(): List<BannerDenunciado> = traduzindoErros {
+        supabase.postgrest.rpc("admin_banners_denunciados").decodeList<BannerDenunciadoDto>().map {
+            BannerDenunciado(
+                promocaoId = it.promocaoId, pdvNome = it.pdvNome, titulo = it.titulo, descricao = it.descricao,
+                link = it.link, denuncias = it.denuncias, enganoso = it.enganoso, ofensivo = it.ofensivo,
+                golpe = it.golpe, outros = it.outros,
+            )
+        }
+    }
+
+    override suspend fun pausarBanner(promocaoId: String, motivo: String?) = traduzindoErros {
+        supabase.postgrest.rpc("admin_pausar_banner", buildJsonObject {
+            put("p_promocao_id", promocaoId)
+            put("p_motivo", motivo?.trim()?.ifEmpty { null })
+        })
+        Unit
+    }
+
+    override suspend fun manterBanner(promocaoId: String) = traduzindoErros {
+        supabase.postgrest.rpc("admin_manter_banner", buildJsonObject { put("p_promocao_id", promocaoId) })
         Unit
     }
 

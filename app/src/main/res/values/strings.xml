@@ -192,6 +192,21 @@
     <string name="admin_fonte_cliente">enviado por cliente</string>
     <string name="admin_combo">parte de combo</string>
     <string name="admin_manter">Manter</string>
+
+    <!-- Denunciar banner (política de conteúdo da Google Play) -->
+    <string name="banner_denunciar">Denunciar este banner</string>
+    <string name="banner_denuncia_titulo">Denunciar este banner</string>
+    <string name="banner_denuncia_texto">Conte o que há de errado, se quiser. Nossa equipe confere e pode tirar o banner do ar.</string>
+    <string name="banner_motivo_enganoso">Propaganda enganosa</string>
+    <string name="banner_motivo_ofensivo">Conteúdo ofensivo ou impróprio</string>
+    <string name="banner_motivo_golpe">Golpe ou link suspeito</string>
+    <string name="banner_motivo_outro">Outro motivo</string>
+    <string name="banner_denuncia_obrigado">Obrigado! Nossa equipe vai conferir este banner.</string>
+    <string name="admin_banners_titulo">Banners denunciados (%1$d)</string>
+    <string name="admin_banners_texto">Pessoas tocaram em \"Denunciar este banner\". Tirar do ar pausa o banner (o dono vê em \"Meu negócio\"). Manter limpa as denúncias.</string>
+    <string name="admin_banners_vazio">Nenhum banner denunciado agora.</string>
+    <string name="admin_banner_pausar">Tirar do ar</string>
+    <string name="admin_banner_motivos">enganoso: %1$d · ofensivo: %2$d · golpe: %3$d · outro: %4$d</string>
     <string name="admin_remover">Remover</string>
     <string name="admin_remover_este_preco">Remover este preço (Admin)</string>
     <string name="admin_remover_titulo">Remover este preço?</string>
