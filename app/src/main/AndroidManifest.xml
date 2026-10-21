@@ -6,10 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- allowBackup=false: a sessão de login não vai para o backup na nuvem (segurança e LGPD). -->
+    <!-- allowBackup=false: a sessão de login não vai para o backup na nuvem (segurança e LGPD).
+         dataExtractionRules (Android 12+): também não vai na transferência direta entre celulares. -->
     <application
         android:name=".TabelappApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/regras_extracao_dados"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
