@@ -77,7 +77,7 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
                         onClick = { escolhidaNome = a.name },
                         icon = { Icon(a.icone, contentDescription = null) },
                         label = { Text(a.rotulo) },
-                        // Aba ativa: ícone e texto em laranja, "pill" em laranja escuro.
+                        // Aba ativa: ícone e texto no amarelo da marca, "pill" em amarelo-escuro.
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = CoresTabelapp.Destaque,
                             selectedTextColor = CoresTabelapp.Destaque,

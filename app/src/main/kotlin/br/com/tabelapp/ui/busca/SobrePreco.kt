@@ -15,6 +15,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.R
 import br.com.tabelapp.core.Cotacao
@@ -61,6 +62,11 @@ fun FolhaSobrePreco(
             principal = AcaoErro(stringResource(R.string.sobre_preco_entendi), aoFechar),
             secundario = AcaoErro(stringResource(R.string.sobre_preco_nao_confere), { etapa = EtapaSobrePreco.DENUNCIA }),
             aoFechar = aoFechar,
+            // Nome completo do produto (no card ele pode aparecer cortado em 2 linhas).
+            cabecalho = {
+                Text(cotacao.produto, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface)
+            },
         ) {
             if (aoRemover != null) {
                 TextButton(onClick = { etapa = EtapaSobrePreco.REMOVER }, modifier = Modifier.fillMaxWidth()) {

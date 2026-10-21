@@ -5,7 +5,11 @@
     <color name="topo">#283847</color>
     <color name="fundo">#16171C</color>
     <color name="barra_inferior">#232428</color>
-    <color name="destaque">#F08A45</color>
+    <color name="destaque">#FDDE03</color>
+    <!-- Abertura: placa amarela da marca, lupa e "Tabelapp" em vermelho escuro. -->
+    <color name="amarelo_marca">#FDDE03</color>
+    <color name="vermelho_marca">#B00000</color>
+    <color name="contorno_lupa">#141414</color>
     <color name="texto_principal">#ECEDEF</color>
 
     <!-- Ícone do app na tela do celular: as cores da logomarca continuam (fora do tema do app). -->

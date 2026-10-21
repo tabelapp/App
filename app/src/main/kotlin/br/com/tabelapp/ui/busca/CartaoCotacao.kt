@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -58,8 +58,8 @@ private fun fundoAlternado(claro: Boolean): Color = if (claro) CoresTabelapp.Car
 
 /**
  * "Card de preço": como um produto e preço aparecem na busca (briefing, seção 2).
- * Layout compacto de altura fixa ([ALTURA_CARTAO]), 4 linhas distribuídas:
- *  1. produto (1 linha) e preço em branco;
+ * Layout compacto com altura mínima [ALTURA_CARTAO], 4 linhas distribuídas:
+ *  1. produto (até 2 linhas; nome completo no ⓘ) e preço em branco, alinhado ao topo;
  *  2. ponto de venda (link, se cadastrado);
  *  3. endereço (abre o mapa);
  *  4. "mais barato", OBS/NF, data e distância — WhatsApp e compartilhar no canto.
@@ -89,22 +89,25 @@ fun CartaoCotacao(
             contentColor = CoresTabelapp.TextoPrincipal,
         ),
         border = if (maisBarato) ContornoMarca else null,
-        modifier = Modifier.fillMaxWidth().height(ALTURA_CARTAO),
+        // Altura mínima: nome em 1 linha = exatamente ALTURA_CARTAO; nome em 2 linhas cresce só o necessário.
+        modifier = Modifier.fillMaxWidth().heightIn(min = ALTURA_CARTAO),
     ) {
         Column(
-            Modifier.fillMaxSize().padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            Modifier.fillMaxWidth().heightIn(min = ALTURA_CARTAO)
+                .padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             // 1. Produto e preço — o principal.
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 10.dp)) {
+            // Preço alinhado ao topo; os 2 dp no nome mantêm a 1ª linha onde ficava quando era centralizada.
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(end = 10.dp)) {
                 Text(
                     cotacao.produto,
                     fontSize = 16.sp,
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    modifier = Modifier.weight(1f).padding(top = 2.dp, end = 8.dp),
                 )
                 // "A partir de" e a unidade em letra menor, na mesma linha: o card não cresce.
                 Text(

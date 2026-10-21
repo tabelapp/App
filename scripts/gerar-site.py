@@ -21,14 +21,17 @@ FONTES = RAIZ / "scripts/site"
 DESTINO = RAIZ / "site"
 EMAIL = "tabelapp.economia@gmail.com"
 
-# A lupa com cifrão da logomarca (app/src/main/res/drawable/logo_lupa.xml).
+# A lupa da marca (app/src/main/res/drawable/lupa_marca.xml) sobre a placa amarela arredondada,
+# como o ícone do app: disco amarelo, aro e cabo pretos, cifrão vermelho escuro.
 LOGO = (
-    '<svg viewBox="0 0 54 54" aria-hidden="true" fill="none" stroke-linecap="round">'
-    '<path d="M37,37 L48,48" stroke="#ECEDEF" stroke-width="8"/>'
-    '<path d="M7,24 A17,17 0 1,1 41,24 A17,17 0 1,1 7,24 Z" stroke="#ECEDEF" stroke-width="6"/>'
-    '<path d="M24,12.5 L24,35.5" stroke="#F08A45" stroke-width="3"/>'
-    '<path d="M28.8,15.8 A5.5,5.5 0 1,0 24,24 A5.5,5.5 0 1,1 19.2,32.2" stroke="#F08A45" stroke-width="4"/>'
-    "</svg>"
+    '<svg viewBox="0 0 108 108" aria-hidden="true" fill="none" stroke-linecap="round">'
+    '<rect width="108" height="108" rx="24" fill="#FDDE03"/>'
+    '<g transform="translate(2 4) translate(54 54) scale(1.05) translate(-54 -54)">'
+    '<path d="M61,59 L72,70" stroke="#141414" stroke-width="8"/>'
+    '<path d="M31,46 A17,17 0 1,1 65,46 A17,17 0 1,1 31,46 Z" fill="#FDDE03" stroke="#141414" stroke-width="6"/>'
+    '<path d="M48,34.5 L48,57.5" stroke="#B00000" stroke-width="3"/>'
+    '<path d="M52.8,37.8 A5.5,5.5 0 1,0 48,46 A5.5,5.5 0 1,1 43.2,54.2" stroke="#B00000" stroke-width="4"/>'
+    "</g></svg>"
 )
 FAVICON = "data:image/svg+xml," + re.sub(r'aria-hidden="true" ', "", LOGO).replace("#", "%23").replace('"', "'")
 

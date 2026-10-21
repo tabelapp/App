@@ -3,7 +3,7 @@
     <!-- O visual de verdade é Compose (ui/tema); isto só cobre a janela antes do Compose desenhar.
          Tema escuro único: não segue o tema do sistema. -->
     <style name="Theme.Tabelapp" parent="android:Theme.Material.NoActionBar">
-        <!-- Abertura (Android 8 a 11): fundo escuro com a lupa no centro; no 12+ ver values-v31. -->
+        <!-- Abertura (Android 8 a 11): tela amarela da marca; no 12+ ver values-v31. -->
         <item name="android:windowBackground">@drawable/fundo_abertura</item>
         <item name="android:statusBarColor">@color/topo</item>
         <item name="android:navigationBarColor">@color/barra_inferior</item>

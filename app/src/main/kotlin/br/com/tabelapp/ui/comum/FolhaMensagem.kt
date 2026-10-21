@@ -32,6 +32,8 @@ fun FolhaMensagem(
     principal: AcaoErro,
     aoFechar: () -> Unit,
     secundario: AcaoErro? = null,
+    /** Acima do título (ex.: o nome completo do produto na folha "Sobre este preço"). */
+    cabecalho: (@Composable ColumnScope.() -> Unit)? = null,
     conteudo: @Composable ColumnScope.() -> Unit = {},
 ) {
     ModalBottomSheet(onDismissRequest = aoFechar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -39,6 +41,7 @@ fun FolhaMensagem(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            cabecalho?.invoke(this)
             Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             texto?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             conteudo()
