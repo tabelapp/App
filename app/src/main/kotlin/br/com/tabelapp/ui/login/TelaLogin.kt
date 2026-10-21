@@ -198,22 +198,22 @@ fun TelaLogin(container: AppContainer) {
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HorizontalDivider(Modifier.weight(1f))
-                        Text("  ou  ", style = MaterialTheme.typography.bodySmall)
-                        HorizontalDivider(Modifier.weight(1f))
-                    }
+                    // Login com Google só aparece com o GOOGLE_WEB_CLIENT_ID configurado (null = sem botão,
+                    // e sem o separador "ou"). O login por WhatsApp volta aqui quando existir (briefing, seção 10).
+                    if (entrarComGoogle != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            HorizontalDivider(Modifier.weight(1f))
+                            Text("  ou  ", style = MaterialTheme.typography.bodySmall)
+                            HorizontalDivider(Modifier.weight(1f))
+                        }
 
-                    OutlinedButton(
-                        onClick = { erro = null; entrarComGoogle?.invoke() },
-                        enabled = entrarComGoogle != null && !enviando,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (entrarComGoogle != null) "Entrar com Google" else "Entrar com Google (não configurado)")
-                    }
-                    // Fluxo técnico do login por WhatsApp ainda não decidido (briefing, seção 10).
-                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                        Text("Entrar com WhatsApp (em breve)")
+                        OutlinedButton(
+                            onClick = { erro = null; entrarComGoogle() },
+                            enabled = !enviando,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Entrar com Google")
+                        }
                     }
                 }
             }
