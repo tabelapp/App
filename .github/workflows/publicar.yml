@@ -53,8 +53,15 @@ jobs:
         if: env.TEM_CHAVE == 'true'
         env:
           ASSINATURA_KEYSTORE_BASE64: ${{ secrets.ASSINATURA_KEYSTORE_BASE64 }}
+          ASSINATURA_SENHA: ${{ secrets.ASSINATURA_SENHA }}
+          ASSINATURA_ALIAS: ${{ secrets.ASSINATURA_ALIAS }}
         run: |
-          echo "$ASSINATURA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/envio.jks"
+          # Aceita o texto do certutil do Windows: tira as linhas BEGIN/END e as quebras de linha (CRLF).
+          printf '%s' "$ASSINATURA_KEYSTORE_BASE64" | sed '/-----/d' | tr -d ' \r\n\t' | base64 --decode > "$RUNNER_TEMP/envio.jks"
+          if ! keytool -list -keystore "$RUNNER_TEMP/envio.jks" -storepass "$ASSINATURA_SENHA" -alias "$ASSINATURA_ALIAS" > /dev/null 2>&1; then
+            echo "::error::A chave de envio não abriu: confira ASSINATURA_KEYSTORE_BASE64 (texto completo do chave.txt), ASSINATURA_SENHA e ASSINATURA_ALIAS (tabelapp)."
+            exit 1
+          fi
           echo "ASSINATURA_ARQUIVO=$RUNNER_TEMP/envio.jks" >> "$GITHUB_ENV"
 
       - name: Sem chave de envio
