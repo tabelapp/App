@@ -1554,4 +1554,41 @@ begin
 end $$;
 reset role;
 
+\echo '== Denunciar banner: 1 por pessoa, fila do Admin, pausar e manter'
+set role authenticated;
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$
+declare promo uuid := (select id from public.promocoes where titulo = 'Semana do Gil');
+begin
+  assert public.denunciar_banner(promo, 'enganoso'), 'primeira denúncia entra';
+  assert not public.denunciar_banner(promo, 'ofensivo'), 'repetir não duplica';
+  begin
+    perform * from public.admin_banners_denunciados();
+    assert false, 'só o Admin vê a fila';
+  exception when raise_exception then
+    assert sqlerrm = 'sem_permissao';
+  end;
+  begin
+    perform public.admin_pausar_banner(promo, null);
+    assert false, 'só o Admin pausa';
+  exception when raise_exception then
+    assert sqlerrm = 'sem_permissao';
+  end;
+end $$;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare promo uuid := (select id from public.promocoes where titulo = 'Semana do Gil');
+begin
+  assert (select denuncias = 1 and enganoso = 1 from public.admin_banners_denunciados() where promocao_id = promo);
+  perform public.admin_manter_banner(promo);
+  assert not exists (select 1 from public.admin_banners_denunciados()), 'manter limpa a fila';
+  assert (select status from public.promocoes where id = promo) = 'ativa';
+  perform public.denunciar_banner(promo, 'golpe');
+  perform public.admin_pausar_banner(promo, 'Link suspeito');
+  assert (select status from public.promocoes where id = promo) = 'pausada', 'pausar tira do ar';
+  assert not exists (select 1 from public.admin_banners_denunciados());
+  assert exists (select 1 from public.moderacoes where promocao_id = promo and acao = 'pausar_banner' and motivo = 'Link suspeito');
+end $$;
+reset role;
+
 \echo 'OK — todos os testes do banco passaram'
