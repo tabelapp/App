@@ -355,3 +355,17 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   Android 12+: splash do sistema amarelo com a lupa; a abertura do app continua com a lupa no mesmo
   lugar e o texto entra (fade, 500 ms). Android 8 a 11: janela amarela e a lupa entra com zoom e fade.
 - O ícone do app não mudou (amarelo `#FFE000` e cifrão `#C00000`: quase iguais aos novos).
+
+## Página da loja e leitura só do que é público (28/10/2026)
+
+- Tocar no nome de um comércio cadastrado abre a **Página da loja** (tela cheia): nome, loja, endereço
+  (abre o mapa), WhatsApp, site, banners ativos do estabelecimento, busca dentro da loja e a **tabela
+  oficial** (só itens ativos e válidos: não pausados, nem pelo limite do plano, nem vencidos). Preços de
+  clientes (nota fiscal) continuam só na busca. "Compartilhar loja" usa o menu do Android (texto com nome,
+  endereço, WhatsApp e o link do app).
+- Banco: `pagina_loja`, `precos_da_loja`, `banners_da_loja` (security invoker, respeitam a RLS); só loja
+  ativa de estabelecimento aprovado do tipo "loja". Banner exibido na página conta visualização.
+- Privacidade: cada usuário só lê cadastros aprovados (mais o próprio; Admin lê todos); lojas de
+  anunciante não são legíveis por terceiros; `razao_social` e `dono_id` deixaram de ser legíveis direto
+  pela API (o dono e o Admin veem pelas funções `meus_pdvs`/`admin_*`).
+- Busca: desempate entre notas da mesma loja no mesmo dia pela de número maior (a mais recente).

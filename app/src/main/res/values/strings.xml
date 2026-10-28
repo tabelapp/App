@@ -193,6 +193,19 @@
     <string name="admin_combo">parte de combo</string>
     <string name="admin_manter">Manter</string>
 
+    <!-- Página da loja -->
+    <string name="loja_titulo">Página da loja</string>
+    <string name="loja_voltar">Voltar</string>
+    <string name="loja_compartilhar">Compartilhar loja</string>
+    <string name="loja_buscar">Buscar nesta loja</string>
+    <string name="loja_limpar_busca">Limpar busca</string>
+    <string name="loja_buscando">Buscando…</string>
+    <string name="loja_contagem">%1$d produto(s) com preço válido</string>
+    <string name="loja_sem_itens">Esta loja ainda não tem preços válidos publicados.</string>
+    <string name="loja_busca_vazia">Nenhum produto desta loja com esse nome.</string>
+    <string name="loja_indisponivel">Esta loja não está disponível no momento.</string>
+    <string name="loja_aviso">Preços informados pelo próprio estabelecimento. Confirme na loja antes de comprar: os valores podem mudar sem aviso.</string>
+
     <!-- Denunciar banner (política de conteúdo da Google Play) -->
     <string name="banner_denunciar">Denunciar este banner</string>
     <string name="banner_denuncia_titulo">Denunciar este banner</string>

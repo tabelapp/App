@@ -3,6 +3,8 @@ package br.com.tabelapp.dados
 import br.com.tabelapp.core.Banner
 import br.com.tabelapp.core.ConfigConfianca
 import br.com.tabelapp.core.Cotacao
+import br.com.tabelapp.core.ItemLoja
+import br.com.tabelapp.core.PaginaLoja
 import br.com.tabelapp.core.PontoGeo
 
 interface CotacoesRepositorio {
@@ -32,4 +34,15 @@ interface CotacoesRepositorio {
      * @return false se a pessoa já tinha denunciado este banner.
      */
     suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean
+
+    // --- Página da loja (só loja ativa de estabelecimento aprovado) ---
+
+    /** Cabeçalho público da loja; null = loja inexistente, desativada, pendente ou suspensa. */
+    suspend fun paginaLoja(lojaId: String): PaginaLoja?
+
+    /** Tabela oficial da loja: só itens ativos e válidos. [termo] filtra dentro da loja. */
+    suspend fun precosDaLoja(lojaId: String, termo: String?): List<ItemLoja>
+
+    /** Banners ativos do estabelecimento. */
+    suspend fun bannersDaLoja(pdvId: String): List<Banner>
 }

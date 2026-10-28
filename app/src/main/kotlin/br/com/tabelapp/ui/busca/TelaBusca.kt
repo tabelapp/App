@@ -54,7 +54,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -97,6 +96,7 @@ import br.com.tabelapp.ui.comum.DocumentoLegal
 import br.com.tabelapp.ui.comum.PainelErro
 import br.com.tabelapp.ui.comum.TelaTextoLegal
 import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.loja.TelaLoja
 import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
 import br.com.tabelapp.ui.tema.ContornoNeutro
@@ -263,7 +263,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
         )
     }
 
-    pdvAberto?.let { c -> DialogoPdv(c, aoFechar = { pdvAberto = null }) }
+    // Tocar no nome do comércio (loja cadastrada): "Página da loja" em tela cheia.
+    pdvAberto?.lojaId?.let { lojaId -> TelaLoja(container.cotacoes, lojaId, aoFechar = { pdvAberto = null }) }
 
     denunciandoBanner?.let { b ->
         FolhaDenunciarBanner(
@@ -343,49 +344,6 @@ private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> U
             DropdownMenuItem(text = { Text("Sair") }, onClick = { aberto = false; aoSair() })
         }
     }
-}
-
-@Composable
-private fun DialogoPdv(cotacao: Cotacao, aoFechar: () -> Unit) {
-    val contexto = LocalContext.current
-    AlertDialog(
-        onDismissRequest = aoFechar,
-        title = { Text(cotacao.pdvNome) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                cotacao.lojaNome?.let { Text(it, fontWeight = FontWeight.SemiBold) }
-                cotacao.endereco?.let { endereco ->
-                    Text(
-                        endereco,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            val local = cotacao.local
-                            val geo = if (local != null) "geo:${local.latitude},${local.longitude}?q=" else "geo:0,0?q="
-                            abrir(contexto, Intent(Intent.ACTION_VIEW, (geo + android.net.Uri.encode(endereco)).toUri()))
-                        },
-                    )
-                }
-                cotacao.telefone?.let { tel ->
-                    // Contato pelo WhatsApp, já com a mensagem sobre a oferta.
-                    Text(
-                        "💬 WhatsApp: $tel",
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            WhatsApp.abrirConversa(contexto, tel, Mensagens.interesseNaOferta(cotacao))
-                        },
-                    )
-                }
-                cotacao.site?.let { site ->
-                    Text(
-                        site,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { abrir(contexto, Intent(Intent.ACTION_VIEW, site.toUri())) },
-                    )
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = aoFechar) { Text("Fechar") } },
-    )
 }
 
 /** Abre o endereço do ponto de venda no app de mapas (Google Maps, Waze...). */
