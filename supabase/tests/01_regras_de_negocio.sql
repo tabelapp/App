@@ -1591,4 +1591,65 @@ begin
 end $$;
 reset role;
 
+\echo '== Página da loja: só o que é público, só itens ativos e válidos, cadastros não aprovados escondidos'
+reset role;
+-- Cadastro pendente (com loja) e itens da Loja Centro: um vencido e um pausado pelo dono.
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, razao_social, modo_rede, status)
+values ('90000000-0000-4000-b000-0000000000b1', '90000000-0000-4000-a000-000000000009', '55444777000161',
+        'Loja Pendente', 'FULANO DE TAL 12345678900', true, 'pendente');
+insert into public.lojas (id, pdv_id, endereco, cidade, uf)
+values ('90000000-0000-4000-c000-0000000000b1', '90000000-0000-4000-b000-0000000000b1', 'Rua Particular, 1', 'Petrópolis', 'RJ');
+insert into public.cotacoes (loja_id, produto, preco_centavos, validade, fonte)
+values ('20000000-0000-4000-a000-000000000001', 'Produto Vencido Teste', 100, public.hoje() - 1, 'pdv_manual'),
+       ('20000000-0000-4000-a000-000000000001', 'Produto Pausado Teste', 100, public.hoje() + 5, 'pdv_manual');
+update public.cotacoes set pausado = true where produto = 'Produto Pausado Teste';
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare
+  centro constant uuid := '20000000-0000-4000-a000-000000000001';
+  n integer;
+begin
+  -- Cabeçalho: dados públicos da loja aprovada.
+  assert (select pdv_nome = 'Supermercado Serra Imperial' and loja_nome = 'Loja Centro' and telefone is not null
+          from public.pagina_loja(centro)), 'cabeçalho da loja';
+  -- Preços: só a tabela oficial, ativos e válidos.
+  n := (select count(*) from public.precos_da_loja(centro));
+  assert n > 0, 'a loja tem preços';
+  assert not exists (select 1 from public.precos_da_loja(centro) where produto in ('Produto Vencido Teste', 'Produto Pausado Teste')),
+    'vencido e pausado não aparecem';
+  assert not exists (select 1 from public.precos_da_loja(centro) p join public.cotacoes c on c.id = p.id
+                     where c.fonte not in ('pdv_manual', 'pdv_excel')), 'só a tabela oficial';
+  -- Busca dentro da loja.
+  assert (select count(*) from public.precos_da_loja(centro, 'xyz inexistente')) = 0;
+  assert (select count(*) from public.precos_da_loja(centro, (select split_part(produto, ' ', 1) from public.precos_da_loja(centro) limit 1))) >= 1;
+  -- Cadastro pendente: nem a página, nem os preços, nem o cadastro, nem a loja.
+  assert not exists (select 1 from public.pagina_loja('90000000-0000-4000-c000-0000000000b1'));
+  assert not exists (select 1 from public.pdvs where id = '90000000-0000-4000-b000-0000000000b1'), 'pendente invisível';
+  assert not exists (select 1 from public.lojas where id = '90000000-0000-4000-c000-0000000000b1'), 'loja do pendente invisível';
+  -- Banners da loja: mesma regra da busca (função existe e não falha).
+  perform * from public.banners_da_loja('10000000-0000-4000-a000-000000000001');
+end $$;
+-- A razão social e o id do dono não são legíveis direto pela API.
+select pg_temp.espera_erro($q$select razao_social from public.pdvs limit 1$q$, 'permission denied for table pdvs');
+select pg_temp.espera_erro($q$select dono_id from public.pdvs limit 1$q$, 'permission denied for table pdvs');
+-- O dono do cadastro pendente continua vendo o próprio cadastro e a própria loja.
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert exists (select 1 from public.pdvs where id = '90000000-0000-4000-b000-0000000000b1'), 'dono vê o próprio';
+  assert exists (select 1 from public.lojas where id = '90000000-0000-4000-c000-0000000000b1'), 'dono vê a própria loja';
+end $$;
+reset role;
+-- Estabelecimento suspenso: a página e os preços somem.
+update public.pdvs set status = 'suspenso' where id = '10000000-0000-4000-a000-000000000001';
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$ begin
+  assert not exists (select 1 from public.pagina_loja('20000000-0000-4000-a000-000000000001')), 'suspenso: sem página';
+  assert not exists (select 1 from public.precos_da_loja('20000000-0000-4000-a000-000000000001')), 'suspenso: sem preços';
+end $$;
+reset role;
+update public.pdvs set status = 'aprovado' where id = '10000000-0000-4000-a000-000000000001';
+delete from public.cotacoes where produto in ('Produto Vencido Teste', 'Produto Pausado Teste');
+
 \echo 'OK — todos os testes do banco passaram'
