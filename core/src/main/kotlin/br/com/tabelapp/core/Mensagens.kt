@@ -8,6 +8,10 @@ object Mensagens {
             (if (c.aPartirDe) "a partir de " else "por ") + Dinheiro.formatar(c.precoCentavos) +
             PrecoExibido.sufixo(c.unidade) + " no Tabelapp e gostaria de mais informações."
 
+    /** Cliente falando com a loja a partir da "Página da loja". */
+    fun contatoLoja(nomeLoja: String): String =
+        "Olá! Vi a página da *$nomeLoja* no Tabelapp e gostaria de mais informações."
+
     const val FALE_CONOSCO = "Olá! Vim pelo app Tabelapp e gostaria de falar com vocês."
 
     /** Dono de estabelecimento suspenso pedindo para conversar sobre a suspensão. */
