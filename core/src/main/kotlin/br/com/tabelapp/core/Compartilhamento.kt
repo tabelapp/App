@@ -15,7 +15,7 @@ object Compartilhamento {
      */
     fun texto(cotacao: Cotacao, link: String = LINK_APP, aviso: String? = null): String = buildString {
         append("Olha esse preço! 👀\n")
-        append("${cotacao.produto}: ${PrecoExibido.texto(cotacao)}")
+        append("${cotacao.produto}: ${PrecoExibido.textoCompartilhar(cotacao)}")
         append(" em ${listOfNotNull(cotacao.pdvNome, cotacao.lojaNome).joinToString(" — ")}")
         cotacao.endereco?.let { append(" ($it)") }
         append("\n\nQuem pesquisa economiza. Pesquise mais preços com o Tabelapp:\n")

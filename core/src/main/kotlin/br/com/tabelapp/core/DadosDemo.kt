@@ -102,6 +102,9 @@ object DadosDemo {
             c(altoDaSerra, "Feijão Preto 1kg", 759, Validade.NF_DIAS, null, Fonte.USUARIO_NF, 120),
             c(sacolaoCorreas, "Banana Prata kg", 599, 4, null, Fonte.USUARIO_ENCARTE, 300),
             c(sacolaoCorreas, "Tomate kg", 799, 4, null, Fonte.USUARIO_ENCARTE, 300),
+            // Encarte com preço no app/clube da loja: R$ 4,39 no app, R$ 4,89 normal.
+            c(sacolaoCorreas, "Leite Longa Vida Integral 1L", 439, 4, null, Fonte.USUARIO_ENCARTE, 300)
+                .copy(precoNormalCentavos = 489, precoApp = true),
         )
     }
 

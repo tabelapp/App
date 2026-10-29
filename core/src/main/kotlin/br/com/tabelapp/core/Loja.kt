@@ -30,8 +30,14 @@ data class ItemLoja(
     val obs: String? = null,
     val unidade: Unidade = Unidade.UNIDADE,
     val aPartirDe: Boolean = false,
+    /** Preço normal quando [precoCentavos] é o preço no app/clube da loja. */
+    val precoNormalCentavos: Long? = null,
+    val precoApp: Boolean = false,
 ) {
     val preco: String get() = PrecoExibido.texto(precoCentavos, unidade, aPartirDe)
+    val temPrecoApp: Boolean get() = PrecoExibido.temPrecoApp(Fonte.PDV_MANUAL, precoCentavos, precoApp, precoNormalCentavos)
+    val precoNormal: String? get() = precoNormalCentavos?.takeIf { temPrecoApp }?.let { PrecoExibido.textoNormal(it, unidade) }
+    val descricaoPreco: String get() = PrecoExibido.descricao(precoCentavos, unidade, aPartirDe, precoNormalCentavos, temPrecoApp)
     val validadeTexto: String get() = Validade.exibir(Fonte.PDV_MANUAL, validade)
 }
 
