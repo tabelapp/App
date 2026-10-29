@@ -1,10 +1,13 @@
 name: Aplicar banco no Supabase
 
-# Roda quando as migrações mudam (ou manualmente / "Re-run" na aba Actions).
+# Roda quando as migrações mudam NA MAIN (ou manualmente: Actions → "Aplicar banco no Supabase" →
+# Run workflow, escolhendo a branch). Push em outras branches NÃO aplica nada em produção: a
+# migração só vai para o banco quando a branch for mesclada na main (ou por decisão manual).
 # Aplica só as migrações que ainda não foram aplicadas (o Supabase CLI guarda o histórico),
 # então pode rodar quantas vezes quiser. Sem o secret SUPABASE_DB_URL, não faz nada.
 on:
   push:
+    branches: [main]
     paths:
       - "supabase/migrations/**"
       - ".github/workflows/aplicar-banco.yml"
