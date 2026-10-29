@@ -1652,4 +1652,53 @@ reset role;
 update public.pdvs set status = 'aprovado' where id = '10000000-0000-4000-a000-000000000001';
 delete from public.cotacoes where produto in ('Produto Vencido Teste', 'Produto Pausado Teste');
 
+\echo '== Preço no app (clube de vantagens): só encarte/oficial, normal maior que o do app, NF intocada'
+reset role;
+-- Regra da tabela.
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_encarte', true, 500)$q$, 'cotacoes_preco_app_check');
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_encarte', 0)$q$, 'cotacoes_preco_app_check');
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, data_nf, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_nf', public.hoje(), true, 600)$q$, 'cotacoes_preco_app_check');
+insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+values ('Assaí Teste', 'Rua do Teste, 1', 'Leite App Teste 1L', 439, public.hoje() + 1, 'usuario_encarte', true, 489);
+-- Preço oficial com preço no app aparece também na Página da loja.
+insert into public.cotacoes (loja_id, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+values ('20000000-0000-4000-a000-000000000001', 'Café App Teste 500g', 2389, public.hoje() + 5, 'pdv_manual', true, 2549);
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$ begin
+  assert (select preco_centavos = 439 and preco_app and preco_normal_centavos = 489
+          from public.buscar_cotacoes('leite app teste')), 'busca devolve o preço do app e o normal';
+  -- Ordenação e "menor preço" continuam por preco_centavos (o do app).
+  assert (select preco_centavos from public.buscar_cotacoes('leite app teste') limit 1) = 439;
+  assert (select preco_app and preco_normal_centavos = 2549
+          from public.precos_da_loja('20000000-0000-4000-a000-000000000001', 'cafe app teste')), 'página da loja também';
+  -- NF continua sem preço no app.
+  assert not exists (select 1 from public.buscar_cotacoes() where fonte = 'usuario_nf' and (preco_app or preco_normal_centavos is not null));
+  -- O app lê as duas colunas novas (grant por coluna).
+  perform preco_normal_centavos, preco_app from public.cotacoes limit 1;
+end $$;
+-- Envio de encarte: suspenso para o app; o formato do item aceita o preço no app.
+select pg_temp.espera_erro($q$select public.publicar_encarte(array['x/1.jpg'], null, 'X', null, public.hoje(), '[]')$q$,
+  'permission denied for function publicar_encarte');
+reset role;
+do $$ begin
+  assert public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 299, "preco_app": true, "preco_normal_centavos": 359}]');
+  assert public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 359}]'), 'preço único continua valendo';
+  assert not public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 359, "preco_app": true, "preco_normal_centavos": 299}]'),
+    'normal precisa ser maior que o do app';
+  assert not public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 299, "preco_app": true}]'),
+    'preço no app exige o normal';
+end $$;
+-- Histórico guarda os dois preços; repetir o mesmo preço de pesquisa no mesmo dia continua ignorado.
+do $$ begin
+  assert exists (select 1 from public.historico_precos where produto = 'Leite App Teste 1L' and preco_app and preco_normal_centavos = 489);
+  insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Rua do Teste, 1', 'Leite App Teste 1L', 439, public.hoje() + 1, 'usuario_encarte', true, 499);
+  assert (select count(*) from public.cotacoes where produto = 'Leite App Teste 1L') = 1, 'mesmo preço de pesquisa no dia: ignorado';
+end $$;
+delete from public.cotacoes where produto in ('Leite App Teste 1L', 'Café App Teste 500g');
+
 \echo 'OK — todos os testes do banco passaram'
