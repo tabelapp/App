@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
@@ -63,6 +65,7 @@ import br.com.tabelapp.core.CompartilharLoja
 import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.PaginaLoja
+import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.ui.busca.BannerPatrocinado
@@ -323,7 +326,21 @@ private fun LinhaItem(item: ItemLoja) {
             Row(verticalAlignment = Alignment.Top) {
                 Text(item.produto, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f).padding(top = 2.dp, end = 8.dp))
-                Text(item.preco, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
+                val normal = item.precoNormal
+                if (normal != null) {
+                    // Preço no app/clube da loja; abaixo, "no app" e o preço normal, menor e sem legenda.
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = item.descricaoPreco },
+                    ) {
+                        Text(item.preco, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
+                        Text(PrecoExibido.LEGENDA_APP, fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(normal, fontSize = 13.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Text(item.preco, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
+                }
             }
             Text(item.validadeTexto, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             item.obs?.let {

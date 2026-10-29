@@ -369,3 +369,16 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   anunciante não são legíveis por terceiros; `razao_social` e `dono_id` deixaram de ser legíveis direto
   pela API (o dono e o Admin veem pelas funções `meus_pdvs`/`admin_*`).
 - Busca: desempate entre notas da mesma loja no mesmo dia pela de número maior (a mais recente).
+
+## Preço "no app" (clube de vantagens) em encarte e preço oficial (29/10/2026)
+
+- Em preço de **encarte** (`usuario_encarte`) e **oficial** (`pdv_*`), o produto pode ter 2 preços: o do
+  app/clube da loja (o menor) e o normal. `preco_centavos` é sempre o preço de pesquisa (ordem, "menor
+  preço", filtros, histórico) e guarda o do app quando existir; o normal vai em `preco_normal_centavos`
+  (com `preco_app = true`), não mais na OBS. **Nota Fiscal nunca tem preço no app** (regra no banco).
+- Cartão: preço principal como sempre; abaixo, pequeno, "no app"; abaixo, menor e sem legenda, o normal.
+  Leitor de tela: "R$ 5,98 no app. Preço normal R$ 6,99.". Folha do ⓘ: "Preço no app ou clube de
+  vantagens da loja. Pode exigir cadastro." Compartilhar: "R$ 5,98 no app / R$ 6,99 normal".
+- Repetição (`_ignorar_lancamento_repetido`) continua pela chave do preço de pesquisa; o histórico guarda
+  também os dois campos.
+- Automação do banco: migração só vai para produção a partir da **main** (ou rodando o workflow à mão).

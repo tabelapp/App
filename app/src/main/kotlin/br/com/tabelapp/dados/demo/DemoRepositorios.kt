@@ -182,7 +182,10 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
             .filter { it.lojaId == lojaId && it.fonte.ehDoPdv && (it.validade ?: hoje) >= hoje }
             .filter { termo.isNullOrBlank() || Texto.casaBusca(it.produto, termo) }
             .sortedBy { Texto.normalizar(it.produto) }
-            .map { ItemLoja(it.id, it.produto, it.precoCentavos, it.validade ?: hoje, it.obs, it.unidade, it.aPartirDe) }
+            .map {
+                ItemLoja(it.id, it.produto, it.precoCentavos, it.validade ?: hoje, it.obs, it.unidade, it.aPartirDe,
+                    it.precoNormalCentavos, it.precoApp)
+            }
     }
 
     override suspend fun bannersDaLoja(pdvId: String): List<Banner> {

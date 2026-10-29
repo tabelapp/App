@@ -136,6 +136,7 @@
     <string name="sobre_preco_titulo">Sobre este preço</string>
     <string name="sobre_preco_usuario">Este valor foi informado por um usuário a partir de uma nota fiscal e pode ter sido praticado em uma promoção, combo ou condição específica do estabelecimento. Os preços podem mudar sem aviso e seguem a política de cada loja. O Tabelapp apenas reúne essas informações.</string>
     <string name="sobre_preco_estabelecimento">Preço informado pelo próprio estabelecimento. Pode mudar sem aviso, conforme a política da loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_app">Preço no app ou clube de vantagens da loja. Pode exigir cadastro.</string>
     <string name="sobre_preco_entendi">Entendi</string>
     <string name="sobre_preco_nao_confere">Esse preço não confere</string>
     <string name="aviso_resultados">Preços informados por terceiros e sujeitos a alteração. Confirme na loja.</string>

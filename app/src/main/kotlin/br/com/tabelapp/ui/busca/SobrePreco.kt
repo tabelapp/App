@@ -68,6 +68,9 @@ fun FolhaSobrePreco(
                     color = MaterialTheme.colorScheme.onSurface)
             },
         ) {
+            if (cotacao.temPrecoApp) {
+                Text(stringResource(R.string.sobre_preco_app), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (aoRemover != null) {
                 TextButton(onClick = { etapa = EtapaSobrePreco.REMOVER }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.admin_remover_este_preco), color = MaterialTheme.colorScheme.error)

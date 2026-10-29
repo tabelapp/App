@@ -299,6 +299,9 @@ private data class CotacaoDto(
     @SerialName("a_partir_de") val aPartirDe: Boolean = false,
     @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
     val denuncias: Int = 0,
+    // Preço no app/clube da loja (app 1.0.1 não lê estes campos: o servidor pode mandar sem quebrar).
+    @SerialName("preco_normal_centavos") val precoNormalCentavos: Long? = null,
+    @SerialName("preco_app") val precoApp: Boolean = false,
 ) {
     fun paraCotacao() = Cotacao(
         id = id,
@@ -321,6 +324,8 @@ private data class CotacaoDto(
         aPartirDe = aPartirDe,
         parteDeCombo = parteDeCombo,
         denuncias = denuncias,
+        precoNormalCentavos = precoNormalCentavos,
+        precoApp = precoApp,
     )
 
     private fun lerInstante(texto: String): Instant =
@@ -406,6 +411,7 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
             ItemLoja(
                 id = it.id, produto = it.produto, precoCentavos = it.precoCentavos, validade = LocalDate.parse(it.validade),
                 obs = it.obs?.takeIf(String::isNotBlank), unidade = Unidade.deCodigo(it.unidade), aPartirDe = it.aPartirDe,
+                precoNormalCentavos = it.precoNormalCentavos, precoApp = it.precoApp,
             )
         }
     }
@@ -464,6 +470,8 @@ private data class ItemLojaDto(
     val obs: String? = null,
     val unidade: String? = null,
     @SerialName("a_partir_de") val aPartirDe: Boolean = false,
+    @SerialName("preco_normal_centavos") val precoNormalCentavos: Long? = null,
+    @SerialName("preco_app") val precoApp: Boolean = false,
 )
 
 @Serializable

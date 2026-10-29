@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -59,7 +61,8 @@ private fun fundoAlternado(claro: Boolean): Color = if (claro) CoresTabelapp.Car
 /**
  * "Card de preço": como um produto e preço aparecem na busca (briefing, seção 2).
  * Layout compacto com altura mínima [ALTURA_CARTAO], 4 linhas distribuídas:
- *  1. produto (até 2 linhas; nome completo no ⓘ) e preço em branco, alinhado ao topo;
+ *  1. produto (até 2 linhas; nome completo no ⓘ) e preço em branco, alinhado ao topo; com preço no
+ *     app/clube da loja, abaixo dele a legenda "no app" e o preço normal, menor;
  *  2. ponto de venda (link, se cadastrado);
  *  3. endereço (abre o mapa);
  *  4. "mais barato", OBS/NF, data e distância — WhatsApp e compartilhar no canto.
@@ -110,19 +113,38 @@ fun CartaoCotacao(
                     modifier = Modifier.weight(1f).padding(top = 2.dp, end = 8.dp),
                 )
                 // "A partir de" e a unidade em letra menor, na mesma linha: o card não cresce.
-                Text(
-                    buildAnnotatedString {
-                        val pequeno = SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        if (cotacao.aPartirDe) withStyle(pequeno) { append(PrecoExibido.A_PARTIR_DE.lowercase() + " ") }
-                        append(Dinheiro.formatar(cotacao.precoCentavos))
-                        withStyle(pequeno) { append(PrecoExibido.sufixo(cotacao.unidade)) }
-                    },
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CoresTabelapp.Preco,
-                    maxLines = 1,
-                )
+                val precoPrincipal: @Composable () -> Unit = {
+                    Text(
+                        buildAnnotatedString {
+                            val pequeno = SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            if (cotacao.aPartirDe) withStyle(pequeno) { append(PrecoExibido.A_PARTIR_DE.lowercase() + " ") }
+                            append(Dinheiro.formatar(cotacao.precoCentavos))
+                            withStyle(pequeno) { append(PrecoExibido.sufixo(cotacao.unidade)) }
+                        },
+                        fontSize = 20.sp,
+                        lineHeight = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CoresTabelapp.Preco,
+                        maxLines = 1,
+                    )
+                }
+                val normal = cotacao.precoNormalCentavos
+                if (cotacao.temPrecoApp && normal != null) {
+                    // Preço no app/clube da loja (o de pesquisa); abaixo, "no app" e o preço normal, menor e sem legenda.
+                    val descricao = PrecoExibido.descricao(cotacao)
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = descricao },
+                    ) {
+                        precoPrincipal()
+                        Text(PrecoExibido.LEGENDA_APP, fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium,
+                            color = cores.onSurfaceVariant)
+                        Text(PrecoExibido.textoNormal(normal, cotacao.unidade), fontSize = 13.sp, lineHeight = 16.sp,
+                            color = cores.onSurfaceVariant, maxLines = 1)
+                    }
+                } else {
+                    precoPrincipal()
+                }
             }
 
             // 2. Ponto de venda (link quando cadastrado) e, no fim da linha, o destaque do card.
