@@ -1701,4 +1701,51 @@ do $$ begin
 end $$;
 delete from public.cotacoes where produto in ('Leite App Teste 1L', 'Café App Teste 500g');
 
+\echo '== Minhas notas: cada um vê só as próprias, sem dado do comprador; estados aceitos por configuração'
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare v jsonb;
+begin
+  v := public.enviar_nota_fiscal(pg_temp.chave('66777888000191', 9901), null, 'Padaria da Ana', 'Rua Teste, 9',
+    '[{"produto": "Pão Francês kg", "preco_centavos": 1599}, {"produto": "Manteiga 200g", "preco_centavos": 1099}]');
+  assert (v ->> 'itens')::int = 2;
+  assert (select count(*) from public.minhas_notas() where pdv_nome = 'Padaria da Ana') = 2, 'a dona vê os 2 itens';
+  assert (select bool_and(na_busca and data_nf = public.hoje()) from public.minhas_notas() where pdv_nome = 'Padaria da Ana');
+  assert (select count(distinct nota_id) from public.minhas_notas() where pdv_nome = 'Padaria da Ana') = 1, 'uma nota';
+end $$;
+-- Outro usuário não vê as notas da Ana (nem pela função, nem pela tabela: enviado_por é fechado).
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert not exists (select 1 from public.minhas_notas() where pdv_nome = 'Padaria da Ana'), 'outro usuário não vê';
+end $$;
+select pg_temp.espera_erro($q$select enviado_por from public.cotacoes limit 1$q$, 'permission denied for table cotacoes');
+-- Sem login: nada.
+reset role;
+set role anon;
+select pg_temp.espera_erro($q$select * from public.minhas_notas()$q$, 'permission denied for function minhas_notas');
+reset role;
+-- A função não devolve chave de acesso nem nada do comprador.
+do $$ begin
+  assert not exists (
+    select 1 from information_schema.routines r
+    join information_schema.parameters x on x.specific_name = r.specific_name
+    where r.routine_name = 'minhas_notas' and x.parameter_mode = 'OUT'
+      and x.parameter_name ~ '(chave|cpf|cnpj|enviado_por|usuario)'
+  ), 'minhas_notas só devolve o que é público no preço';
+end $$;
+-- Estados: SP (35) recusado enquanto não estiver na configuração; RJ continua aceito.
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('66777888000191', 9902, null, '35'), null, 'Loja SP', 'Rua SP, 1',
+     '[{"produto": "Café 500g", "preco_centavos": 1899}]')$q$, 'nf_fora_do_rj');
+do $$ begin
+  assert public.nfce_uf_aceita('33') and not public.nfce_uf_aceita('35') and not public.nfce_uf_aceita('31');
+end $$;
+reset role;
+update public.configuracao_app set valor = '["33", "35"]' where chave = 'nfce_ufs_aceitas';
+do $$ begin assert public.nfce_uf_aceita('35'), 'ligar SP é só configuração'; end $$;
+update public.configuracao_app set valor = '["33"]' where chave = 'nfce_ufs_aceitas';
+
 \echo 'OK — todos os testes do banco passaram'
