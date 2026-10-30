@@ -382,3 +382,17 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
 - Repetição (`_ignorar_lancamento_repetido`) continua pela chave do preço de pesquisa; o histórico guarda
   também os dois campos.
 - Automação do banco: migração só vai para produção a partir da **main** (ou rodando o workflow à mão).
+
+## Versão 1.0.2 (30/10/2026)
+
+- Entra: Página da loja, preço no app (encarte), "Como usar" no menu (saiu de "Quem somos"), "Minhas
+  notas" e a estrutura de estados da NFC-e.
+- **Minhas notas:** só consulta das notas que a própria pessoa enviou (`minhas_notas()`, security definer
+  filtrando `enviado_por = auth.uid()`; a coluna `enviado_por` continua fechada para leitura direta).
+  Devolve só o que é público no preço; nunca chave de acesso nem dado do comprador. Preço removido pela
+  moderação some da lista (sai da tabela de preços).
+- **Estados da NFC-e:** `EstadosNfce` no app (código da UF, consulta, domínio, leitor) e
+  `configuracao_app.nfce_ufs_aceitas` no banco (começa com `["33"]`). SP e MG desligados até chegar o HTML
+  real; nota de outro estado mostra "Por enquanto o Tabelapp lê notas do RJ. Outros estados chegam em breve."
+- Política de privacidade: nova frase sobre "Minhas notas" (versão 2026-10-30). Segurança dos dados da
+  Play: sem mudança (nenhum dado novo coletado).

@@ -1,6 +1,6 @@
 # Política de Privacidade do Tabelapp
 
-Versão de 16 de outubro de 2026.
+Versão de 30 de outubro de 2026.
 
 O Tabelapp reúne preços de produtos e serviços para que as pessoas possam comparar antes de comprar. Esta política explica, de forma simples, quais dados usamos, por que usamos e quais são os seus direitos, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, a LGPD).
 
@@ -58,7 +58,7 @@ Os dados da conta ficam enquanto a conta existir. Quando você exclui a conta, a
 
 ## Seus direitos
 
-Você pode, a qualquer momento: saber quais dados temos, corrigir dados, pedir a portabilidade, revogar consentimentos e excluir a sua conta. Em "Minha conta", no menu do app, você edita o seu nome e exclui a conta. Se não tiver mais o app instalado, peça a exclusão pelo e-mail tabelapp.economia@gmail.com, com o assunto "Excluir conta" (atendimento em até 30 dias). Para os demais pedidos, fale com a gente. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
+Você pode, a qualquer momento: saber quais dados temos, corrigir dados, pedir a portabilidade, revogar consentimentos e excluir a sua conta. Em "Minha conta", no menu do app, você edita o seu nome e exclui a conta. Em "Minhas notas", também no menu, você revê as notas fiscais que enviou (estabelecimento, data, produtos e preços); só você vê essa lista. Se não tiver mais o app instalado, peça a exclusão pelo e-mail tabelapp.economia@gmail.com, com o assunto "Excluir conta" (atendimento em até 30 dias). Para os demais pedidos, fale com a gente. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
 
 ## Segurança
 

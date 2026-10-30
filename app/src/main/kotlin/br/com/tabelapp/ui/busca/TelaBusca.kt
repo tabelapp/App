@@ -88,7 +88,6 @@ import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoErro
-import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.AcaoErro
@@ -99,6 +98,8 @@ import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.loja.TelaLoja
 import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
+import br.com.tabelapp.ui.principal.TelaComoUsar
+import br.com.tabelapp.ui.principal.TelaMinhasNotas
 import br.com.tabelapp.ui.tema.ContornoNeutro
 import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
@@ -163,7 +164,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                 expandedHeight = (ALTURA_CABECALHO - barraDeStatus).coerceAtLeast(40.dp),
                 colors = coresBarraTopo(),
                 actions = {
-                    MenuUsuario(usuario, container.auth, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
+                    MenuUsuario(usuario, container, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
                 },
             )
         },
@@ -303,13 +304,18 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
 }
 
 @Composable
-private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> Unit) {
+private fun MenuUsuario(usuario: Usuario, container: AppContainer, aoSair: () -> Unit) {
+    val auth = container.auth
     var aberto by remember { mutableStateOf(false) }
     var quemSomos by remember { mutableStateOf(false) }
+    var comoUsar by remember { mutableStateOf(false) }
+    var minhasNotas by remember { mutableStateOf(false) }
     var minhaConta by remember { mutableStateOf(false) }
     var documento by remember { mutableStateOf<DocumentoLegal?>(null) }
     val contexto = LocalContext.current
     if (quemSomos) QuemSomos(aoFechar = { quemSomos = false })
+    if (comoUsar) TelaComoUsar(aoFechar = { comoUsar = false })
+    if (minhasNotas) TelaMinhasNotas(container.notasFiscais, aoFechar = { minhasNotas = false })
     if (minhaConta) MinhaConta(usuario, auth, aoFechar = { minhaConta = false })
     documento?.let { TelaTextoLegal(it, aoFechar = { documento = null }) }
     Box {
@@ -324,6 +330,8 @@ private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> U
             )
             HorizontalDivider()
             DropdownMenuItem(text = { Text(stringResource(R.string.menu_minha_conta)) }, onClick = { aberto = false; minhaConta = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.menu_minhas_notas)) }, onClick = { aberto = false; minhasNotas = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.menu_como_usar)) }, onClick = { aberto = false; comoUsar = true })
             DropdownMenuItem(text = { Text("Quem somos") }, onClick = { aberto = false; quemSomos = true })
             DropdownMenuItem(
                 text = { Text("Fale conosco (WhatsApp)") },

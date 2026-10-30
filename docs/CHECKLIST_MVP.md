@@ -37,8 +37,9 @@ Contas e publicação:
 Serviços:
 - [ ] **Google Cloud:** chave do mapa + login com Google (`docs/GOOGLE_CLOUD.md`); secrets `MAPS_API_KEY` e
       `GOOGLE_WEB_CLIENT_ID` no GitHub; ativar o provedor Google no Supabase.
-- [ ] **E-mail próprio (SMTP):** Resend ou Brevo no Supabase + modelo de `docs/EMAIL_SENHA.md` — sem isso o
-      "Esqueci a senha" não chega para os usuários.
+- [ ] **E-mail próprio (SMTP):** Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`,
+      porta 465) + modelo de `docs/EMAIL_SENHA.md` + **Email OTP Length = 6** — sem isso o "Esqueci a
+      senha" não chega para os usuários. (Resend/Brevo só com domínio próprio.)
 - [ ] **Supabase de produção:** plano pago (não pausa, tem backup) ou rotina que mantenha ativo.
 - [ ] **Sua conta como Admin** no banco (SQL do README, passo 9), se ainda não fez.
 

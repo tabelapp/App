@@ -3,7 +3,7 @@ package br.com.tabelapp.core
 /** Política de Privacidade e Termos de Uso (arquivos .md em app/src/main/res/raw). */
 object Termos {
     /** Versão aceita no cadastro; mudar quando os textos mudarem (e a data no topo dos arquivos). */
-    const val VERSAO = "2026-10-16"
+    const val VERSAO = "2026-10-30"
 }
 
 /**

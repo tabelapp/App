@@ -13,11 +13,14 @@ import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.ItemFora
 import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.ItemSalvo
+import br.com.tabelapp.core.LinhaMinhaNota
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.MinhaNota
+import br.com.tabelapp.core.MinhasNotas
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.OrigemLimite
 import br.com.tabelapp.core.PagamentoPendente
@@ -449,6 +452,21 @@ private data class BannerDto(
 )
 
 @Serializable
+private data class MinhaNotaDto(
+    @SerialName("nota_id") val notaId: String,
+    @SerialName("data_nf") val dataNf: String? = null,
+    @SerialName("enviada_em") val enviadaEm: String,
+    @SerialName("pdv_nome") val pdvNome: String? = null,
+    val endereco: String? = null,
+    val produto: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    val unidade: String? = null,
+    @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
+    val validade: String? = null,
+    @SerialName("na_busca") val naBusca: Boolean = false,
+)
+
+@Serializable
 private data class PaginaLojaDto(
     @SerialName("loja_id") val lojaId: String,
     @SerialName("pdv_id") val pdvId: String,
@@ -512,6 +530,20 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
                 })
             },
         ).decodeAs<RespostaEnvioNf>().itens
+    }
+
+    override suspend fun minhasNotas(): List<MinhaNota> = traduzindoErros {
+        val linhas = supabase.postgrest.rpc("minhas_notas", buildJsonObject { put("p_limite", 50) })
+            .decodeList<MinhaNotaDto>().map {
+                LinhaMinhaNota(
+                    notaId = it.notaId, dataNf = it.dataNf?.let(LocalDate::parse),
+                    enviadaEm = runCatching { OffsetDateTime.parse(it.enviadaEm).toInstant() }.getOrElse { _ -> Instant.parse(it.enviadaEm) },
+                    pdvNome = it.pdvNome, endereco = it.endereco, produto = it.produto, precoCentavos = it.precoCentavos,
+                    unidade = Unidade.deCodigo(it.unidade), parteDeCombo = it.parteDeCombo,
+                    validade = it.validade?.let(LocalDate::parse), naBusca = it.naBusca,
+                )
+            }
+        MinhasNotas.agrupar(linhas)
     }
 
     override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = traduzindoErros {

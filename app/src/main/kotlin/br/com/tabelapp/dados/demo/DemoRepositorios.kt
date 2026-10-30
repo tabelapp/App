@@ -18,12 +18,15 @@ import br.com.tabelapp.core.ItemFora
 import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.Limites
+import br.com.tabelapp.core.LinhaMinhaNota
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.MinhaNota
+import br.com.tabelapp.core.MinhasNotas
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
 import br.com.tabelapp.core.PaginaLoja
@@ -642,6 +645,19 @@ class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalReposi
     override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = false
 
     override suspend fun lojasDoCnpj(cnpj: String): List<LojaResumo> = DadosDemo.lojasDoCnpj(cnpj)
+
+    /** Na demonstração, as notas enviadas nesta sessão (cada envio tem o mesmo horário). */
+    override suspend fun minhasNotas(): List<MinhaNota> {
+        delay(200)
+        val hoje = LocalDate.now()
+        return MinhasNotas.agrupar(banco.enviados.map {
+            LinhaMinhaNota(
+                notaId = it.criadoEm.toString(), dataNf = it.dataNf, enviadaEm = it.criadoEm, pdvNome = it.pdvNome,
+                endereco = it.endereco, produto = it.produto, precoCentavos = it.precoCentavos, unidade = it.unidade,
+                parteDeCombo = it.parteDeCombo, validade = it.validade, naBusca = (it.validade ?: hoje) >= hoje,
+            )
+        })
+    }
 
     override suspend fun enviar(rascunho: RascunhoNf): Int {
         delay(400)

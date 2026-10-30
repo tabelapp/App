@@ -158,6 +158,12 @@
     <string name="legal_aceite_obrigatorio">Para criar a conta, leia e aceite os Termos de uso e a Política de privacidade.</string>
     <string name="legal_fechar">Fechar</string>
     <string name="menu_minha_conta">Minha conta</string>
+    <string name="menu_minhas_notas">Minhas notas</string>
+    <string name="menu_como_usar">Como usar</string>
+    <string name="minhas_notas_titulo">Minhas notas</string>
+    <string name="minhas_notas_texto">As notas fiscais que você enviou e os preços que entraram no app. Só você vê esta lista. Os dados de quem comprou nunca são guardados.</string>
+    <string name="minhas_notas_vazio">Você ainda não enviou nenhuma nota. Use a aba \"Enviar preços\" depois de uma compra.</string>
+    <string name="minhas_notas_tentar">Tentar de novo</string>
     <string name="conta_titulo">Minha conta</string>
     <string name="conta_nome">Seu nome</string>
     <string name="conta_salvar_nome">Salvar nome</string>

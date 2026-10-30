@@ -80,8 +80,11 @@ secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` do repositório; `GOOGLE_WEB_CLIENT
    senão o usuário precisa clicar no link do e-mail antes de entrar.
 7. **"Esqueci a senha"** usa um código de 6 números. Em *Authentication → Email Templates → Reset
    Password*, troque o texto do e-mail para mostrar o código `{{ .Token }}` (veja `docs/EMAIL_SENHA.md`).
+   Deixe *Authentication → Providers → Email → Email OTP Length* em **6** (o app pede 6 números).
    O e-mail gratuito do Supabase só entrega para os membros do projeto: para os usuários receberem,
-   configure um SMTP próprio (*Project Settings → Authentication → SMTP*).
+   configure um SMTP próprio (*Project Settings → Authentication → SMTP*). Sem domínio próprio, use o
+   Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`, porta 465) — passo a passo em
+   `docs/EMAIL_SENHA.md`. Nenhuma senha vai para arquivo.
 8. **Conferir a conexão:** `scripts/testar-conexao-supabase.sh` (lê as chaves do `local.properties`) —
    diz se o projeto responde, se a chave está certa e se todas as migrações foram aplicadas.
 9. **Virar Admin** (para aprovar cadastros de PDV na aba "Admin"): no *SQL Editor*,

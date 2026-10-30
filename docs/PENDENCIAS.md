@@ -31,8 +31,10 @@
 
 ### Configuração (painel do Supabase / contas externas)
 - **E-mail:** o serviço gratuito do Supabase só entrega para membros do projeto e poucos por hora.
-  Sem um SMTP próprio (Resend, Brevo…), o **"Esqueci a senha" não chega para os usuários**.
-  Também falta colar o modelo do e-mail (`docs/EMAIL_SENHA.md`).
+  Sem um SMTP próprio, o **"Esqueci a senha" não chega para os usuários**. Caminho gratuito sem domínio:
+  SMTP do Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`, porta 465). Também
+  colar o modelo do e-mail e deixar o **Email OTP Length em 6** (passo a passo em `docs/EMAIL_SENHA.md`).
+  Resend/Brevo só quando houver domínio próprio.
 - **Supabase gratuito pausa após 7 dias sem uso.** Para produção: plano pago (US$ 25/mês) ou uma
   rotina que acesse o projeto. Plano gratuito também não tem backup automático.
 - **Login com Google e mapa:** criar as credenciais no Google Cloud — passo a passo em `docs/GOOGLE_CLOUD.md`.
@@ -69,3 +71,21 @@
   isso a busca inteligente sugere nomes completos.
 - Sair da aba "Enviar preços" no meio da leitura recarrega a página da Sefaz ao voltar.
 - Arquivos (alvarás) de contas excluídas continuam no armazenamento.
+
+## Para a produção (depois do teste fechado) — 30/10/2026
+
+- **R8 / minificação** (`isMinifyEnabled = true`) com as regras de Supabase, Ktor e serialização, e um teste
+  completo do app depois. Não entra na 1.0.2.
+- **Filtro de itens proibidos** (drogas, armas, medicamentos controlados…) nos preços de nota e da tabela
+  do PDV, exigido pela política de conteúdo da Play para marketplace/listas de produtos. Não entra na 1.0.2.
+- **Login com Google:** cadastrar `GOOGLE_WEB_CLIENT_ID` e as SHA-1 (inclusive a do Play App Signing) no
+  Google Cloud. Hoje o botão fica escondido (o secret não existe).
+- **Chave do Maps (`MAPS_API_KEY`)**: depende de cartão no Google Cloud. Sem ela, "Ver no mapa" mostra o
+  aviso de mapa não configurado.
+- **E-mail de "Esqueci a senha"**: SMTP do Gmail com Senha de app + Email OTP Length = 6 (`docs/EMAIL_SENHA.md`).
+- **NFC-e de SP (35) e MG (31)**: estrutura pronta (`core/.../EstadosNfce.kt`), estados desligados. Para ligar
+  cada um, preciso de: (1) o endereço da consulta pública pela chave (o que vem impresso no cupom);
+  (2) uma chave real de exemplo (44 números); (3) o HTML salvo da página de consulta já com os produtos
+  (no navegador do computador: abrir o link do QR → Ctrl+S → "Página da Web, completa"); (4) a página de
+  QR Code, se for diferente. Com isso: leitor + testes no app, domínio no `network_security_config.xml`
+  se a Sefaz usar http, e o código no `nfce_ufs_aceitas` do banco.
