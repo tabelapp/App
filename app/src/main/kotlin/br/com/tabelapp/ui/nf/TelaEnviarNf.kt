@@ -71,6 +71,8 @@ import br.com.tabelapp.AppContainer
 import br.com.tabelapp.R
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.Dinheiro
+import br.com.tabelapp.core.EstadosNfce
+import br.com.tabelapp.core.LeitorNfce
 import br.com.tabelapp.core.TipoErro
 import br.com.tabelapp.core.Validade
 import br.com.tabelapp.dados.ErroAmigavel
@@ -262,6 +264,7 @@ private fun EtapaLendoSefaz(estado: EstadoNf, vm: EnviarNfViewModel) {
             aoCapturarHtml = vm::htmlCapturado,
             chaveParaPreencher = estado.chave.takeIf { estado.modoManual },
             aoFalhar = vm::sefazFalhou,
+            lerNota = ChaveAcessoNfe.deTexto(estado.chave)?.let(EstadosNfce::ativoDaChave)?.leitor ?: LeitorNfce::ler,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         TextButton(onClick = vm::novaNota, modifier = Modifier.align(Alignment.CenterHorizontally)) {
