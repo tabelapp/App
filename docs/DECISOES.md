@@ -355,3 +355,44 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   Android 12+: splash do sistema amarelo com a lupa; a abertura do app continua com a lupa no mesmo
   lugar e o texto entra (fade, 500 ms). Android 8 a 11: janela amarela e a lupa entra com zoom e fade.
 - O ícone do app não mudou (amarelo `#FFE000` e cifrão `#C00000`: quase iguais aos novos).
+
+## Página da loja e leitura só do que é público (28/10/2026)
+
+- Tocar no nome de um comércio cadastrado abre a **Página da loja** (tela cheia): nome, loja, endereço
+  (abre o mapa), WhatsApp, site, banners ativos do estabelecimento, busca dentro da loja e a **tabela
+  oficial** (só itens ativos e válidos: não pausados, nem pelo limite do plano, nem vencidos). Preços de
+  clientes (nota fiscal) continuam só na busca. "Compartilhar loja" usa o menu do Android (texto com nome,
+  endereço, WhatsApp e o link do app).
+- Banco: `pagina_loja`, `precos_da_loja`, `banners_da_loja` (security invoker, respeitam a RLS); só loja
+  ativa de estabelecimento aprovado do tipo "loja". Banner exibido na página conta visualização.
+- Privacidade: cada usuário só lê cadastros aprovados (mais o próprio; Admin lê todos); lojas de
+  anunciante não são legíveis por terceiros; `razao_social` e `dono_id` deixaram de ser legíveis direto
+  pela API (o dono e o Admin veem pelas funções `meus_pdvs`/`admin_*`).
+- Busca: desempate entre notas da mesma loja no mesmo dia pela de número maior (a mais recente).
+
+## Preço "no app" (clube de vantagens) em encarte e preço oficial (29/10/2026)
+
+- Em preço de **encarte** (`usuario_encarte`) e **oficial** (`pdv_*`), o produto pode ter 2 preços: o do
+  app/clube da loja (o menor) e o normal. `preco_centavos` é sempre o preço de pesquisa (ordem, "menor
+  preço", filtros, histórico) e guarda o do app quando existir; o normal vai em `preco_normal_centavos`
+  (com `preco_app = true`), não mais na OBS. **Nota Fiscal nunca tem preço no app** (regra no banco).
+- Cartão: preço principal como sempre; abaixo, pequeno, "no app"; abaixo, menor e sem legenda, o normal.
+  Leitor de tela: "R$ 5,98 no app. Preço normal R$ 6,99.". Folha do ⓘ: "Preço no app ou clube de
+  vantagens da loja. Pode exigir cadastro." Compartilhar: "R$ 5,98 no app / R$ 6,99 normal".
+- Repetição (`_ignorar_lancamento_repetido`) continua pela chave do preço de pesquisa; o histórico guarda
+  também os dois campos.
+- Automação do banco: migração só vai para produção a partir da **main** (ou rodando o workflow à mão).
+
+## Versão 1.0.2 (30/10/2026)
+
+- Entra: Página da loja, preço no app (encarte), "Como usar" no menu (saiu de "Quem somos"), "Minhas
+  notas" e a estrutura de estados da NFC-e.
+- **Minhas notas:** só consulta das notas que a própria pessoa enviou (`minhas_notas()`, security definer
+  filtrando `enviado_por = auth.uid()`; a coluna `enviado_por` continua fechada para leitura direta).
+  Devolve só o que é público no preço; nunca chave de acesso nem dado do comprador. Preço removido pela
+  moderação some da lista (sai da tabela de preços).
+- **Estados da NFC-e:** `EstadosNfce` no app (código da UF, consulta, domínio, leitor) e
+  `configuracao_app.nfce_ufs_aceitas` no banco (começa com `["33"]`). SP e MG desligados até chegar o HTML
+  real; nota de outro estado mostra "Por enquanto o Tabelapp lê notas do RJ. Outros estados chegam em breve."
+- Política de privacidade: nova frase sobre "Minhas notas" (versão 2026-10-30). Segurança dos dados da
+  Play: sem mudança (nenhum dado novo coletado).

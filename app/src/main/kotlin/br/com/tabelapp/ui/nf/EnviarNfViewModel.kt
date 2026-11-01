@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.tabelapp.core.ChaveAcessoNfe
 import br.com.tabelapp.core.DadosReceita
+import br.com.tabelapp.core.EstadosNfce
 import br.com.tabelapp.core.IntervaloTentativas
 import br.com.tabelapp.core.ItemNota
 import br.com.tabelapp.core.LeitorNfce
@@ -136,18 +137,20 @@ class EnviarNfViewModel(
      */
     fun chaveDigitada(texto: String) {
         val chave = ChaveAcessoNfe.deTexto(texto)
+        // Estado da nota pelo código da UF na chave: só os estados que o app já sabe ler.
+        val uf = chave?.let(EstadosNfce::ativoDaChave)
         val erro = when {
             texto.filter { it.isDigit() }.length != 44 -> "A chave tem 44 números. Confira o que foi digitado."
             chave == null -> "Chave inválida: algum número foi digitado errado."
-            !chave.ehDoRioDeJaneiro ->
-                "Esta nota não é do estado do Rio de Janeiro. Por enquanto o Tabelapp lê notas do RJ; outros estados chegam em breve."
+            uf == null -> NOTA_DE_OUTRO_ESTADO
             else -> null
         }
-        if (erro != null || chave == null) {
+        val url = uf?.urlConsultaChave
+        if (erro != null || chave == null || url == null) {
             _estado.update { it.copy(erroInicio = erro, erroInicioTipo = null) }
             return
         }
-        iniciarLeitura(URL_CONSULTA_CHAVE_RJ, chave, modoManual = true)
+        iniciarLeitura(url, chave, modoManual = true)
     }
 
     fun alterarChaveManual(texto: String) =
@@ -158,7 +161,8 @@ class EnviarNfViewModel(
         val texto = conteudo.trim()
         val chave = ChaveAcessoNfe.doQrCode(texto)
         val url = texto.takeIf { it.startsWith("http", ignoreCase = true) }
-        if (chave == null || (url == null && chave.ehDoRioDeJaneiro)) {
+        val uf = chave?.let(EstadosNfce::ativoDaChave)
+        if (chave == null || (url == null && uf != null)) {
             // Ilegível, não é NFC-e, ou só a chave sem o link (a consulta precisa do link completo):
             // tela calma; se a chave veio, já fica preenchida na entrada manual.
             Erros.registrar("qr", "QR não reconhecido como NFC-e (tamanho ${texto.length})")
@@ -167,11 +171,8 @@ class EnviarNfViewModel(
             }
             return
         }
-        if (!chave.ehDoRioDeJaneiro || url == null) {
-            _estado.update {
-                it.copy(erroInicioTipo = null,
-                    erroInicio = "Esta nota não é do estado do Rio de Janeiro. Por enquanto o Tabelapp lê notas do RJ; outros estados chegam em breve.")
-            }
+        if (uf == null || url == null) {
+            _estado.update { it.copy(erroInicioTipo = null, erroInicio = NOTA_DE_OUTRO_ESTADO) }
             return
         }
         qrGuardado = url to chave
@@ -379,3 +380,6 @@ class EnviarNfViewModel(
         }
     }
 }
+
+/** Nota de um estado que o app ainda não lê (só RJ por enquanto; ver EstadosNfce). */
+private const val NOTA_DE_OUTRO_ESTADO = "Esta nota é de outro estado. ${EstadosNfce.MENSAGEM_OUTROS_ESTADOS}"

@@ -1,6 +1,7 @@
 package br.com.tabelapp.dados
 
 import br.com.tabelapp.core.LojaResumo
+import br.com.tabelapp.core.MinhaNota
 import br.com.tabelapp.core.RascunhoNf
 
 interface NotaFiscalRepositorio {
@@ -15,4 +16,7 @@ interface NotaFiscalRepositorio {
      * fantasia). Só vale depois de confirmado. @return true se o nome já está confirmado.
      */
     suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean
+
+    /** "Minhas notas": as notas que o próprio usuário enviou (só consulta; nada do comprador). */
+    suspend fun minhasNotas(): List<MinhaNota>
 }

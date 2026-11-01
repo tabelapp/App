@@ -54,7 +54,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -89,7 +88,6 @@ import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.Ordenacao
 import br.com.tabelapp.core.Texto
 import br.com.tabelapp.core.TipoErro
-import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.comum.AcaoErro
@@ -97,8 +95,11 @@ import br.com.tabelapp.ui.comum.DocumentoLegal
 import br.com.tabelapp.ui.comum.PainelErro
 import br.com.tabelapp.ui.comum.TelaTextoLegal
 import br.com.tabelapp.ui.comum.WhatsApp
+import br.com.tabelapp.ui.loja.TelaLoja
 import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
+import br.com.tabelapp.ui.principal.TelaComoUsar
+import br.com.tabelapp.ui.principal.TelaMinhasNotas
 import br.com.tabelapp.ui.tema.ContornoNeutro
 import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
@@ -163,7 +164,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                 expandedHeight = (ALTURA_CABECALHO - barraDeStatus).coerceAtLeast(40.dp),
                 colors = coresBarraTopo(),
                 actions = {
-                    MenuUsuario(usuario, container.auth, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
+                    MenuUsuario(usuario, container, aoSair = { escopo.launch { runCatching { container.auth.sair() } } })
                 },
             )
         },
@@ -263,7 +264,8 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
         )
     }
 
-    pdvAberto?.let { c -> DialogoPdv(c, aoFechar = { pdvAberto = null }) }
+    // Tocar no nome do comércio (loja cadastrada): "Página da loja" em tela cheia.
+    pdvAberto?.lojaId?.let { lojaId -> TelaLoja(container.cotacoes, lojaId, aoFechar = { pdvAberto = null }) }
 
     denunciandoBanner?.let { b ->
         FolhaDenunciarBanner(
@@ -302,13 +304,18 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
 }
 
 @Composable
-private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> Unit) {
+private fun MenuUsuario(usuario: Usuario, container: AppContainer, aoSair: () -> Unit) {
+    val auth = container.auth
     var aberto by remember { mutableStateOf(false) }
     var quemSomos by remember { mutableStateOf(false) }
+    var comoUsar by remember { mutableStateOf(false) }
+    var minhasNotas by remember { mutableStateOf(false) }
     var minhaConta by remember { mutableStateOf(false) }
     var documento by remember { mutableStateOf<DocumentoLegal?>(null) }
     val contexto = LocalContext.current
     if (quemSomos) QuemSomos(aoFechar = { quemSomos = false })
+    if (comoUsar) TelaComoUsar(aoFechar = { comoUsar = false })
+    if (minhasNotas) TelaMinhasNotas(container.notasFiscais, aoFechar = { minhasNotas = false })
     if (minhaConta) MinhaConta(usuario, auth, aoFechar = { minhaConta = false })
     documento?.let { TelaTextoLegal(it, aoFechar = { documento = null }) }
     Box {
@@ -323,6 +330,8 @@ private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> U
             )
             HorizontalDivider()
             DropdownMenuItem(text = { Text(stringResource(R.string.menu_minha_conta)) }, onClick = { aberto = false; minhaConta = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.menu_minhas_notas)) }, onClick = { aberto = false; minhasNotas = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.menu_como_usar)) }, onClick = { aberto = false; comoUsar = true })
             DropdownMenuItem(text = { Text("Quem somos") }, onClick = { aberto = false; quemSomos = true })
             DropdownMenuItem(
                 text = { Text("Fale conosco (WhatsApp)") },
@@ -343,49 +352,6 @@ private fun MenuUsuario(usuario: Usuario, auth: AuthRepositorio, aoSair: () -> U
             DropdownMenuItem(text = { Text("Sair") }, onClick = { aberto = false; aoSair() })
         }
     }
-}
-
-@Composable
-private fun DialogoPdv(cotacao: Cotacao, aoFechar: () -> Unit) {
-    val contexto = LocalContext.current
-    AlertDialog(
-        onDismissRequest = aoFechar,
-        title = { Text(cotacao.pdvNome) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                cotacao.lojaNome?.let { Text(it, fontWeight = FontWeight.SemiBold) }
-                cotacao.endereco?.let { endereco ->
-                    Text(
-                        endereco,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            val local = cotacao.local
-                            val geo = if (local != null) "geo:${local.latitude},${local.longitude}?q=" else "geo:0,0?q="
-                            abrir(contexto, Intent(Intent.ACTION_VIEW, (geo + android.net.Uri.encode(endereco)).toUri()))
-                        },
-                    )
-                }
-                cotacao.telefone?.let { tel ->
-                    // Contato pelo WhatsApp, já com a mensagem sobre a oferta.
-                    Text(
-                        "💬 WhatsApp: $tel",
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            WhatsApp.abrirConversa(contexto, tel, Mensagens.interesseNaOferta(cotacao))
-                        },
-                    )
-                }
-                cotacao.site?.let { site ->
-                    Text(
-                        site,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { abrir(contexto, Intent(Intent.ACTION_VIEW, site.toUri())) },
-                    )
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = aoFechar) { Text("Fechar") } },
-    )
 }
 
 /** Abre o endereço do ponto de venda no app de mapas (Google Maps, Waze...). */

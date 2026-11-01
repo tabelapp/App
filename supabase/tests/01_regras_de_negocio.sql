@@ -1591,4 +1591,161 @@ begin
 end $$;
 reset role;
 
+\echo '== Página da loja: só o que é público, só itens ativos e válidos, cadastros não aprovados escondidos'
+reset role;
+-- Cadastro pendente (com loja) e itens da Loja Centro: um vencido e um pausado pelo dono.
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, razao_social, modo_rede, status)
+values ('90000000-0000-4000-b000-0000000000b1', '90000000-0000-4000-a000-000000000009', '55444777000161',
+        'Loja Pendente', 'FULANO DE TAL 12345678900', true, 'pendente');
+insert into public.lojas (id, pdv_id, endereco, cidade, uf)
+values ('90000000-0000-4000-c000-0000000000b1', '90000000-0000-4000-b000-0000000000b1', 'Rua Particular, 1', 'Petrópolis', 'RJ');
+insert into public.cotacoes (loja_id, produto, preco_centavos, validade, fonte)
+values ('20000000-0000-4000-a000-000000000001', 'Produto Vencido Teste', 100, public.hoje() - 1, 'pdv_manual'),
+       ('20000000-0000-4000-a000-000000000001', 'Produto Pausado Teste', 100, public.hoje() + 5, 'pdv_manual');
+update public.cotacoes set pausado = true where produto = 'Produto Pausado Teste';
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare
+  centro constant uuid := '20000000-0000-4000-a000-000000000001';
+  n integer;
+begin
+  -- Cabeçalho: dados públicos da loja aprovada.
+  assert (select pdv_nome = 'Supermercado Serra Imperial' and loja_nome = 'Loja Centro' and telefone is not null
+          from public.pagina_loja(centro)), 'cabeçalho da loja';
+  -- Preços: só a tabela oficial, ativos e válidos.
+  n := (select count(*) from public.precos_da_loja(centro));
+  assert n > 0, 'a loja tem preços';
+  assert not exists (select 1 from public.precos_da_loja(centro) where produto in ('Produto Vencido Teste', 'Produto Pausado Teste')),
+    'vencido e pausado não aparecem';
+  assert not exists (select 1 from public.precos_da_loja(centro) p join public.cotacoes c on c.id = p.id
+                     where c.fonte not in ('pdv_manual', 'pdv_excel')), 'só a tabela oficial';
+  -- Busca dentro da loja.
+  assert (select count(*) from public.precos_da_loja(centro, 'xyz inexistente')) = 0;
+  assert (select count(*) from public.precos_da_loja(centro, (select split_part(produto, ' ', 1) from public.precos_da_loja(centro) limit 1))) >= 1;
+  -- Cadastro pendente: nem a página, nem os preços, nem o cadastro, nem a loja.
+  assert not exists (select 1 from public.pagina_loja('90000000-0000-4000-c000-0000000000b1'));
+  assert not exists (select 1 from public.pdvs where id = '90000000-0000-4000-b000-0000000000b1'), 'pendente invisível';
+  assert not exists (select 1 from public.lojas where id = '90000000-0000-4000-c000-0000000000b1'), 'loja do pendente invisível';
+  -- Banners da loja: mesma regra da busca (função existe e não falha).
+  perform * from public.banners_da_loja('10000000-0000-4000-a000-000000000001');
+end $$;
+-- A razão social e o id do dono não são legíveis direto pela API.
+select pg_temp.espera_erro($q$select razao_social from public.pdvs limit 1$q$, 'permission denied for table pdvs');
+select pg_temp.espera_erro($q$select dono_id from public.pdvs limit 1$q$, 'permission denied for table pdvs');
+-- O dono do cadastro pendente continua vendo o próprio cadastro e a própria loja.
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert exists (select 1 from public.pdvs where id = '90000000-0000-4000-b000-0000000000b1'), 'dono vê o próprio';
+  assert exists (select 1 from public.lojas where id = '90000000-0000-4000-c000-0000000000b1'), 'dono vê a própria loja';
+end $$;
+reset role;
+-- Estabelecimento suspenso: a página e os preços somem.
+update public.pdvs set status = 'suspenso' where id = '10000000-0000-4000-a000-000000000001';
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$ begin
+  assert not exists (select 1 from public.pagina_loja('20000000-0000-4000-a000-000000000001')), 'suspenso: sem página';
+  assert not exists (select 1 from public.precos_da_loja('20000000-0000-4000-a000-000000000001')), 'suspenso: sem preços';
+end $$;
+reset role;
+update public.pdvs set status = 'aprovado' where id = '10000000-0000-4000-a000-000000000001';
+delete from public.cotacoes where produto in ('Produto Vencido Teste', 'Produto Pausado Teste');
+
+\echo '== Preço no app (clube de vantagens): só encarte/oficial, normal maior que o do app, NF intocada'
+reset role;
+-- Regra da tabela.
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_encarte', true, 500)$q$, 'cotacoes_preco_app_check');
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_encarte', 0)$q$, 'cotacoes_preco_app_check');
+select pg_temp.espera_erro($q$insert into public.cotacoes (pdv_nome_livre, produto, preco_centavos, validade, fonte, data_nf, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Leite App Teste', 500, public.hoje() + 1, 'usuario_nf', public.hoje(), true, 600)$q$, 'cotacoes_preco_app_check');
+insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+values ('Assaí Teste', 'Rua do Teste, 1', 'Leite App Teste 1L', 439, public.hoje() + 1, 'usuario_encarte', true, 489);
+-- Preço oficial com preço no app aparece também na Página da loja.
+insert into public.cotacoes (loja_id, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+values ('20000000-0000-4000-a000-000000000001', 'Café App Teste 500g', 2389, public.hoje() + 5, 'pdv_manual', true, 2549);
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$ begin
+  assert (select preco_centavos = 439 and preco_app and preco_normal_centavos = 489
+          from public.buscar_cotacoes('leite app teste')), 'busca devolve o preço do app e o normal';
+  -- Ordenação e "menor preço" continuam por preco_centavos (o do app).
+  assert (select preco_centavos from public.buscar_cotacoes('leite app teste') limit 1) = 439;
+  assert (select preco_app and preco_normal_centavos = 2549
+          from public.precos_da_loja('20000000-0000-4000-a000-000000000001', 'cafe app teste')), 'página da loja também';
+  -- NF continua sem preço no app.
+  assert not exists (select 1 from public.buscar_cotacoes() where fonte = 'usuario_nf' and (preco_app or preco_normal_centavos is not null));
+  -- O app lê as duas colunas novas (grant por coluna).
+  perform preco_normal_centavos, preco_app from public.cotacoes limit 1;
+end $$;
+-- Envio de encarte: suspenso para o app; o formato do item aceita o preço no app.
+select pg_temp.espera_erro($q$select public.publicar_encarte(array['x/1.jpg'], null, 'X', null, public.hoje(), '[]')$q$,
+  'permission denied for function publicar_encarte');
+reset role;
+do $$ begin
+  assert public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 299, "preco_app": true, "preco_normal_centavos": 359}]');
+  assert public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 359}]'), 'preço único continua valendo';
+  assert not public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 359, "preco_app": true, "preco_normal_centavos": 299}]'),
+    'normal precisa ser maior que o do app';
+  assert not public._itens_encarte_validos('[{"produto": "Açúcar 1kg", "preco_centavos": 299, "preco_app": true}]'),
+    'preço no app exige o normal';
+end $$;
+-- Histórico guarda os dois preços; repetir o mesmo preço de pesquisa no mesmo dia continua ignorado.
+do $$ begin
+  assert exists (select 1 from public.historico_precos where produto = 'Leite App Teste 1L' and preco_app and preco_normal_centavos = 489);
+  insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app, preco_normal_centavos)
+  values ('Assaí Teste', 'Rua do Teste, 1', 'Leite App Teste 1L', 439, public.hoje() + 1, 'usuario_encarte', true, 499);
+  assert (select count(*) from public.cotacoes where produto = 'Leite App Teste 1L') = 1, 'mesmo preço de pesquisa no dia: ignorado';
+end $$;
+delete from public.cotacoes where produto in ('Leite App Teste 1L', 'Café App Teste 500g');
+
+\echo '== Minhas notas: cada um vê só as próprias, sem dado do comprador; estados aceitos por configuração'
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare v jsonb;
+begin
+  v := public.enviar_nota_fiscal(pg_temp.chave('66777888000191', 9901), null, 'Padaria da Ana', 'Rua Teste, 9',
+    '[{"produto": "Pão Francês kg", "preco_centavos": 1599}, {"produto": "Manteiga 200g", "preco_centavos": 1099}]');
+  assert (v ->> 'itens')::int = 2;
+  assert (select count(*) from public.minhas_notas() where pdv_nome = 'Padaria da Ana') = 2, 'a dona vê os 2 itens';
+  assert (select bool_and(na_busca and data_nf = public.hoje()) from public.minhas_notas() where pdv_nome = 'Padaria da Ana');
+  assert (select count(distinct nota_id) from public.minhas_notas() where pdv_nome = 'Padaria da Ana') = 1, 'uma nota';
+end $$;
+-- Outro usuário não vê as notas da Ana (nem pela função, nem pela tabela: enviado_por é fechado).
+set request.jwt.claim.sub = '90000000-0000-4000-a000-000000000009';
+do $$ begin
+  assert not exists (select 1 from public.minhas_notas() where pdv_nome = 'Padaria da Ana'), 'outro usuário não vê';
+end $$;
+select pg_temp.espera_erro($q$select enviado_por from public.cotacoes limit 1$q$, 'permission denied for table cotacoes');
+-- Sem login: nada.
+reset role;
+set role anon;
+select pg_temp.espera_erro($q$select * from public.minhas_notas()$q$, 'permission denied for function minhas_notas');
+reset role;
+-- A função não devolve chave de acesso nem nada do comprador.
+do $$ begin
+  assert not exists (
+    select 1 from information_schema.routines r
+    join information_schema.parameters x on x.specific_name = r.specific_name
+    where r.routine_name = 'minhas_notas' and x.parameter_mode = 'OUT'
+      and x.parameter_name ~ '(chave|cpf|cnpj|enviado_por|usuario)'
+  ), 'minhas_notas só devolve o que é público no preço';
+end $$;
+-- Estados: SP (35) recusado enquanto não estiver na configuração; RJ continua aceito.
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.enviar_nota_fiscal(pg_temp.chave('66777888000191', 9902, null, '35'), null, 'Loja SP', 'Rua SP, 1',
+     '[{"produto": "Café 500g", "preco_centavos": 1899}]')$q$, 'nf_fora_do_rj');
+do $$ begin
+  assert public.nfce_uf_aceita('33') and not public.nfce_uf_aceita('35') and not public.nfce_uf_aceita('31');
+end $$;
+reset role;
+update public.configuracao_app set valor = '["33", "35"]' where chave = 'nfce_ufs_aceitas';
+do $$ begin assert public.nfce_uf_aceita('35'), 'ligar SP é só configuração'; end $$;
+update public.configuracao_app set valor = '["33"]' where chave = 'nfce_ufs_aceitas';
+
 \echo 'OK — todos os testes do banco passaram'

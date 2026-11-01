@@ -136,6 +136,7 @@
     <string name="sobre_preco_titulo">Sobre este preço</string>
     <string name="sobre_preco_usuario">Este valor foi informado por um usuário a partir de uma nota fiscal e pode ter sido praticado em uma promoção, combo ou condição específica do estabelecimento. Os preços podem mudar sem aviso e seguem a política de cada loja. O Tabelapp apenas reúne essas informações.</string>
     <string name="sobre_preco_estabelecimento">Preço informado pelo próprio estabelecimento. Pode mudar sem aviso, conforme a política da loja. O Tabelapp apenas reúne essas informações.</string>
+    <string name="sobre_preco_app">Preço no app ou clube de vantagens da loja. Pode exigir cadastro.</string>
     <string name="sobre_preco_entendi">Entendi</string>
     <string name="sobre_preco_nao_confere">Esse preço não confere</string>
     <string name="aviso_resultados">Preços informados por terceiros e sujeitos a alteração. Confirme na loja.</string>
@@ -157,6 +158,12 @@
     <string name="legal_aceite_obrigatorio">Para criar a conta, leia e aceite os Termos de uso e a Política de privacidade.</string>
     <string name="legal_fechar">Fechar</string>
     <string name="menu_minha_conta">Minha conta</string>
+    <string name="menu_minhas_notas">Minhas notas</string>
+    <string name="menu_como_usar">Como usar</string>
+    <string name="minhas_notas_titulo">Minhas notas</string>
+    <string name="minhas_notas_texto">As notas fiscais que você enviou e os preços que entraram no app. Só você vê esta lista. Os dados de quem comprou nunca são guardados.</string>
+    <string name="minhas_notas_vazio">Você ainda não enviou nenhuma nota. Use a aba \"Enviar preços\" depois de uma compra.</string>
+    <string name="minhas_notas_tentar">Tentar de novo</string>
     <string name="conta_titulo">Minha conta</string>
     <string name="conta_nome">Seu nome</string>
     <string name="conta_salvar_nome">Salvar nome</string>
@@ -192,6 +199,19 @@
     <string name="admin_fonte_cliente">enviado por cliente</string>
     <string name="admin_combo">parte de combo</string>
     <string name="admin_manter">Manter</string>
+
+    <!-- Página da loja -->
+    <string name="loja_titulo">Página da loja</string>
+    <string name="loja_voltar">Voltar</string>
+    <string name="loja_compartilhar">Compartilhar loja</string>
+    <string name="loja_buscar">Buscar nesta loja</string>
+    <string name="loja_limpar_busca">Limpar busca</string>
+    <string name="loja_buscando">Buscando…</string>
+    <string name="loja_contagem">%1$d produto(s) com preço válido</string>
+    <string name="loja_sem_itens">Esta loja ainda não tem preços válidos publicados.</string>
+    <string name="loja_busca_vazia">Nenhum produto desta loja com esse nome.</string>
+    <string name="loja_indisponivel">Esta loja não está disponível no momento.</string>
+    <string name="loja_aviso">Preços informados pelo próprio estabelecimento. Confirme na loja antes de comprar: os valores podem mudar sem aviso.</string>
 
     <!-- Denunciar banner (política de conteúdo da Google Play) -->
     <string name="banner_denunciar">Denunciar este banner</string>

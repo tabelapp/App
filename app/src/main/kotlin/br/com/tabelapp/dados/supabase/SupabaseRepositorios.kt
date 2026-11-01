@@ -11,15 +11,20 @@ import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.EstadoItem
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.ItemFora
+import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.ItemSalvo
+import br.com.tabelapp.core.LinhaMinhaNota
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.MinhaNota
+import br.com.tabelapp.core.MinhasNotas
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.OrigemLimite
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PaginaLoja
 import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
@@ -297,6 +302,9 @@ private data class CotacaoDto(
     @SerialName("a_partir_de") val aPartirDe: Boolean = false,
     @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
     val denuncias: Int = 0,
+    // Preço no app/clube da loja (app 1.0.1 não lê estes campos: o servidor pode mandar sem quebrar).
+    @SerialName("preco_normal_centavos") val precoNormalCentavos: Long? = null,
+    @SerialName("preco_app") val precoApp: Boolean = false,
 ) {
     fun paraCotacao() = Cotacao(
         id = id,
@@ -319,6 +327,8 @@ private data class CotacaoDto(
         aPartirDe = aPartirDe,
         parteDeCombo = parteDeCombo,
         denuncias = denuncias,
+        precoNormalCentavos = precoNormalCentavos,
+        precoApp = precoApp,
     )
 
     private fun lerInstante(texto: String): Instant =
@@ -384,6 +394,42 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
         }).decodeAs<Boolean>()
     }
 
+    override suspend fun paginaLoja(lojaId: String): PaginaLoja? = traduzindoErros {
+        supabase.postgrest.rpc("pagina_loja", buildJsonObject { put("p_loja_id", lojaId) })
+            .decodeList<PaginaLojaDto>().firstOrNull()?.let {
+                PaginaLoja(
+                    lojaId = it.lojaId, pdvId = it.pdvId, pdvNome = it.pdvNome, lojaNome = it.lojaNome,
+                    endereco = it.endereco?.takeIf(String::isNotBlank), telefone = it.telefone?.takeIf(String::isNotBlank),
+                    site = it.site?.takeIf(String::isNotBlank),
+                    local = if (it.latitude != null && it.longitude != null) PontoGeo(it.latitude, it.longitude) else null,
+                )
+            }
+    }
+
+    override suspend fun precosDaLoja(lojaId: String, termo: String?): List<ItemLoja> = traduzindoErros {
+        supabase.postgrest.rpc("precos_da_loja", buildJsonObject {
+            put("p_loja_id", lojaId)
+            put("p_termo", termo?.trim()?.takeIf { it.isNotEmpty() })
+        }).decodeList<ItemLojaDto>().map {
+            ItemLoja(
+                id = it.id, produto = it.produto, precoCentavos = it.precoCentavos, validade = LocalDate.parse(it.validade),
+                obs = it.obs?.takeIf(String::isNotBlank), unidade = Unidade.deCodigo(it.unidade), aPartirDe = it.aPartirDe,
+                precoNormalCentavos = it.precoNormalCentavos, precoApp = it.precoApp,
+            )
+        }
+    }
+
+    override suspend fun bannersDaLoja(pdvId: String): List<Banner> = traduzindoErros {
+        supabase.postgrest.rpc("banners_da_loja", buildJsonObject { put("p_pdv_id", pdvId) })
+            .decodeList<BannerDto>().map { d ->
+                Banner(
+                    id = d.id, pdvNome = d.pdvNome, titulo = d.titulo, descricao = d.descricao,
+                    imagemUrl = d.artePath?.let { supabase.storage.from("promocoes").publicUrl(it) },
+                    link = d.link,
+                )
+            }
+    }
+
     override suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean = traduzindoErros {
         supabase.postgrest.rpc("denunciar_banner", buildJsonObject {
             put("p_promocao_id", promocaoId)
@@ -403,6 +449,47 @@ private data class BannerDto(
     val descricao: String? = null,
     @SerialName("arte_path") val artePath: String? = null,
     val link: String? = null,
+)
+
+@Serializable
+private data class MinhaNotaDto(
+    @SerialName("nota_id") val notaId: String,
+    @SerialName("data_nf") val dataNf: String? = null,
+    @SerialName("enviada_em") val enviadaEm: String,
+    @SerialName("pdv_nome") val pdvNome: String? = null,
+    val endereco: String? = null,
+    val produto: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    val unidade: String? = null,
+    @SerialName("parte_de_combo") val parteDeCombo: Boolean = false,
+    val validade: String? = null,
+    @SerialName("na_busca") val naBusca: Boolean = false,
+)
+
+@Serializable
+private data class PaginaLojaDto(
+    @SerialName("loja_id") val lojaId: String,
+    @SerialName("pdv_id") val pdvId: String,
+    @SerialName("pdv_nome") val pdvNome: String,
+    @SerialName("loja_nome") val lojaNome: String? = null,
+    val endereco: String? = null,
+    val telefone: String? = null,
+    val site: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+)
+
+@Serializable
+private data class ItemLojaDto(
+    val id: String,
+    val produto: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    val validade: String,
+    val obs: String? = null,
+    val unidade: String? = null,
+    @SerialName("a_partir_de") val aPartirDe: Boolean = false,
+    @SerialName("preco_normal_centavos") val precoNormalCentavos: Long? = null,
+    @SerialName("preco_app") val precoApp: Boolean = false,
 )
 
 @Serializable
@@ -443,6 +530,20 @@ class SupabaseNotaFiscalRepositorio(private val supabase: SupabaseClient) : Nota
                 })
             },
         ).decodeAs<RespostaEnvioNf>().itens
+    }
+
+    override suspend fun minhasNotas(): List<MinhaNota> = traduzindoErros {
+        val linhas = supabase.postgrest.rpc("minhas_notas", buildJsonObject { put("p_limite", 50) })
+            .decodeList<MinhaNotaDto>().map {
+                LinhaMinhaNota(
+                    notaId = it.notaId, dataNf = it.dataNf?.let(LocalDate::parse),
+                    enviadaEm = runCatching { OffsetDateTime.parse(it.enviadaEm).toInstant() }.getOrElse { _ -> Instant.parse(it.enviadaEm) },
+                    pdvNome = it.pdvNome, endereco = it.endereco, produto = it.produto, precoCentavos = it.precoCentavos,
+                    unidade = Unidade.deCodigo(it.unidade), parteDeCombo = it.parteDeCombo,
+                    validade = it.validade?.let(LocalDate::parse), naBusca = it.naBusca,
+                )
+            }
+        MinhasNotas.agrupar(linhas)
     }
 
     override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = traduzindoErros {

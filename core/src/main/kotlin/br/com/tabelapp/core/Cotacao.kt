@@ -53,8 +53,18 @@ data class Cotacao(
     val parteDeCombo: Boolean = false,
     /** Quantas pessoas tocaram em "Esse preço não confere". */
     val denuncias: Int = 0,
+    /**
+     * Preço normal quando [precoCentavos] é o preço no app/clube de vantagens da loja (encarte ou
+     * preço oficial). A pesquisa (ordem, menor preço) usa sempre [precoCentavos].
+     */
+    val precoNormalCentavos: Long? = null,
+    val precoApp: Boolean = false,
 ) {
     val pdvCadastrado: Boolean get() = lojaId != null
+
+    /** Mostrar "no app" e o preço normal? Nota Fiscal nunca tem. */
+    val temPrecoApp: Boolean
+        get() = PrecoExibido.temPrecoApp(fonte, precoCentavos, precoApp, precoNormalCentavos)
 
     /** Identifica o ponto físico de venda (loja cadastrada ou nome+endereço livres). */
     val chaveLocal: String

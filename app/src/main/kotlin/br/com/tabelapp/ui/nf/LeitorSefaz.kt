@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import br.com.tabelapp.core.ClassificadorErros
+import br.com.tabelapp.core.EstadosNfce
 import br.com.tabelapp.core.LeitorNfce
 import br.com.tabelapp.core.NotaLida
 import br.com.tabelapp.core.PaginaSefaz
@@ -54,11 +55,6 @@ private const val DESISTIR_APOS_MS_MANUAL = 240_000L
 /** A página da Sefaz precisa abrir em até 20 s; depois disso, tela calma (sem insistir sozinho). */
 private const val TEMPO_CARREGAMENTO_MS = 20_000L
 
-/**
- * Consulta pública da NFC-e pela chave de acesso na Sefaz-RJ (é o endereço impresso
- * no cupom: "Consulte pela Chave de Acesso em www.fazenda.rj.gov.br/nfce/consulta").
- */
-const val URL_CONSULTA_CHAVE_RJ = "https://www.fazenda.rj.gov.br/nfce/consulta"
 
 /**
  * Abre a consulta da NFC-e (URL do QR Code) DENTRO do celular e lê os produtos.
@@ -88,6 +84,8 @@ fun LeitorSefaz(
     chaveParaPreencher: String? = null,
     /** A Sefaz falhou: tipo para a mensagem calma + detalhe técnico (só para o log). */
     aoFalhar: (TipoErro, String) -> Unit = { _, _ -> },
+    /** Leitor do HTML do estado da nota (EstadosNfce); padrão: o do RJ. */
+    lerNota: (String) -> NotaLida? = LeitorNfce::ler,
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val aoLerAtual by rememberUpdatedState(aoLer)
@@ -189,7 +187,7 @@ fun LeitorSefaz(
                 return@LaunchedEffect
             }
             aoCapturarHtmlAtual(html, wv.url)
-            val nota = withContext(Dispatchers.Default) { runCatching { LeitorNfce.ler(html) }.getOrNull() }
+            val nota = withContext(Dispatchers.Default) { runCatching { lerNota(html) }.getOrNull() }
             if (nota != null) {
                 aoLerAtual(nota)
                 return@LaunchedEffect
@@ -275,7 +273,8 @@ private class ClienteSefaz(
     private val aoFalhar: (TipoErro, String) -> Unit,
 ) : WebViewClient() {
 
-    private fun ehSefaz(url: Uri) = (url.host ?: "").endsWith("fazenda.rj.gov.br")
+    /** Dentro de alguma Sefaz ligada em EstadosNfce (hoje só a do RJ). */
+    private fun ehSefaz(url: Uri) = (url.host ?: "").let { host -> EstadosNfce.dominiosAtivos.any { host.endsWith(it) } }
 
     private fun paraHttps(url: Uri): Uri? =
         if (url.scheme == "http" && ehSefaz(url)) url.buildUpon().scheme("https").build() else null

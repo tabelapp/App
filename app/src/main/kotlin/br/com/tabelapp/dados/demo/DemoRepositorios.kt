@@ -15,16 +15,21 @@ import br.com.tabelapp.core.ErrosServidor
 import br.com.tabelapp.core.EstadoItem
 import br.com.tabelapp.core.Fonte
 import br.com.tabelapp.core.ItemFora
+import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.ItemSalvo
 import br.com.tabelapp.core.Limites
+import br.com.tabelapp.core.LinhaMinhaNota
 import br.com.tabelapp.core.ListaResumo
 import br.com.tabelapp.core.LojaPdv
 import br.com.tabelapp.core.LojaResumo
 import br.com.tabelapp.core.LojaSemLocal
 import br.com.tabelapp.core.MapaPrecos
 import br.com.tabelapp.core.MeuPdv
+import br.com.tabelapp.core.MinhaNota
+import br.com.tabelapp.core.MinhasNotas
 import br.com.tabelapp.core.NomeSugerido
 import br.com.tabelapp.core.PagamentoPendente
+import br.com.tabelapp.core.PaginaLoja
 import br.com.tabelapp.core.PdvAdmin
 import br.com.tabelapp.core.PdvPendente
 import br.com.tabelapp.core.Planilha
@@ -163,6 +168,32 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
     override suspend fun denunciar(cotacaoId: String, motivo: String?): Boolean {
         delay(200)
         return banco.denuncias.add(cotacaoId)
+    }
+
+    private suspend fun precosDemo(): List<Cotacao> = buscar(null, null)
+
+    override suspend fun paginaLoja(lojaId: String): PaginaLoja? {
+        delay(200)
+        val c = precosDemo().firstOrNull { it.lojaId == lojaId } ?: return null
+        return PaginaLoja(lojaId, c.pdvId.orEmpty(), c.pdvNome, c.lojaNome, c.endereco, c.telefone, c.site, c.local)
+    }
+
+    override suspend fun precosDaLoja(lojaId: String, termo: String?): List<ItemLoja> {
+        delay(200)
+        val hoje = LocalDate.now()
+        return precosDemo()
+            .filter { it.lojaId == lojaId && it.fonte.ehDoPdv && (it.validade ?: hoje) >= hoje }
+            .filter { termo.isNullOrBlank() || Texto.casaBusca(it.produto, termo) }
+            .sortedBy { Texto.normalizar(it.produto) }
+            .map {
+                ItemLoja(it.id, it.produto, it.precoCentavos, it.validade ?: hoje, it.obs, it.unidade, it.aPartirDe,
+                    it.precoNormalCentavos, it.precoApp)
+            }
+    }
+
+    override suspend fun bannersDaLoja(pdvId: String): List<Banner> {
+        val nome = precosDemo().firstOrNull { it.pdvId == pdvId }?.pdvNome ?: return emptyList()
+        return banners(null, null).filter { it.pdvNome == nome }
     }
 
     override suspend fun denunciarBanner(promocaoId: String, motivo: String?): Boolean {
@@ -614,6 +645,19 @@ class DemoNotaFiscalRepositorio(private val banco: DemoBanco) : NotaFiscalReposi
     override suspend fun sugerirNomePdv(cnpj: String, nome: String): Boolean = false
 
     override suspend fun lojasDoCnpj(cnpj: String): List<LojaResumo> = DadosDemo.lojasDoCnpj(cnpj)
+
+    /** Na demonstração, as notas enviadas nesta sessão (cada envio tem o mesmo horário). */
+    override suspend fun minhasNotas(): List<MinhaNota> {
+        delay(200)
+        val hoje = LocalDate.now()
+        return MinhasNotas.agrupar(banco.enviados.map {
+            LinhaMinhaNota(
+                notaId = it.criadoEm.toString(), dataNf = it.dataNf, enviadaEm = it.criadoEm, pdvNome = it.pdvNome,
+                endereco = it.endereco, produto = it.produto, precoCentavos = it.precoCentavos, unidade = it.unidade,
+                parteDeCombo = it.parteDeCombo, validade = it.validade, naBusca = (it.validade ?: hoje) >= hoje,
+            )
+        })
+    }
 
     override suspend fun enviar(rascunho: RascunhoNf): Int {
         delay(400)
