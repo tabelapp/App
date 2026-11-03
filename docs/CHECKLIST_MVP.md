@@ -16,7 +16,7 @@ Essenciais para lançar:
 Importantes, podem vir logo depois:
 - [ ] **Pix automático** (Mercado Pago ou Efí) — hoje o pagamento é manual (WhatsApp + confirmação do Admin).
 - [ ] Lista de compras: relatório **"no mapa"** (reaproveita a tela do mapa).
-- [ ] PDV: cadastrar mais lojas e trocar modo rede/varejo.
+- [x] PDV: cadastrar mais lojas (um CNPJ por loja) e ligar/desligar o modo rede (1.0.3).
 - [ ] Promoção pausada: botão "reativar".
 - [ ] Busca: "carregar mais" além de 100 resultados.
 
