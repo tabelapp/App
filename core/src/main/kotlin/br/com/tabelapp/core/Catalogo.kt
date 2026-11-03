@@ -228,31 +228,43 @@ object PrecoExibido {
     fun texto(c: Cotacao): String = texto(c.precoCentavos, c.unidade, c.aPartirDe)
 
     // --- Preço no app (clube de vantagens da loja) ---------------------------------------
+    // Regra do dono (1.0.3): com preco_app o preço principal leva o selo "no app" (fora Nota
+    // Fiscal). O preço normal é opcional: aparece riscado só se existir e for maior.
 
-    /** Legenda pequena abaixo do preço principal quando ele é o preço no app. */
+    /** Selo pequeno junto do preço principal quando ele é o preço no app. */
     const val LEGENDA_APP = "no app"
 
-    /** Só encarte/preço oficial, com o normal informado e maior que o do app. */
-    fun temPrecoApp(fonte: Fonte, centavos: Long, precoApp: Boolean, normalCentavos: Long?): Boolean =
-        precoApp && fonte != Fonte.USUARIO_NF && normalCentavos != null && normalCentavos > centavos
+    /** Selo "no app": preço marcado como do app/clube, em encarte ou preço oficial (nunca NF). */
+    fun temPrecoApp(fonte: Fonte, precoApp: Boolean): Boolean = precoApp && fonte != Fonte.USUARIO_NF
 
-    /** Preço normal, menor e sem legenda: "R$ 6,99" (ou "R$ 57,90 / kg"). */
+    /** Preço normal a mostrar riscado: só com o selo, e só se existir e for maior que o principal. */
+    fun normalRiscado(centavos: Long, normalCentavos: Long?, temApp: Boolean): Long? =
+        normalCentavos?.takeIf { temApp && it > centavos }
+
+    /** Preço normal: "R$ 6,99" (ou "R$ 57,90 / kg"). */
     fun textoNormal(normalCentavos: Long, unidade: Unidade): String = texto(normalCentavos, unidade)
 
-    /** Leitor de tela: "R$ 5,98 no app. Preço normal R$ 6,99." (sem preço no app: o preço comum). */
+    /**
+     * Leitor de tela: "R$ 5,98 no app. Preço normal R$ 6,99.", "R$ 5,98 no app." (só o do app) ou o
+     * preço comum.
+     */
     fun descricao(centavos: Long, unidade: Unidade, aPartirDe: Boolean, normalCentavos: Long?, temApp: Boolean): String {
         val principal = texto(centavos, unidade, aPartirDe)
-        return if (temApp && normalCentavos != null) "$principal $LEGENDA_APP. Preço normal ${textoNormal(normalCentavos, unidade)}."
-        else principal
+        if (!temApp) return principal
+        val normal = normalRiscado(centavos, normalCentavos, temApp)
+        return "$principal $LEGENDA_APP." + (normal?.let { " Preço normal ${textoNormal(it, unidade)}." } ?: "")
     }
 
     fun descricao(c: Cotacao): String = descricao(c.precoCentavos, c.unidade, c.aPartirDe, c.precoNormalCentavos, c.temPrecoApp)
 
-    /** No texto de compartilhar: "R$ 5,98 no app / R$ 6,99 normal". */
+    /** Leitor de tela do card: "Leite 1L, Assaí, R$ 5,98 no app." */
+    fun descricaoCartao(c: Cotacao): String = "${c.produto}, ${c.pdvNome}, ${descricao(c)}"
+
+    /** No texto de compartilhar: "R$ 5,98 no app / R$ 6,99 normal" (ou "R$ 5,98 no app"). */
     fun textoCompartilhar(c: Cotacao): String {
-        val normal = c.precoNormalCentavos
-        return if (c.temPrecoApp && normal != null) "${texto(c)} $LEGENDA_APP / ${textoNormal(normal, c.unidade)} normal"
-        else texto(c)
+        if (!c.temPrecoApp) return texto(c)
+        val normal = c.precoNormalRiscado
+        return "${texto(c)} $LEGENDA_APP" + (normal?.let { " / ${textoNormal(it, c.unidade)} normal" } ?: "")
     }
 }
 

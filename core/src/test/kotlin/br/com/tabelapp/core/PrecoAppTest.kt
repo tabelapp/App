@@ -5,6 +5,7 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PrecoAppTest {
@@ -35,17 +36,37 @@ class PrecoAppTest {
         assertEquals("R$ 53,90 / kg no app. Preço normal R$ 57,90 / kg.", PrecoExibido.descricao(c))
     }
 
-    @Test fun `sem os dois precos validos o cartao fica igual a hoje`() {
-        assertFalse(cotacao(app = false).temPrecoApp, "sem a marca de preço no app")
-        assertFalse(cotacao(normal = null).temPrecoApp, "sem o preço normal")
-        assertFalse(cotacao(normal = 598).temPrecoApp, "normal igual ao do app")
-        assertFalse(cotacao(fonte = Fonte.USUARIO_NF).temPrecoApp, "Nota Fiscal nunca tem preço no app")
+    @Test fun `regra do selo no app (1_0_3)`() {
+        // Dois preços: selo e normal riscado.
+        assertTrue(cotacao().temPrecoApp)
+        assertEquals(699L, cotacao().precoNormalRiscado)
+        // Só o preço do app: selo, sem riscado.
+        assertTrue(cotacao(normal = null).temPrecoApp)
+        assertNull(cotacao(normal = null).precoNormalRiscado)
+        assertEquals("R$ 5,98 no app.", PrecoExibido.descricao(cotacao(normal = null)))
+        // Normal menor ou igual ao preço: selo, mas não risca.
+        assertTrue(cotacao(normal = 598).temPrecoApp)
+        assertNull(cotacao(normal = 598).precoNormalRiscado)
+        assertNull(cotacao(normal = 500).precoNormalRiscado)
+        // Sem preço no app: igual a antes.
+        assertFalse(cotacao(app = false).temPrecoApp)
+        assertNull(cotacao(app = false).precoNormalRiscado)
+        // Nota Fiscal nunca tem "no app".
+        assertFalse(cotacao(fonte = Fonte.USUARIO_NF).temPrecoApp)
+        assertNull(cotacao(fonte = Fonte.USUARIO_NF).precoNormalRiscado)
         assertTrue(cotacao(fonte = Fonte.PDV_MANUAL).temPrecoApp, "preço oficial pode ter")
+    }
+
+    @Test fun `leitor de tela do card`() {
+        assertEquals("Leite Integral 1L, Assaí, R$ 5,98 no app. Preço normal R$ 6,99.", PrecoExibido.descricaoCartao(cotacao()))
+        assertEquals("Leite Integral 1L, Assaí, R$ 5,98", PrecoExibido.descricaoCartao(cotacao(app = false)))
     }
 
     @Test fun `compartilhar inclui os dois precos`() {
         val t = Compartilhamento.texto(cotacao(), link = "x")
         assertTrue("Leite Integral 1L: R$ 5,98 no app / R$ 6,99 normal em Assaí (Rua A, 1)" in t, t)
+        val soApp = Compartilhamento.texto(cotacao(normal = null), link = "x")
+        assertTrue("Leite Integral 1L: R$ 5,98 no app em Assaí" in soApp, soApp)
         val semApp = Compartilhamento.texto(cotacao(app = false), link = "x")
         assertTrue("Leite Integral 1L: R$ 5,98 em Assaí" in semApp, semApp)
     }
@@ -56,5 +77,7 @@ class PrecoAppTest {
         assertEquals("R$ 25,49", i.precoNormal)
         assertEquals("R$ 23,89 no app. Preço normal R$ 25,49.", i.descricaoPreco)
         assertEquals(null, i.copy(precoApp = false).precoNormal)
+        assertTrue(i.copy(precoNormalCentavos = null).temPrecoApp, "só o preço do app")
+        assertEquals(null, i.copy(precoNormalCentavos = null).precoNormal)
     }
 }

@@ -44,4 +44,15 @@ class ValidadeTest {
 
     @Test fun `todo preco da demonstracao tem validade`() =
         kotlin.test.assertTrue(DadosDemo.cotacoes(hoje = hoje).all { it.validade != null })
+
+    @Test fun `origem e OBS na pagina do produto`() {
+        kotlin.test.assertEquals("Nota Fiscal", Obs.origem(Fonte.USUARIO_NF))
+        kotlin.test.assertEquals("Encarte", Obs.origem(Fonte.USUARIO_ENCARTE))
+        kotlin.test.assertEquals("Preço oficial", Obs.origem(Fonte.PDV_EXCEL))
+        val c = Cotacao(id = "1", produto = "X", precoCentavos = 100, validade = null, obs = " Leve 3 ", fonte = Fonte.PDV_MANUAL,
+            lojaId = "l", pdvId = "p", pdvNome = "Loja", criadoEm = java.time.Instant.EPOCH)
+        kotlin.test.assertEquals("Leve 3", Obs.doPdv(c))
+        kotlin.test.assertEquals(null, Obs.doPdv(c.copy(fonte = Fonte.USUARIO_ENCARTE)))
+        kotlin.test.assertEquals(null, Obs.doPdv(c.copy(obs = "  ")))
+    }
 }

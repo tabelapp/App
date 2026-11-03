@@ -62,9 +62,11 @@ data class Cotacao(
 ) {
     val pdvCadastrado: Boolean get() = lojaId != null
 
-    /** Mostrar "no app" e o preço normal? Nota Fiscal nunca tem. */
-    val temPrecoApp: Boolean
-        get() = PrecoExibido.temPrecoApp(fonte, precoCentavos, precoApp, precoNormalCentavos)
+    /** Selo "no app"? Nota Fiscal nunca tem; o preço normal é opcional. */
+    val temPrecoApp: Boolean get() = PrecoExibido.temPrecoApp(fonte, precoApp)
+
+    /** Preço normal riscado (só com o selo, e só se for maior que o principal). */
+    val precoNormalRiscado: Long? get() = PrecoExibido.normalRiscado(precoCentavos, precoNormalCentavos, temPrecoApp)
 
     /** Identifica o ponto físico de venda (loja cadastrada ou nome+endereço livres). */
     val chaveLocal: String

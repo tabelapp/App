@@ -21,4 +21,15 @@ object Obs {
     }
 
     fun exibir(cotacao: Cotacao): String = exibir(cotacao.fonte, cotacao.obs)
+
+    /** Linha "Origem" da página do produto: "Nota Fiscal", "Encarte" ou "Preço oficial". */
+    fun origem(fonte: Fonte): String = when (fonte) {
+        Fonte.USUARIO_NF -> "Nota Fiscal"
+        Fonte.USUARIO_ENCARTE -> "Encarte"
+        Fonte.PDV_MANUAL, Fonte.PDV_EXCEL -> PRECO_OFICIAL
+    }
+
+    /** Linha "OBS" da página do produto: só o texto que o próprio estabelecimento escreveu. */
+    fun doPdv(cotacao: Cotacao): String? =
+        cotacao.obs?.trim()?.takeIf { it.isNotEmpty() && cotacao.fonte.ehDoPdv }
 }
