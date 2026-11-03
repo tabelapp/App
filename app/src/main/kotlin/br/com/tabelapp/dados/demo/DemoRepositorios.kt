@@ -36,6 +36,7 @@ import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PlanoPdvAdmin
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PontoPreco
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
@@ -189,6 +190,16 @@ class DemoCotacoesRepositorio(private val banco: DemoBanco) : CotacoesRepositori
                 ItemLoja(it.id, it.produto, it.precoCentavos, it.validade ?: hoje, it.obs, it.unidade, it.aPartirDe,
                     it.precoNormalCentavos, it.precoApp)
             }
+    }
+
+    /** Demonstração: 5 semanas de preços que terminam no preço atual (para ver o gráfico). */
+    override suspend fun historicoPreco(cotacaoId: String): List<PontoPreco> {
+        delay(200)
+        val c = precosDemo().firstOrNull { it.id == cotacaoId } ?: return emptyList()
+        if (c.fonte == Fonte.USUARIO_NF) return listOf(PontoPreco(c.dataNf ?: LocalDate.now(), c.precoCentavos))
+        val hoje = LocalDate.now()
+        val variacoes = listOf(50L, 30L, 50L, 30L, 0L)
+        return variacoes.mapIndexed { i, mais -> PontoPreco(hoje.minusWeeks((variacoes.size - 1 - i).toLong()), c.precoCentavos + mais, c.precoApp) }
     }
 
     override suspend fun bannersDaLoja(pdvId: String): List<Banner> {

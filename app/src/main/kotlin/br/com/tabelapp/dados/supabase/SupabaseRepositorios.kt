@@ -31,6 +31,7 @@ import br.com.tabelapp.core.Planilha
 import br.com.tabelapp.core.Plano
 import br.com.tabelapp.core.PlanoPdvAdmin
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PontoPreco
 import br.com.tabelapp.core.PrecoDenunciado
 import br.com.tabelapp.core.PrecoPdv
 import br.com.tabelapp.core.PromocaoPdv
@@ -419,6 +420,11 @@ class SupabaseCotacoesRepositorio(private val supabase: SupabaseClient) : Cotaco
         }
     }
 
+    override suspend fun historicoPreco(cotacaoId: String): List<PontoPreco> = traduzindoErros {
+        supabase.postgrest.rpc("historico_preco_produto", buildJsonObject { put("p_cotacao_id", cotacaoId) })
+            .decodeList<PontoPrecoDto>().map { PontoPreco(LocalDate.parse(it.data), it.precoCentavos, it.precoApp) }
+    }
+
     override suspend fun bannersDaLoja(pdvId: String): List<Banner> = traduzindoErros {
         supabase.postgrest.rpc("banners_da_loja", buildJsonObject { put("p_pdv_id", pdvId) })
             .decodeList<BannerDto>().map { d ->
@@ -449,6 +455,13 @@ private data class BannerDto(
     val descricao: String? = null,
     @SerialName("arte_path") val artePath: String? = null,
     val link: String? = null,
+)
+
+@Serializable
+private data class PontoPrecoDto(
+    val data: String,
+    @SerialName("preco_centavos") val precoCentavos: Long,
+    @SerialName("preco_app") val precoApp: Boolean = false,
 )
 
 @Serializable
