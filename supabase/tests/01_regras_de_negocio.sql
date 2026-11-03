@@ -1748,4 +1748,48 @@ update public.configuracao_app set valor = '["33", "35"]' where chave = 'nfce_uf
 do $$ begin assert public.nfce_uf_aceita('35'), 'ligar SP é só configuração'; end $$;
 update public.configuracao_app set valor = '["33"]' where chave = 'nfce_ufs_aceitas';
 
+\echo '== 1.0.3: selo "no app" sem preço normal; histórico do produto na loja (gráfico)'
+reset role;
+insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app)
+values ('Loja Hist', 'Rua H, 1', 'Banana Prata Hist kg', 599, public.hoje() + 3, 'usuario_encarte', true);
+-- Histórico de dias anteriores do mesmo produto no mesmo local (e ruídos que não podem entrar).
+insert into public.historico_precos
+  (registrado_em, operacao, cotacao_id, pdv_nome, pdv_endereco, produto, produto_busca, preco_centavos, fonte)
+select ((public.hoje() - d)::timestamp + make_interval(hours => 12 + extra)) at time zone 'America/Sao_Paulo', op,
+       gen_random_uuid(), loja, 'Rua H, 1', 'Banana Prata Hist kg', public.normalizar('Banana Prata Hist kg'), preco, 'usuario_encarte'
+from (values (30, 0, 'criado', 'Loja Hist', 649), (20, 0, 'criado', 'Loja Hist', 629),
+             (10, 0, 'criado', 'Loja Hist', 649), (10, 3, 'alterado', 'Loja Hist', 639),
+             (100, 0, 'criado', 'Loja Hist', 999),        -- fora da janela de 90 dias
+             (15, 0, 'excluido', 'Loja Hist', 111),       -- exclusão não é ponto
+             (15, 0, 'criado', 'Outra Loja', 222)         -- outro local
+     ) as v(d, extra, op, loja, preco);
+set role authenticated;
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+do $$
+declare
+  alvo uuid := (select id from public.buscar_cotacoes('banana prata hist') limit 1);
+  serie int[];
+begin
+  -- Selo "no app" sem preço normal: a busca já marca preco_app.
+  assert (select preco_app and preco_normal_centavos is null from public.buscar_cotacoes('banana prata hist')),
+    'preço no app sem o normal';
+  serie := array(select preco_centavos from public.historico_preco_produto(alvo));
+  assert serie = array[649, 629, 639, 599], format('série esperada 649,629,639,599; veio %s', serie);
+  assert (select bool_and(data <= public.hoje() and data >= public.hoje() - 90) from public.historico_preco_produto(alvo));
+  assert (select count(*) from public.historico_preco_produto(gen_random_uuid())) = 0, 'preço inexistente: vazio';
+end $$;
+reset role;
+set role anon;
+select pg_temp.espera_erro($q$select * from public.historico_preco_produto(gen_random_uuid())$q$,
+  'permission denied for function historico_preco_produto');
+reset role;
+do $$ begin
+  -- Só data, preço e preco_app: nunca quem enviou.
+  assert (select array_agg(parameter_name::text order by ordinal_position)
+          from information_schema.parameters p join information_schema.routines r on r.specific_name = p.specific_name
+          where r.routine_name = 'historico_preco_produto' and p.parameter_mode = 'OUT')
+         = array['data', 'preco_centavos', 'preco_app'];
+end $$;
+delete from public.cotacoes where produto = 'Banana Prata Hist kg';
+
 \echo 'OK — todos os testes do banco passaram'
