@@ -185,8 +185,9 @@ begin
   -- 22222222000191 = Mercado Quitandinha (seed), uma loja.
   assert (select count(*) from public.lojas_do_cnpj('22.222.222/0001-91')) = 1;
   assert (select pdv_nome from public.lojas_do_cnpj('22222222000191')) = 'Mercado Quitandinha';
-  -- Rede com duas lojas: o app pergunta em qual foi a compra.
-  assert (select count(*) from public.lojas_do_cnpj('11111111000191')) = 2;
+  -- Cada CNPJ é uma loja (a rede Serra Imperial tem outro CNPJ para a outra loja).
+  assert (select count(*) from public.lojas_do_cnpj('11111111000191')) = 1;
+  assert (select count(*) from public.lojas_do_cnpj('11111111000272')) = 1;
   assert (select count(*) from public.lojas_do_cnpj('99999999000191')) = 0;
 
   v := public.enviar_nota_fiscal(pg_temp.chave('22222222000191', 7777),
@@ -471,9 +472,12 @@ set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
 
 -- PDV já aprovado (criado aqui direto no banco, como o Admin faria).
 reset role;
+-- Duas lojas = dois CNPJs na mesma conta (cada CNPJ é uma loja). Começam fora do modo rede.
 insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
 values ('10000000-0000-4000-b000-000000000001', 'b0000000-0000-4000-a000-00000000000b', '55555555000191',
-        'Mercado do Bruno', false, 'aprovado');
+        'Mercado do Bruno', false, 'aprovado'),
+       ('10000000-0000-4000-b000-000000000002', 'b0000000-0000-4000-a000-00000000000b', '77777777000191',
+        'Mercado do Bruno Retiro', false, 'aprovado');
 do $$ begin
   -- Todo PDV novo começa no plano grátis com 30 dias de teste grátis (catálogo do plano mercado).
   assert (select plano = 'gratis' and teste_ate = public.hoje() + 30 and plano_ate is null
@@ -481,13 +485,25 @@ do $$ begin
   assert (select teste_ate from public.testes_gratis where cnpj = '55555555000191') = public.hoje() + 30;
 end $$;
 -- Para testar o plano grátis: o teste já acabou, e a tolerância (7 dias) também.
-update public.pdvs set teste_ate = public.hoje() - 8 where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set teste_ate = public.hoje() - 8 where id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 -- Faixa menor só para o teste ficar rápido (as faixas vêm da tabela planos, não do código).
 update public.planos set limite_itens = 3 where codigo = 'gratis';
-set role authenticated;
+-- A loja nasce com o cadastro do CNPJ (aqui direto no banco).
 insert into public.lojas (id, pdv_id, endereco, bairro, telefone) values
   ('20000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000001', 'Rua A, 1', 'Centro', '(24) 1111-1111'),
-  ('20000000-0000-4000-b000-000000000002', '10000000-0000-4000-b000-000000000001', 'Rua B, 2', 'Retiro', '(24) 3333-3333');
+  ('20000000-0000-4000-b000-000000000002', '10000000-0000-4000-b000-000000000002', 'Rua B, 2', 'Retiro', '(24) 3333-3333');
+-- Uma loja por CNPJ: segunda loja no mesmo cadastro é recusada pelo banco.
+select pg_temp.espera_erro(
+  $q$insert into public.lojas (pdv_id, endereco) values ('10000000-0000-4000-b000-000000000001', 'Rua C, 3')$q$,
+  'lojas_uma_por_pdv_uidx');
+set role authenticated;
+-- O dono também não cria loja pelo app (a loja vem do cadastro do CNPJ).
+select pg_temp.espera_erro(
+  $q$insert into public.lojas (pdv_id, endereco) values ('10000000-0000-4000-b000-000000000001', 'Rua C, 3')$q$,
+  'row-level security');
+-- Modo rede só pela função (que junta as tabelas).
+select pg_temp.espera_erro(
+  $q$update public.pdvs set modo_rede = true where id = '10000000-0000-4000-b000-000000000001'$q$, 'permission denied');
 
 -- Não consegue mexer em loja de outro PDV.
 select pg_temp.espera_erro(
@@ -510,11 +526,12 @@ do $$
 declare
   pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
   loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
+  pdv2 constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   v jsonb;
   r record;
 begin
-  -- Varejo: cada loja tem o seu limite (aqui 3).
+  -- Fora do modo rede: cada loja (CNPJ) tem o seu limite (aqui 3).
   select * into r from public.status_catalogo(pdv, loja1);
   assert r.plano_efetivo = 'gratis' and r.limite = 3 and r.itens_ativos = 0 and r.disponiveis = 3, r::text;
 
@@ -552,10 +569,17 @@ begin
   assert (v ->> 'aumentados')::int = 1 and (v ->> 'diminuidos')::int = 1 and (v ->> 'fora_do_limite')::int = 0, v::text;
   assert (select unidade from public.cotacoes where loja_id = loja1 and produto = 'Feijão 1kg') = 'kg';
 
-  -- Modo varejo: a loja 2 tem o próprio catálogo e o próprio limite.
-  v := public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Arroz 5kg", "preco_centavos": 2000}]');
+  -- Fora do modo rede: a loja 2 (outro CNPJ) tem o próprio catálogo e o próprio limite.
+  v := public.pdv_salvar_precos(pdv2, loja2, '[{"produto": "Arroz 5kg", "preco_centavos": 2000}]');
   assert (v ->> 'criados')::int = 1, v::text;
-  assert (select itens_ativos from public.status_catalogo(pdv, loja2)) = 1;
+  assert (select itens_ativos from public.status_catalogo(pdv2, loja2)) = 1;
+  -- A loja de um CNPJ não é usada pelo outro.
+  begin
+    perform public.pdv_salvar_precos(pdv, loja2, '[{"produto": "Arroz 5kg", "preco_centavos": 2000}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%loja_invalida%', sqlerrm;
+  end;
 
   -- Excluir: sempre permitido e libera espaço.
   perform public.pdv_excluir_item((select id from public.cotacoes where loja_id = loja1 and produto = 'Óleo 900ml'));
@@ -584,7 +608,7 @@ end $$;
 \echo '== Planilha: importa até o limite, sem perder atualizações (tudo ou nada por chamada)'
 do $$
 declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   v jsonb;
   itens jsonb;
@@ -628,16 +652,18 @@ do $$ begin
                    and h.cnpj = '55555555000191'), 'histórico de exclusão';
   assert (select unidade from public.historico_precos h where h.produto = 'Feijão 1kg' order by h.id desc limit 1) = 'kg';
   -- Medição: o log continua (sem bloquear nada) e a visão mensal resume.
-  assert (select criacoes >= 6 and aumentos >= 2 and reducoes >= 2 and exclusoes = 1 from public.uso_pdv_mensal
-          where pdv_id = '10000000-0000-4000-b000-000000000001' and mes = public.competencia_atual());
+  assert (select sum(criacoes) >= 6 and sum(aumentos) >= 2 and sum(reducoes) >= 2 and sum(exclusoes) = 1
+          from public.uso_pdv_mensal
+          where pdv_id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002')
+            and mes = public.competencia_atual());
 end $$;
 
 \echo '== Teste grátis: catálogo do mercado; tolerância; depois, excedentes pausados (nunca apagados)'
-update public.pdvs set teste_ate = public.hoje() + 10 where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set teste_ate = public.hoje() + 10 where id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 set role authenticated;
 do $$
 declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   v jsonb;
   r record;
@@ -651,11 +677,11 @@ begin
 end $$;
 -- Terminou ontem: tolerância de 7 dias com o limite anterior (nada pausado ainda).
 reset role;
-update public.pdvs set teste_ate = public.hoje() - 1 where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set teste_ate = public.hoje() - 1 where id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 set role authenticated;
 do $$
 declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   r record;
 begin
@@ -665,11 +691,11 @@ begin
 end $$;
 -- Passou a tolerância: plano grátis (aqui 3). Os 2 excedentes ficam pausados, não apagados.
 reset role;
-update public.pdvs set teste_ate = public.hoje() - 8 where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set teste_ate = public.hoje() - 8 where id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 set role authenticated;
 do $$
 declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   v jsonb;
   r record;
@@ -694,7 +720,7 @@ end $$;
 -- O PDV escolhe quais ficam no ar: pausa uns e reativa outros (grátis, só até o limite).
 do $$
 declare
-  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000002';
   loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
   item uuid;
 begin
@@ -761,11 +787,13 @@ begin
   assert (select count(*) from public.interesse_planos where pdv_id = pdv and plano = 'loja') = 1;
 end $$;
 
-\echo '== Modo rede: um catálogo só (o limite não multiplica pelas lojas)'
+\echo '== Modo rede: os CNPJs da mesma conta dividem um catálogo só (o limite não multiplica pelas lojas)'
 reset role;
-update public.pdvs set modo_rede = true where id = '10000000-0000-4000-b000-000000000001';
+update public.pdvs set modo_rede = true
+ where id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 delete from public.cotacoes c using public.lojas l
- where l.id = c.loja_id and l.pdv_id = '10000000-0000-4000-b000-000000000001';
+ where l.id = c.loja_id
+   and l.pdv_id in ('10000000-0000-4000-b000-000000000001', '10000000-0000-4000-b000-000000000002');
 set role authenticated;
 do $$
 declare
@@ -776,9 +804,13 @@ begin
     '[{"produto": "Cerveja Lata", "preco_centavos": 350, "obs": "Gelada"},
       {"produto": "Refrigerante 2L", "preco_centavos": 900}, {"produto": "Água 500ml", "preco_centavos": 250}]');
   assert (v ->> 'criados')::int = 3, v::text;
-  -- Replicado nas 2 lojas (6 linhas), mas conta 3 itens no catálogo da rede.
-  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id where l.pdv_id = pdv) = 6;
+  -- Replicado nas lojas dos 2 CNPJs (6 linhas), mas conta 3 itens no catálogo da rede.
+  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id
+          where l.pdv_id in (pdv, '10000000-0000-4000-b000-000000000002')) = 6;
   assert (select itens_ativos = 3 and disponiveis = 0 from public.status_catalogo(pdv));
+  -- O outro CNPJ da rede vê a mesma tabela e o mesmo limite.
+  assert (select itens_ativos = 3 and disponiveis = 0 from public.status_catalogo('10000000-0000-4000-b000-000000000002'));
+  assert (select count(*) from public.meus_precos('10000000-0000-4000-b000-000000000002')) = 3;
   begin
     perform public.pdv_salvar_precos(pdv, null, '[{"produto": "Suco 1L", "preco_centavos": 700}]');
     raise exception 'devia recusar';
@@ -789,7 +821,63 @@ begin
   perform public.pdv_excluir_item((select c.id from public.cotacoes c where c.produto = 'Cerveja Lata' limit 1));
   assert (select count(*) from public.cotacoes where produto = 'Cerveja Lata') = 0;
   assert (select disponiveis from public.status_catalogo(pdv)) = 1;
+  -- Alterar pelo outro CNPJ muda nas duas lojas.
+  perform public.pdv_salvar_precos('10000000-0000-4000-b000-000000000002', null,
+    '[{"produto": "Água 500ml", "preco_centavos": 275}]');
+  assert (select array_agg(distinct preco_centavos) from public.cotacoes where produto = 'Água 500ml') = array[275];
 end $$;
+
+\echo '== Modo rede: sair e entrar junta as tabelas (o preço da rede vale; nada se perde)'
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv2 constant uuid := '10000000-0000-4000-b000-000000000002';
+  loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+begin
+  -- Sai da rede: a loja 2 fica com a cópia e passa a ter tabela própria.
+  perform public.pdv_definir_modo_rede(pdv2, false);
+  assert (select count(*) from public.cotacoes where loja_id = loja2) = 2;
+  perform public.pdv_salvar_precos(pdv2, loja2,
+    '[{"produto": "Água 500ml", "preco_centavos": 300}, {"produto": "Suco 1L", "preco_centavos": 700}]');
+  assert (select preco_centavos from public.cotacoes where loja_id = loja1 and produto = 'Água 500ml') = 275,
+    'fora da rede, não mexe na outra loja';
+  -- Volta para a rede: a Água fica com o preço da rede e o Suco (só da loja 2) vai para a loja 1.
+  perform public.pdv_definir_modo_rede(pdv2, true);
+  assert (select preco_centavos from public.cotacoes where loja_id = loja2 and produto = 'Água 500ml') = 275;
+  assert (select preco_centavos from public.cotacoes where loja_id = loja1 and produto = 'Suco 1L') = 700;
+  assert (select count(*) from public.cotacoes where loja_id = loja1) = 3
+     and (select count(*) from public.cotacoes where loja_id = loja2) = 3;
+end $$;
+-- Só o dono liga o modo rede.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro(
+  $q$select public.pdv_definir_modo_rede('10000000-0000-4000-b000-000000000002', false)$q$, 'sem_permissao');
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+reset role;
+-- Terceiro CNPJ da conta (cadastro novo, em modo rede): ao ser aprovado, já entra com a tabela da rede.
+insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, modo_rede, status)
+values ('10000000-0000-4000-b000-000000000003', 'b0000000-0000-4000-a000-00000000000b', '88888888000191',
+        'Mercado do Bruno Itaipava', true, 'pendente');
+insert into public.lojas (id, pdv_id, endereco) values
+  ('20000000-0000-4000-b000-000000000003', '10000000-0000-4000-b000-000000000003', 'Rua C, 3');
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+select public.aprovar_pdv('10000000-0000-4000-b000-000000000003');
+reset role;
+do $$ begin
+  assert (select count(*) from public.cotacoes where loja_id = '20000000-0000-4000-b000-000000000003') = 3;
+  assert (select preco_centavos from public.cotacoes
+          where loja_id = '20000000-0000-4000-b000-000000000003' and produto = 'Água 500ml') = 275;
+end $$;
+delete from public.pdvs where id = '10000000-0000-4000-b000-000000000003';
+-- Conta de outro dono, em modo rede, não entra na rede do Bruno.
+do $$ begin
+  assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id
+          join public.pdvs p on p.id = l.pdv_id where p.dono_id <> 'b0000000-0000-4000-a000-00000000000b'
+            and c.produto in ('Suco 1L', 'Refrigerante 2L')) = 0;
+end $$;
+set role authenticated;
 reset role;
 update public.planos set limite_itens = 5 where codigo = 'gratis';
 set role authenticated;
@@ -1171,7 +1259,7 @@ declare
   antes integer;
 begin
   assert (select status = 'aprovado' from public.admin_pdvs('serra imperial') where id = pdv);
-  assert (select count(*) from public.admin_pdvs('11111111')) = 1, 'busca por CNPJ';
+  assert (select count(*) from public.admin_pdvs('11111111000191')) = 1, 'busca por CNPJ';
   select count(*) into antes from public.buscar_cotacoes(null) b join public.lojas l on l.id = b.loja_id where l.pdv_id = pdv;
   assert antes > 0;
   perform public.admin_suspender_pdv(pdv, 'Preços fora da realidade');
@@ -1209,17 +1297,17 @@ set request.jwt.claim.sub = '00000000-0000-4000-a000-000000000001';
 do $$
 declare loja constant uuid := '20000000-0000-4000-a000-000000000002';
 begin
-  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000005') where id = loja);
   -- Mudou só o telefone: a coordenada fica.
   perform public.atualizar_loja(loja, 'Loja Valparaíso', 'Rua Coronel Veiga, 1200', 'Valparaíso', null, '(24) 2222-9999', null);
-  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+  assert (select latitude is not null from public.minhas_lojas('10000000-0000-4000-a000-000000000005') where id = loja);
   -- Mudou o endereço: a coordenada antiga sai (o app localiza de novo).
   perform public.atualizar_loja(loja, 'Loja Valparaíso', 'Rua Coronel Veiga, 1500', 'Valparaíso', null, '(24) 2222-9999', null);
   assert (select latitude is null and longitude is null and coordenadas_origem is null
-          from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+          from public.minhas_lojas('10000000-0000-4000-a000-000000000005') where id = loja);
   perform public.definir_coordenadas_loja(loja, -22.517, -43.172, 'aparelho');
   assert (select latitude = -22.517 and longitude = -43.172 and coordenadas_origem = 'aparelho'
-          from public.minhas_lojas('10000000-0000-4000-a000-000000000001') where id = loja);
+          from public.minhas_lojas('10000000-0000-4000-a000-000000000005') where id = loja);
 end $$;
 select pg_temp.espera_erro(
   $q$select public.definir_coordenadas_loja('20000000-0000-4000-a000-000000000002', 0, 0)$q$, 'coordenada_invalida');

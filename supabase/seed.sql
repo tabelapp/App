@@ -6,26 +6,36 @@
 -- =============================================================================
 
 -- Dono "de mentira" dos PDVs de demonstração (não consegue fazer login).
-insert into auth.users (id, email, aud, role, raw_user_meta_data)
-values ('00000000-0000-4000-a000-000000000001', 'demo-pdv@tabelapp.invalid',
-        'authenticated', 'authenticated', '{"nome": "PDV Demonstração", "tipo": "cnpj"}')
+-- Cada CNPJ é uma loja; a Serra Imperial tem 2 CNPJs na mesma conta, em modo rede.
+-- Os outros comércios são de donos diferentes (cada conta com modo rede vira uma rede).
+insert into auth.users (id, email, aud, role, raw_user_meta_data) values
+  ('00000000-0000-4000-a000-000000000001', 'demo-pdv@tabelapp.invalid',
+   'authenticated', 'authenticated', '{"nome": "PDV Demonstração", "tipo": "cnpj"}'),
+  ('00000000-0000-4000-a000-000000000002', 'demo-pdv2@tabelapp.invalid',
+   'authenticated', 'authenticated', '{"nome": "PDV Demonstração 2", "tipo": "cnpj"}'),
+  ('00000000-0000-4000-a000-000000000003', 'demo-pdv3@tabelapp.invalid',
+   'authenticated', 'authenticated', '{"nome": "PDV Demonstração 3", "tipo": "cnpj"}'),
+  ('00000000-0000-4000-a000-000000000004', 'demo-pdv4@tabelapp.invalid',
+   'authenticated', 'authenticated', '{"nome": "PDV Demonstração 4", "tipo": "cnpj"}')
 on conflict (id) do nothing;
 
 insert into public.pdvs (id, dono_id, cnpj, nome_fantasia, site, modo_rede, status) values
   ('10000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000001',
    '11111111000191', 'Supermercado Serra Imperial', 'https://exemplo.invalid/serra', true, 'aprovado'),
-  ('10000000-0000-4000-a000-000000000002', '00000000-0000-4000-a000-000000000001',
+  ('10000000-0000-4000-a000-000000000005', '00000000-0000-4000-a000-000000000001',
+   '11111111000272', 'Supermercado Serra Imperial', 'https://exemplo.invalid/serra', true, 'aprovado'),
+  ('10000000-0000-4000-a000-000000000002', '00000000-0000-4000-a000-000000000002',
    '22222222000191', 'Mercado Quitandinha', null, false, 'aprovado'),
-  ('10000000-0000-4000-a000-000000000003', '00000000-0000-4000-a000-000000000001',
+  ('10000000-0000-4000-a000-000000000003', '00000000-0000-4000-a000-000000000003',
    '33333333000191', 'Hortifruti Bingen', null, true, 'aprovado'),
-  ('10000000-0000-4000-a000-000000000004', '00000000-0000-4000-a000-000000000001',
+  ('10000000-0000-4000-a000-000000000004', '00000000-0000-4000-a000-000000000004',
    '44444444000191', 'Empório Itaipava', null, true, 'aprovado')
 on conflict (id) do nothing;
 
 insert into public.lojas (id, pdv_id, nome, endereco, bairro, telefone, latitude, longitude) values
   ('20000000-0000-4000-a000-000000000001', '10000000-0000-4000-a000-000000000001',
    'Loja Centro', 'Rua do Imperador, 500', 'Centro', '(24) 2222-0001', -22.5058, -43.1790),
-  ('20000000-0000-4000-a000-000000000002', '10000000-0000-4000-a000-000000000001',
+  ('20000000-0000-4000-a000-000000000002', '10000000-0000-4000-a000-000000000005',
    'Loja Valparaíso', 'Rua Coronel Veiga, 1200', 'Valparaíso', '(24) 2222-0002', -22.5160, -43.1730),
   ('20000000-0000-4000-a000-000000000003', '10000000-0000-4000-a000-000000000002',
    null, 'Avenida Joaquim Rolla, 300', 'Quitandinha', '(24) 2222-0003', -22.5275, -43.2105),
@@ -40,7 +50,7 @@ insert into public.cotacoes (loja_id, produto, preco_centavos, validade, obs, fo
 select l, p, preco, (now() at time zone 'America/Sao_Paulo')::date + dias, obs, fonte::public.fonte_cotacao,
        now() - make_interval(mins => minutos)
 from (values
-  -- Serra Imperial (modo rede: mesmo preço nas duas lojas)
+  -- Serra Imperial (2 CNPJs em modo rede: mesmo preço nas duas lojas)
   ('20000000-0000-4000-a000-000000000001'::uuid, 'Arroz Branco Tipo 1 5kg', 2490, 20, null, 'pdv_excel', 300),
   ('20000000-0000-4000-a000-000000000002'::uuid, 'Arroz Branco Tipo 1 5kg', 2490, 20, null, 'pdv_excel', 300),
   ('20000000-0000-4000-a000-000000000001'::uuid, 'Feijão Preto 1kg', 789, 20, null, 'pdv_excel', 300),
