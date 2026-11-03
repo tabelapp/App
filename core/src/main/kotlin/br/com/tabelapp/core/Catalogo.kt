@@ -8,7 +8,7 @@ import java.time.temporal.ChronoUnit
  *
  *  - O limite é de itens ATIVOS ao mesmo tempo (na validade e não pausados). Fora da
  *    rede: por loja (cada CNPJ é uma loja). Rede (CNPJs da mesma conta em modo rede): o
- *    catálogo único da rede, com o limite do maior plano entre eles.
+ *    catálogo é único, mas cada loja tem o próprio plano e aparece até o limite dele.
  *  - Só criar ou reativar item é conferido; atualizar preço, renovar validade,
  *    mudar OBS/unidade e excluir nunca são bloqueados.
  *  - Planos na tabela `planos` (grátis 5, essencial 30, loja 300, mercado 3000) e

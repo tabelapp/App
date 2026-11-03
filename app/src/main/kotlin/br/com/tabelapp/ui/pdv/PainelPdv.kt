@@ -267,7 +267,8 @@ fun PainelPdv(
                 Text(
                     if (ligar) {
                         "Esta loja passa a usar a mesma tabela de preços das suas lojas em modo rede ($nomes). " +
-                            "Os produtos que só esta loja tem vão para as outras; no mesmo produto, vale o preço da rede."
+                            "Os produtos que só esta loja tem vão para as outras; no mesmo produto, vale o preço da rede. " +
+                            "Cada loja continua com o próprio plano e aparece na busca até o limite dele."
                     } else {
                         "Esta loja fica com uma cópia da tabela atual. Daqui em diante, os preços dela mudam só " +
                             "aqui, e o que você mudar nas outras lojas não muda nesta."
@@ -630,7 +631,8 @@ private fun CartaoModoRede(ligado: Boolean, redeCom: List<MeuPdv>, aoMudar: (Boo
                     when {
                         !ligado -> "Desligado: esta loja tem tabela de preços própria."
                         redeCom.isEmpty() -> "Ligado. Nenhuma outra loja sua está na rede ainda."
-                        else -> "A mesma tabela vale também para: " + redeCom.joinToString(", ") { it.nomeFantasia } + "."
+                        else -> "A mesma tabela vale também para: " + redeCom.joinToString(", ") { it.nomeFantasia } +
+                            ". Cada loja tem o próprio plano e aparece na busca até o limite dele."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -8659,8 +8659,12 @@ grant execute on function public.historico_preco_produto(uuid) to authenticated;
 --  * "Modo rede": os CNPJs da mesma conta (mesmo dono) em modo rede dividem UMA
 --    tabela de preços. Lançar, alterar, pausar ou excluir vale para todas as
 --    lojas da rede. Fora do modo rede, cada CNPJ tem a sua tabela.
---  * O limite de itens da tabela da rede é o do maior plano entre os CNPJs da
---    rede (a tabela conta uma vez, não multiplica pelo número de lojas).
+--  * Plano por loja: cada CNPJ (loja) tem o próprio plano, também na rede.
+--    Uma rede com 5 lojas paga 5 planos. A tabela é uma só, mas cada loja
+--    aparece na busca só até o limite do próprio plano (ficam no ar os itens
+--    atualizados mais recentemente; o resto fica pausado pelo limite naquela
+--    loja, nunca apagado). Criar ou reativar item confere o limite do CNPJ
+--    que está sendo usado no painel.
 --  * Entrar na rede (aprovação de um CNPJ novo, reativação ou ligar o modo
 --    rede): a loja recebe a tabela da rede (no mesmo produto, vale o preço da
 --    rede) e os produtos que só ela tinha vão para as outras lojas da rede.
@@ -8696,23 +8700,6 @@ as $$
     and (p.id = p_pdv.id or (p_pdv.modo_rede and p.modo_rede and p.dono_id = p_pdv.dono_id and p.tipo = 'loja' and p.status = 'aprovado'))
 $$;
 revoke execute on function public._lojas_rede(public.pdvs) from public, anon, authenticated;
-
--- CNPJ cujo plano vale para a tabela: em rede, o de maior limite efetivo.
-create or replace function public._pdv_do_limite(p_pdv public.pdvs)
-returns public.pdvs
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select p.*
-  from public.pdvs p
-  cross join lateral public._limite_efetivo(p) e
-  where (p.id = p_pdv.id or (p_pdv.modo_rede and p.modo_rede and p.dono_id = p_pdv.dono_id and p.tipo = 'loja' and p.status = 'aprovado'))
-  order by e.limite desc, (p.id = p_pdv.id) desc, p.created_at
-  limit 1
-$$;
-revoke execute on function public._pdv_do_limite(public.pdvs) from public, anon, authenticated;
 
 -- 3. Entrar na rede: junta as tabelas ---------------------------------------------
 create or replace function public._sincronizar_rede(p_pdv_id uuid)
@@ -8814,6 +8801,9 @@ as $$
     and (p_carteira is null or c.loja_id = p_carteira)
 $$;
 
+-- Itens fora do ar: pausados pelo PDV ou acima do limite do plano DA LOJA (cada CNPJ
+-- é uma loja e tem o próprio plano, também na rede). Com uma loja por CNPJ, a carteira
+-- é sempre a loja.
 create or replace function public._cotacoes_ocultas(p_pdv_id uuid default null)
 returns table (id uuid, motivo text)
 language sql
@@ -8821,20 +8811,14 @@ stable
 security definer
 set search_path = ''
 as $$
-  with alvo as (
-    select p.dono_id, p.modo_rede from public.pdvs p where p.id = p_pdv_id
-  ),
-  lim as (
-    -- Rede = os CNPJs da mesma conta em modo rede: uma tabela só, com o limite do maior plano.
-    select p.id as pdv_id, p.modo_rede and p.status = 'aprovado' as em_rede, p.dono_id, e.limite
+  with lim as (
+    select p.id as pdv_id, e.limite
     from public.pdvs p
-    cross join lateral public._limite_efetivo(public._pdv_do_limite(p)) e
+    cross join lateral public._limite_efetivo(p) e
     where p_pdv_id is null or p.id = p_pdv_id
-       or exists (select 1 from alvo a where a.modo_rede and p.modo_rede and p.dono_id = a.dono_id)
   ),
   itens as (
-    select c.id, c.produto_busca, c.updated_at, c.pausado, lim.limite,
-           case when lim.em_rede then lim.dono_id else c.loja_id end as carteira
+    select c.id, c.produto_busca, c.updated_at, c.pausado, lim.limite, c.loja_id as carteira
     from public.cotacoes c
     join public.lojas l on l.id = c.loja_id
     join lim on lim.pdv_id = l.pdv_id
@@ -8887,7 +8871,6 @@ set search_path = ''
 as $$
 declare
   v_pdv       public.pdvs%rowtype;
-  v_plano     public.pdvs%rowtype;   -- em rede: o CNPJ com o maior plano
   v_carteira  uuid;
   v_ativos    integer;
   v_pausados  integer;
@@ -8897,16 +8880,15 @@ begin
   if not found or not (v_pdv.dono_id = auth.uid() or public.is_admin()) then
     raise exception 'sem_permissao';
   end if;
-  v_plano := public._pdv_do_limite(v_pdv);
   v_carteira := public._carteira_cota(v_pdv, p_loja_id);
   v_ativos := public._itens_ativos(v_pdv, v_carteira);
   select count(distinct c.produto_busca)::integer into v_pausados
   from public.cotacoes c
   where c.loja_id = any (public._lojas_rede(v_pdv)) and c.fonte in ('pdv_manual', 'pdv_excel') and c.validade >= public.hoje()
     and c.pausado and (v_carteira is null or c.loja_id = v_carteira);
-  select * into v_lim from public._limite_efetivo(v_plano);
+  select * into v_lim from public._limite_efetivo(v_pdv);
   return query
-    select v_plano.plano, pc.nome, pc.limite_itens, v_plano.plano_ate, v_plano.teste_ate,
+    select v_pdv.plano, pc.nome, pc.limite_itens, v_pdv.plano_ate, v_pdv.teste_ate,
            v_lim.plano, v_lim.plano_nome, v_lim.limite, v_lim.origem, v_lim.em_tolerancia,
            v_lim.fim, v_lim.tolerancia_ate,
            v_ativos, greatest(v_lim.limite - v_ativos, 0), least(v_ativos, v_lim.limite),
@@ -8916,7 +8898,7 @@ begin
            (public.config_app('aviso_plano_dias', '7'))::text::integer,
            public.config_app('whatsapp_contato', '"5524988029067"') #>> '{}'
     from public.planos pc
-    where pc.codigo = v_plano.plano;
+    where pc.codigo = v_pdv.plano;
 end;
 $$;
 
@@ -9044,7 +9026,7 @@ begin
 
   -- Limite efetivo (plano pago, teste grátis ou grátis, com a tolerância): só os itens
   -- NOVOS disputam o espaço disponível, na ordem da planilha. Itens pausados não contam.
-  select * into v_lim from public._limite_efetivo(public._pdv_do_limite(v_pdv));
+  select * into v_lim from public._limite_efetivo(v_pdv);
   v_efetivo := v_lim.plano;
   v_limite := v_lim.limite;
   v_plano_nome := v_lim.plano_nome;
@@ -9188,7 +9170,7 @@ begin
   v_carteira := case when v_pdv.modo_rede then null else v_cot.loja_id end;
 
   if not coalesce(p_pausar, true) and v_cot.pausado and v_cot.validade >= public.hoje() then
-    select * into v_lim from public._limite_efetivo(public._pdv_do_limite(v_pdv));
+    select * into v_lim from public._limite_efetivo(v_pdv);
     if public._itens_ativos(v_pdv, v_carteira) >= v_lim.limite then
       raise exception 'limite_catalogo'
         using detail = jsonb_build_object('limite', v_lim.limite, 'plano', v_lim.plano_nome)::text;
@@ -9250,7 +9232,7 @@ begin
     where (l.pdv_id = p_pdv_id or (v_rede and c.loja_id = any (public._lojas_rede(v_pdv))))
       and c.fonte in ('pdv_manual', 'pdv_excel')
       and (v_rede or p_loja_id is null or c.loja_id = p_loja_id)
-    order by c.produto_busca, c.preco_centavos desc;
+    order by c.produto_busca, (l.pdv_id = p_pdv_id) desc, c.preco_centavos desc;
 end;
 $$;
 

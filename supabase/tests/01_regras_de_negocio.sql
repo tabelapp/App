@@ -871,6 +871,45 @@ do $$ begin
           where loja_id = '20000000-0000-4000-b000-000000000003' and produto = 'Água 500ml') = 275;
 end $$;
 delete from public.pdvs where id = '10000000-0000-4000-b000-000000000003';
+-- Plano por loja, também na rede: a loja 1 assina o Mercado; a loja 2 continua no grátis (aqui 3).
+update public.pdvs set plano = 'mercado', plano_ate = public.hoje() + 30
+ where id = '10000000-0000-4000-b000-000000000001';
+set role authenticated;
+set request.jwt.claim.sub = 'b0000000-0000-4000-a000-00000000000b';
+do $$
+declare
+  pdv  constant uuid := '10000000-0000-4000-b000-000000000001';
+  pdv2 constant uuid := '10000000-0000-4000-b000-000000000002';
+  loja1 constant uuid := '20000000-0000-4000-b000-000000000001';
+  loja2 constant uuid := '20000000-0000-4000-b000-000000000002';
+  nomes constant text[] := array['Refrigerante 2L', 'Água 500ml', 'Suco 1L', 'Novo Rede A', 'Novo Rede B'];
+  r record;
+begin
+  -- Pelo CNPJ com plano pago, a tabela da rede cresce (vai para as duas lojas)...
+  perform public.pdv_salvar_precos(pdv, null,
+    '[{"produto": "Novo Rede A", "preco_centavos": 110}, {"produto": "Novo Rede B", "preco_centavos": 120}]');
+  assert (select count(*) from public.cotacoes where loja_id = loja2 and produto = any (nomes)) = 5;
+  -- ...mas cada loja aparece na busca só até o limite do PRÓPRIO plano.
+  assert (select count(*) from public.buscar_cotacoes(null, null, null, 500) where loja_id = loja1 and produto = any (nomes)) = 5;
+  assert (select count(*) from public.buscar_cotacoes(null, null, null, 500) where loja_id = loja2 and produto = any (nomes)) = 3;
+  select * into r from public.status_catalogo(pdv2);
+  assert r.plano_efetivo = 'gratis' and r.limite = 3 and r.itens_ativos = 5 and r.itens_publicados = 3
+     and r.pausados_limite = 2 and r.disponiveis = 0, r::text;
+  select * into r from public.status_catalogo(pdv);
+  assert r.plano_efetivo = 'mercado' and r.itens_publicados = 5 and r.pausados_limite = 0, r::text;
+  assert (select count(*) from public.meus_precos(pdv2) where estado = 'pausado_limite') = 2;
+  assert (select count(*) from public.meus_precos(pdv) where estado = 'pausado_limite') = 0;
+  -- Pelo CNPJ sem plano, criar item novo é recusado (o limite é o dele).
+  begin
+    perform public.pdv_salvar_precos(pdv2, null, '[{"produto": "Novo Rede C", "preco_centavos": 130}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm like '%limite_catalogo%', sqlerrm;
+  end;
+end $$;
+reset role;
+update public.pdvs set plano = 'gratis', plano_ate = null where id = '10000000-0000-4000-b000-000000000001';
+delete from public.cotacoes where produto in ('Novo Rede A', 'Novo Rede B');
 -- Conta de outro dono, em modo rede, não entra na rede do Bruno.
 do $$ begin
   assert (select count(*) from public.cotacoes c join public.lojas l on l.id = c.loja_id

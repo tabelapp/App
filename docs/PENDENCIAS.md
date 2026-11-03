@@ -97,7 +97,5 @@
 - **NFC-e de SP e MG**: continua pendente (ver acima o que preciso para ligar cada estado).
 - Segundo mockup (`layout-lista-e-pagina-do-produto.png`) não chegou; o layout foi feito pelo mockup da
   página com o gráfico e pelo texto do pedido.
-- **Plano da rede**: hoje a tabela da rede usa o maior plano entre os CNPJs da rede. O site diz "Uma rede
-  com 3 lojas contrata 3 planos": confirmar se cada loja deve aparecer só até o limite do próprio plano.
 - **Modo demonstração**: o modo rede só guarda a escolha (não junta as tabelas das lojas de demonstração).
 

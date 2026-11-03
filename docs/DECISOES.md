@@ -67,7 +67,7 @@ Para ninguém cadastrar uma empresa que não é sua:
 ## Limite do catálogo do PDV (decisão do fundador, 12/10/2026 — substituiu a cota de 50 operações)
 
 - **Limite = itens ATIVOS** (não excluídos e dentro da validade). Fora da rede: por loja (CNPJ). **Rede: o
-  catálogo único da rede** (não multiplica pelo número de lojas), com o limite do maior plano da rede (1.0.3).
+  catálogo único da rede**, mas **cada loja tem o próprio plano** e aparece na busca só até o limite dele (1.0.3).
 - **Só criar ou reativar item** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
   **nunca contam e nunca são bloqueados**; excluir libera espaço. Item vencido não conta, e renovar a
   validade dele é atualização (nunca bloqueada).
@@ -446,8 +446,10 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   loja recebe a tabela da rede — no mesmo produto, **vale o preço da rede** — e os produtos que só ela
   tinha vão para as outras lojas da rede. Nada é apagado. **Sair da rede:** a loja fica com uma cópia e
   passa a ter tabela própria.
-- **Limite da tabela da rede:** conta uma vez (não multiplica pelas lojas) e vale o **maior plano entre os
-  CNPJs da rede** (`_pdv_do_limite`). O cartão do catálogo mostra esse plano. *Pendente de confirmação do
-  fundador:* o site diz "Uma rede com 3 lojas contrata 3 planos"; com esta regra, um plano só cobre a rede.
+- **Plano por loja, também na rede** (decisão do fundador): uma rede com 5 lojas paga 5 planos. A tabela
+  da rede é uma só, mas cada loja aparece na busca só até o limite do **próprio** plano: ficam no ar os itens
+  atualizados mais recentemente, e o resto fica "pausado pelo limite" naquela loja (nunca apagado). Criar ou
+  reativar item confere o limite do CNPJ que está no painel; pelo CNPJ com plano maior, a tabela da rede
+  pode crescer, e as lojas com plano menor mostram só a parte que o plano delas cobre.
 - Busca, página da loja, Nota Fiscal e gráfico não mudam: cada loja continua aparecendo com o seu endereço.
 
