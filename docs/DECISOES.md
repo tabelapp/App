@@ -396,3 +396,31 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   real; nota de outro estado mostra "Por enquanto o Tabelapp lê notas do RJ. Outros estados chegam em breve."
 - Política de privacidade: nova frase sobre "Minhas notas" (versão 2026-10-30). Segurança dos dados da
   Play: sem mudança (nenhum dado novo coletado).
+
+## Versão 1.0.3 (03/11/2026)
+
+- **Selo "no app"** (regra única no core, `PrecoExibido.temPrecoApp` / `normalRiscado`, e no banco):
+  - dois preços → o menor é o principal, com o selo "no app"; o maior aparece riscado como "Preço normal";
+  - só o preço do app → só o selo, sem nada riscado (o preço normal virou opcional);
+  - Nota Fiscal (`usuario_nf`) nunca tem o selo: `temPrecoApp = precoApp && fonte != USUARIO_NF`
+    (no banco, `buscar_cotacoes` devolve `preco_app and fonte <> 'usuario_nf'`);
+  - o normal riscado só aparece se existir e for **maior** que o principal.
+  Vale no card da busca, na página do produto e na Página da loja. Apps 1.0.1/1.0.2 continuam
+  funcionando (preço só no app aparece neles como preço comum).
+- **Card da busca menor:** nome em negrito, loja em azul claro (`CoresTabelapp.NomeLoja`, ~7:1 de
+  contraste) e menor, preço em amarelo e negrito com a unidade, o selo e o normal riscado (pequeno).
+  Sem o "+": o card inteiro abre a página do produto. O amarelo da marca virou a cor de preço do app
+  inteiro (`CoresTabelapp.Preco = AmareloMarca`). `ALTURA_CARTAO` ficou só para banner e bloco de busca.
+- **Página do produto** (tela cheia): banner pago do PDV (se houver, sem espaço vazio), nome, loja com
+  "Ver loja ›" (Página da loja), bloco de preço, Local (abre o mapa) / Válido até (NF: "Preço praticado
+  em") / Origem (Encarte, Nota Fiscal ou Preço oficial) / OBS, WhatsApp da loja, "Sobre este preço"
+  (denunciar e, para o Admin, remover), gráfico e Compartilhar (mesmo texto de antes). Favoritos ficam
+  para depois.
+- **Gráfico de variação do preço:** mesmo produto na **mesma loja** (loja cadastrada, CNPJ ou
+  nome+endereço normalizados, `_local_historico`), a partir de `historico_precos`. Função
+  `historico_preco_produto(p_cotacao_id)`: security definer, `search_path = ''`, só `authenticated`,
+  devolve só `(data, preco_centavos, preco_app)` — nunca quem enviou. Janela de **90 dias**, no máximo
+  **30 pontos**, um por dia (o último lançamento do dia; NF usa a data da nota), em ordem de data. Recebe
+  o id do preço (e não loja+produto soltos) para não virar consulta aberta a qualquer loja. Usa o preço
+  principal (de pesquisa). Desenhado com Canvas do Compose (sem biblioteca nova); com menos de 2 pontos,
+  mostra "Um único preço registrado até agora". Carrega à parte e nunca trava a página.

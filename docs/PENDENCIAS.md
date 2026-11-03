@@ -89,3 +89,11 @@
   (no navegador do computador: abrir o link do QR → Ctrl+S → "Página da Web, completa"); (4) a página de
   QR Code, se for diferente. Com isso: leitor + testes no app, domínio no `network_security_config.xml`
   se a Sefaz usar http, e o código no `nfce_ufs_aceitas` do banco.
+
+## Depois da 1.0.3 — 03/11/2026
+
+- **Favoritos** na página do produto: ficaram fora da 1.0.3.
+- **Comparar o mesmo produto entre lojas** (o gráfico de hoje é só da mesma loja).
+- **NFC-e de SP e MG**: continua pendente (ver acima o que preciso para ligar cada estado).
+- Segundo mockup (`layout-lista-e-pagina-do-produto.png`) não chegou; o layout foi feito pelo mockup da
+  página com o gráfico e pelo texto do pedido.
