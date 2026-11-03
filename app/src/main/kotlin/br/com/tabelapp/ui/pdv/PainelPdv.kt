@@ -50,6 +50,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -84,10 +85,19 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** Área do PDV aprovado: cadastro, saldo de operações, tabela de preços oficial e promoções. */
+/**
+ * Área do PDV (um CNPJ = uma loja) aprovado: cadastro, tabela de preços oficial e promoções.
+ * [outrasLojas] = os outros CNPJs aprovados da conta; com eles, aparece o cartão "Modo rede".
+ */
 @Composable
-fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
-    val vm: PainelPdvViewModel = viewModel(key = "painel-${pdv.id}") {
+fun PainelPdv(
+    container: AppContainer,
+    pdv: MeuPdv,
+    outrasLojas: List<MeuPdv> = emptyList(),
+    aoMudarModoRede: (Boolean) -> Unit = {},
+) {
+    // A chave inclui o modo rede: ao entrar ou sair da rede, a tabela é carregada de novo.
+    val vm: PainelPdvViewModel = viewModel(key = "painel-${pdv.id}-${pdv.modoRede}") {
         PainelPdvViewModel(container.pdvs, pdv, container.geocodificador, container.localizacao)
     }
     val estado by vm.estado.collectAsStateWithLifecycle()
@@ -98,6 +108,9 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
     var editandoCadastro by remember { mutableStateOf(false) }
     var editandoPromocao by remember { mutableStateOf<PromocaoPdv?>(null) }
     var confirmandoLocal by remember { mutableStateOf(false) }
+    var pedindoRede by remember { mutableStateOf<Boolean?>(null) }
+    val redeCom = outrasLojas.filter { it.modoRede }
+    val emRede = pdv.modoRede && redeCom.isNotEmpty()
     val pedirLocalizacao = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.usarLocalizacaoDoCelular()
     }
@@ -155,6 +168,10 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
                 }
             }
         }
+        // Mais de um CNPJ na conta: escolher se esta loja divide a tabela com as outras.
+        if (!anunciante && outrasLojas.isNotEmpty()) {
+            item { CartaoModoRede(pdv.modoRede, redeCom, aoMudar = { pedindoRede = it }) }
+        }
         // Anunciante (sem ponto de venda): não tem tabela de preços, só promoções.
         if (!anunciante) {
             item { estado.catalogo?.let { CartaoCatalogo(it) } }
@@ -193,7 +210,7 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Minha tabela de preços (${estado.precos.size})",
+                        (if (emRede) "Tabela da rede" else "Minha tabela de preços") + " (${estado.precos.size})",
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f),
                     )
@@ -241,6 +258,28 @@ fun PainelPdv(container: AppContainer, pdv: MeuPdv) {
         }
     }
 
+    pedindoRede?.let { ligar ->
+        val nomes = outrasLojas.joinToString(", ") { it.nomeFantasia + " (" + it.cnpj.takeLast(6) + ")" }
+        AlertDialog(
+            onDismissRequest = { pedindoRede = null },
+            title = { Text(if (ligar) "Ligar o modo rede?" else "Desligar o modo rede?") },
+            text = {
+                Text(
+                    if (ligar) {
+                        "Esta loja passa a usar a mesma tabela de preços das suas lojas em modo rede ($nomes). " +
+                            "Os produtos que só esta loja tem vão para as outras; no mesmo produto, vale o preço da rede."
+                    } else {
+                        "Esta loja fica com uma cópia da tabela atual. Daqui em diante, os preços dela mudam só " +
+                            "aqui, e o que você mudar nas outras lojas não muda nesta."
+                    }
+                )
+            },
+            confirmButton = {
+                Button(onClick = { aoMudarModoRede(ligar); pedindoRede = null }) { Text(if (ligar) "Ligar" else "Desligar") }
+            },
+            dismissButton = { TextButton(onClick = { pedindoRede = null }) { Text("Cancelar") } },
+        )
+    }
     if (confirmandoLocal) {
         AlertDialog(
             onDismissRequest = { confirmandoLocal = false },
@@ -579,3 +618,27 @@ private fun SituacaoNoMapa(loja: LojaPdv, localizando: Boolean, naoAchada: Boole
         }
     }
 }
+
+/** "Modo rede": a mesma tabela de preços nas lojas (CNPJs) da conta que também estão em modo rede. */
+@Composable
+private fun CartaoModoRede(ligado: Boolean, redeCom: List<MeuPdv>, aoMudar: (Boolean) -> Unit) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Modo rede", fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        !ligado -> "Desligado: esta loja tem tabela de preços própria."
+                        redeCom.isEmpty() -> "Ligado. Nenhuma outra loja sua está na rede ainda."
+                        else -> "A mesma tabela vale também para: " + redeCom.joinToString(", ") { it.nomeFantasia } + "."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = ligado, onCheckedChange = aoMudar)
+        }
+    }
+}
+

@@ -297,6 +297,14 @@ class DemoPdvRepositorio(private val banco: DemoBanco) : PdvRepositorio {
         )
     }
 
+    /** Na demonstração, só guarda a escolha (a tabela de cada loja não é juntada). */
+    override suspend fun definirModoRede(pdvId: String, rede: Boolean) {
+        delay(300)
+        val i = banco.pdvs.indexOfFirst { it.meu.id == pdvId }
+        if (i < 0) throw ErroAmigavel("Loja não encontrada.")
+        banco.pdvs[i] = banco.pdvs[i].copy(meu = banco.pdvs[i].meu.copy(modoRede = rede))
+    }
+
     override suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?) {
         if (nomeFantasia.isBlank()) throw ErroAmigavel("Informe o nome do estabelecimento.")
         val i = banco.pdvs.indexOfFirst { it.meu.id == pdvId }

@@ -830,6 +830,14 @@ class SupabasePdvRepositorio(
         }
     }
 
+    override suspend fun definirModoRede(pdvId: String, rede: Boolean) = traduzindoErros {
+        supabase.postgrest.rpc("pdv_definir_modo_rede", buildJsonObject {
+            put("p_pdv_id", pdvId)
+            put("p_rede", rede)
+        })
+        Unit
+    }
+
     override suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?) = traduzindoErros {
         supabase.postgrest.rpc("atualizar_pdv", buildJsonObject {
             put("p_pdv_id", pdvId)

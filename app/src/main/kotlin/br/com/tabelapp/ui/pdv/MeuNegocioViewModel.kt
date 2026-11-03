@@ -32,6 +32,9 @@ data class EstadoPdv(
     val etapa: EtapaPdv = EtapaPdv.CARREGANDO,
     val pdvs: List<MeuPdv> = emptyList(),
     val erroCarregar: String? = null,
+    /** Erro ao ligar/desligar o modo rede (mostrado acima do painel). */
+    val erroRede: String? = null,
+    val mudandoRede: Boolean = false,
     // Formulário de cadastro
     /** Loja (ponto de venda) ou só anunciante (produtor, marca); null = ainda não escolheu. */
     val tipo: TipoEmpresa? = null,
@@ -116,6 +119,20 @@ class MeuNegocioViewModel(
             nomeFantasia = base?.nomeFantasia.orEmpty(),
             tipo = base?.tipo,
         )
+    }
+
+    /** Liga/desliga o modo rede de um CNPJ (loja) da conta e recarrega a lista. */
+    fun definirModoRede(pdv: MeuPdv, rede: Boolean) {
+        _estado.update { it.copy(mudandoRede = true, erroRede = null) }
+        viewModelScope.launch {
+            try {
+                repositorio.definirModoRede(pdv.id, rede)
+                val pdvs = repositorio.meusPdvs()
+                _estado.update { it.copy(pdvs = pdvs, mudandoRede = false) }
+            } catch (e: ErroAmigavel) {
+                _estado.update { it.copy(mudandoRede = false, erroRede = e.message) }
+            }
+        }
     }
 
     fun escolherTipo(tipo: TipoEmpresa) = _estado.update { it.copy(tipo = tipo, erros = emptyList()) }

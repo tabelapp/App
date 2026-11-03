@@ -6,8 +6,9 @@ import java.time.temporal.ChronoUnit
 /**
  * Limite por TAMANHO DO CATÁLOGO (substituiu a cota de 50 operações/mês).
  *
- *  - O limite é de itens ATIVOS ao mesmo tempo (na validade e não pausados). Varejo:
- *    por loja. Rede: o catálogo único da rede.
+ *  - O limite é de itens ATIVOS ao mesmo tempo (na validade e não pausados). Fora da
+ *    rede: por loja (cada CNPJ é uma loja). Rede (CNPJs da mesma conta em modo rede): o
+ *    catálogo único da rede, com o limite do maior plano entre eles.
  *  - Só criar ou reativar item é conferido; atualizar preço, renovar validade,
  *    mudar OBS/unidade e excluir nunca são bloqueados.
  *  - Planos na tabela `planos` (grátis 5, essencial 30, loja 300, mercado 3000) e
