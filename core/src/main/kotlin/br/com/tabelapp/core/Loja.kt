@@ -35,8 +35,10 @@ data class ItemLoja(
     val precoApp: Boolean = false,
 ) {
     val preco: String get() = PrecoExibido.texto(precoCentavos, unidade, aPartirDe)
-    val temPrecoApp: Boolean get() = PrecoExibido.temPrecoApp(Fonte.PDV_MANUAL, precoCentavos, precoApp, precoNormalCentavos)
-    val precoNormal: String? get() = precoNormalCentavos?.takeIf { temPrecoApp }?.let { PrecoExibido.textoNormal(it, unidade) }
+    val temPrecoApp: Boolean get() = PrecoExibido.temPrecoApp(Fonte.PDV_MANUAL, precoApp)
+    /** Preço normal riscado ("R$ 25,49"), só quando existe e é maior. */
+    val precoNormal: String?
+        get() = PrecoExibido.normalRiscado(precoCentavos, precoNormalCentavos, temPrecoApp)?.let { PrecoExibido.textoNormal(it, unidade) }
     val descricaoPreco: String get() = PrecoExibido.descricao(precoCentavos, unidade, aPartirDe, precoNormalCentavos, temPrecoApp)
     val validadeTexto: String get() = Validade.exibir(Fonte.PDV_MANUAL, validade)
 }

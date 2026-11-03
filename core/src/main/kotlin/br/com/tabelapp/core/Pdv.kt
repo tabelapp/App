@@ -37,7 +37,10 @@ data class MeuPdv(
     val motivoRejeicao: String?,
     val cnpjConferidoNoAlvara: Boolean,
     val enviadoEm: Instant,
-    /** true = "modo rede": a tabela de preços vale para todas as lojas. */
+    /**
+     * true = "modo rede": os CNPJs (lojas) da mesma conta em modo rede dividem uma tabela de preços.
+     * Cada CNPJ é uma loja, com um endereço.
+     */
     val modoRede: Boolean = true,
     val site: String? = null,
     /** Motivo da suspensão (só quando [status] é SUSPENSO); o dono vê em "Meu negócio". */

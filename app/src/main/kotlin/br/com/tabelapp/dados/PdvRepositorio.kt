@@ -66,6 +66,12 @@ interface PdvRepositorio {
 
     /** Edição do cadastro (nome de exibição e site; dados da loja). */
     suspend fun atualizarPdv(pdvId: String, nomeFantasia: String, site: String?)
+
+    /**
+     * Liga/desliga o modo rede deste CNPJ. Ao ligar, a loja recebe a tabela da rede (no mesmo produto,
+     * vale o preço da rede) e os produtos que só ela tinha vão para as outras lojas da rede.
+     */
+    suspend fun definirModoRede(pdvId: String, rede: Boolean)
     suspend fun atualizarLoja(loja: LojaPdv)
 
     /** Grava o pino da loja no mapa. [peloAparelho] = "Estou na loja" (localização do celular). */

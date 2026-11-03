@@ -25,7 +25,7 @@ para interpretação. Os itens marcados com **⚠️ confirmar** são premissas 
   sentido). Em caso de empate, todos os empatados são destacados.
 - **"Mais perto"**: usa a última localização conhecida do celular (pede permissão na hora). Sem
   permissão/GPS, usa o centro de Petrópolis como referência. PDV sem coordenadas vai para o fim.
-- PDVs com a mesma rede aparecem uma vez **por loja** (cada loja tem endereço e telefone próprios).
+- Lojas da mesma rede aparecem uma vez **por loja** (cada loja é um CNPJ, com endereço e telefone próprios).
 
 ## Validade (confirmado pelo fundador)
 
@@ -66,8 +66,8 @@ Para ninguém cadastrar uma empresa que não é sua:
 
 ## Limite do catálogo do PDV (decisão do fundador, 12/10/2026 — substituiu a cota de 50 operações)
 
-- **Limite = itens ATIVOS** (não excluídos e dentro da validade). Varejo: por loja. **Rede: o catálogo
-  único da rede** (não multiplica pelo número de lojas).
+- **Limite = itens ATIVOS** (não excluídos e dentro da validade). Fora da rede: por loja (CNPJ). **Rede: o
+  catálogo único da rede**, mas **cada loja tem o próprio plano** e aparece na busca só até o limite dele (1.0.3).
 - **Só criar ou reativar item** é conferido. Subir/baixar preço, renovar validade, mudar OBS/unidade e excluir
   **nunca contam e nunca são bloqueados**; excluir libera espaço. Item vencido não conta, e renovar a
   validade dele é atualização (nunca bloqueada).
@@ -90,8 +90,8 @@ Para ninguém cadastrar uma empresa que não é sua:
 - **Planilha:** importa as atualizações e os itens novos até o espaço disponível, na ordem da planilha,
   numa transação só; devolve quantos e quais ficaram de fora (o app oferece baixar a lista).
 - **Assinatura por PDV (CNPJ), não por loja** (decisão do fundador, 15/10/2026): mantido como está. No
-  varejo, cada loja tem o próprio limite; no modo rede, a lista é única. Hoje o cadastro cria uma loja
-  por CNPJ; rever se "cadastrar mais lojas" for implementado.
+  varejo, cada loja tem o próprio limite; no modo rede, a lista é única. Desde a 1.0.3, cada CNPJ é uma
+  loja (ver "Rede de lojas").
 - `interesse_planos` ficou intacta, sem uso ("Quero ser avisado" saiu do app). A tabela `pagamentos`
   continua só para os banners. O pacote de +50 operações foi removido (`comprar_pacote_operacoes`).
 - A verificação é **no banco** (`pdv_salvar_precos`, erro `limite_catalogo`): versões antigas do app não
@@ -135,9 +135,9 @@ como "mais barato". Preço de NF pode refletir combo, promoção casada, rateio,
    bloqueia servidores, briefing seção 8) e lê produtos, preços unitários, estabelecimento e data da
    página (`LeitorNfce` no `core`). O portal redireciona para uma página em `http://`; o app libera
    texto claro **só** para `*.fazenda.rj.gov.br` (`network_security_config.xml`).
-4. O CNPJ do emitente vem na própria chave. Se for de um PDV cadastrado, a nota é ligada à loja (se a
-   rede tiver várias lojas, o usuário escolhe qual — a única escolha da tela). O banco recusa ligar a
-   chave a uma loja de outro CNPJ (`loja_nao_confere`).
+4. O CNPJ do emitente vem na própria chave. Se for de um PDV cadastrado, a nota é ligada à loja (desde a
+   1.0.3, cada CNPJ é uma loja; a tela de escolha só aparece se houver mais de uma, o que o banco já não
+   permite). O banco recusa ligar a chave a uma loja de outro CNPJ (`loja_nao_confere`).
 5. **Uma única tela de resumo** com tudo o que foi lido; o usuário só confirma o envio.
    **Não há como digitar produto, preço, estabelecimento ou data**: o que vai para a busca é
    exatamente o que está na nota. Se a leitura falhar, a nota não é enviada (tentar de novo / ler outra),
@@ -396,3 +396,60 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   real; nota de outro estado mostra "Por enquanto o Tabelapp lê notas do RJ. Outros estados chegam em breve."
 - Política de privacidade: nova frase sobre "Minhas notas" (versão 2026-10-30). Segurança dos dados da
   Play: sem mudança (nenhum dado novo coletado).
+
+## Versão 1.0.3 (03/11/2026)
+
+- **Selo "no app"** (regra única no core, `PrecoExibido.temPrecoApp` / `normalRiscado`, e no banco):
+  - dois preços → o menor é o principal, com o selo "no app"; o maior aparece riscado como "Preço normal";
+  - só o preço do app → só o selo, sem nada riscado (o preço normal virou opcional);
+  - Nota Fiscal (`usuario_nf`) nunca tem o selo: `temPrecoApp = precoApp && fonte != USUARIO_NF`
+    (no banco, `buscar_cotacoes` devolve `preco_app and fonte <> 'usuario_nf'`);
+  - o normal riscado só aparece se existir e for **maior** que o principal.
+  Vale no card da busca, na página do produto e na Página da loja. Apps 1.0.1/1.0.2 continuam
+  funcionando (preço só no app aparece neles como preço comum).
+- **Card da busca menor:** nome em negrito, loja em azul claro (`CoresTabelapp.NomeLoja`, ~7:1 de
+  contraste) e menor, preço em amarelo e negrito com a unidade, o selo e o normal riscado (pequeno).
+  Sem o "+": o card inteiro abre a página do produto. O amarelo da marca virou a cor de preço do app
+  inteiro (`CoresTabelapp.Preco = AmareloMarca`). `ALTURA_CARTAO` ficou só para banner e bloco de busca.
+- **Página do produto** (tela cheia): banner pago do PDV (se houver, sem espaço vazio), nome, loja com
+  "Ver loja ›" (Página da loja), bloco de preço, Local (abre o mapa) / Válido até (NF: "Preço praticado
+  em") / Origem (Encarte, Nota Fiscal ou Preço oficial) / OBS, WhatsApp da loja, "Sobre este preço"
+  (denunciar e, para o Admin, remover), gráfico e Compartilhar (mesmo texto de antes). Favoritos ficam
+  para depois.
+- **Gráfico de variação do preço:** histórico **geral do produto, em todas as lojas** em que ele
+  apareceu (mesmo `produto_busca` e mesma unidade), a partir de `historico_precos`. Um ponto por dia: em
+  cada local (loja cadastrada, CNPJ ou nome+endereço, `_local_historico`) vale o último lançamento do
+  dia, e o ponto é a **média** entre os locais (arredondada para o centavo) — quem corrige o preço várias
+  vezes no dia conta uma vez só. Ficam de fora: item de combo, exclusões e loja cadastrada inativa ou não
+  aprovada. "Menor" e "Maior" no rodapé são do ponto do dia (média). Função
+  `historico_preco_produto(p_cotacao_id)`: security definer, `search_path = ''`, só `authenticated`,
+  devolve só `(data, preco_centavos, preco_app)` — nunca quem enviou nem a loja. Janela de **90 dias**,
+  no máximo **30 pontos**, em ordem de data (NF usa a data da nota). Recebe o id do preço aberto (o
+  produto e a unidade saem dele). Usa o preço principal (de pesquisa). Desenhado com Canvas do Compose
+  (sem biblioteca nova); com menos de 2 pontos, mostra "Um único preço registrado até agora". Carrega à
+  parte e nunca trava a página. (Primeira versão do PR era só da mesma loja; trocado a pedido.)
+
+## Rede de lojas (1.0.3, 03/11/2026 — regra comercial do fundador)
+
+- **Cada CNPJ é uma loja, com um único endereço**, e publica a sua tabela de preços. Cadastro, alvará,
+  aprovação, suspensão, plano e teste grátis continuam por CNPJ. O banco não deixa um CNPJ ter mais de uma
+  loja (`lojas_uma_por_pdv_uidx`), e o dono não cria nem apaga loja pelo app (a loja nasce no cadastro).
+- **Empresa com várias lojas cadastra cada CNPJ separadamente, na mesma conta.** No app: "Meu negócio" →
+  "Outra loja (CNPJ)"; com mais de um CNPJ, uma fileira no alto escolhe qual loja aparece.
+- **Modo rede = os CNPJs da mesma conta (mesmo dono) em modo rede dividem uma tabela de preços.** Lançar,
+  alterar, pausar ou excluir (no app ou por planilha) vale para todas as lojas da rede. Fora do modo rede,
+  cada CNPJ tem a sua tabela. **Não há regra de raiz do CNPJ**: quem responde pelas empresas é o dono da
+  conta (decisão do fundador). Uma rede é uma conta; quem quiser duas redes separadas usa duas contas.
+- Cadastro novo já vem em modo rede (padrão de antes). Liga/desliga no cartão "Modo rede" do painel (só
+  aparece com mais de um CNPJ aprovado), sempre com confirmação, pela função `pdv_definir_modo_rede`.
+- **Entrar na rede** (aprovação de um CNPJ novo, reativação depois de suspensão ou ligar o modo rede): a
+  loja recebe a tabela da rede — no mesmo produto, **vale o preço da rede** — e os produtos que só ela
+  tinha vão para as outras lojas da rede. Nada é apagado. **Sair da rede:** a loja fica com uma cópia e
+  passa a ter tabela própria.
+- **Plano por loja, também na rede** (decisão do fundador): uma rede com 5 lojas paga 5 planos. A tabela
+  da rede é uma só, mas cada loja aparece na busca só até o limite do **próprio** plano: ficam no ar os itens
+  atualizados mais recentemente, e o resto fica "pausado pelo limite" naquela loja (nunca apagado). Criar ou
+  reativar item confere o limite do CNPJ que está no painel; pelo CNPJ com plano maior, a tabela da rede
+  pode crescer, e as lojas com plano menor mostram só a parte que o plano delas cobre.
+- Busca, página da loja, Nota Fiscal e gráfico não mudam: cada loja continua aparecendo com o seu endereço.
+

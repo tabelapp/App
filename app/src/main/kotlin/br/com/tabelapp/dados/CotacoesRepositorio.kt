@@ -6,6 +6,7 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.PaginaLoja
 import br.com.tabelapp.core.PontoGeo
+import br.com.tabelapp.core.PontoPreco
 
 interface CotacoesRepositorio {
     /**
@@ -45,4 +46,10 @@ interface CotacoesRepositorio {
 
     /** Banners ativos do estabelecimento. */
     suspend fun bannersDaLoja(pdvId: String): List<Banner>
+
+    /**
+     * Histórico geral do produto do preço [cotacaoId], em todas as lojas (gráfico da página do produto):
+     * últimos 90 dias, um ponto por dia (a média entre as lojas daquele dia), em ordem de data.
+     */
+    suspend fun historicoPreco(cotacaoId: String): List<PontoPreco>
 }

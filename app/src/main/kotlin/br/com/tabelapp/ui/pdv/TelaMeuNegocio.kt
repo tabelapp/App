@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassTop
@@ -31,11 +33,13 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -94,15 +98,73 @@ fun TelaMeuNegocio(container: AppContainer, usuario: Usuario) {
             when (estado.etapa) {
                 EtapaPdv.CARREGANDO -> Carregando(estado.erroCarregar, vm::carregar)
                 EtapaPdv.FORMULARIO -> FormularioPdv(estado, vm)
-                EtapaPdv.SITUACAO -> {
-                    // Cadastro aprovado: abre direto a área do PDV (tabela de preços).
-                    val aprovado = estado.pdvs.firstOrNull { it.status == StatusPdv.APROVADO }
-                    if (aprovado != null) PainelPdv(container, aprovado)
-                    else Situacao(estado.pdvs, vm, modoDemo = container.modoDemo)
-                }
+                EtapaPdv.SITUACAO -> AreaDoNegocio(container, estado, vm)
             }
         }
     }
+}
+
+/**
+ * Cada CNPJ é uma loja. Com mais de um na conta, a fileira de cima escolhe qual loja aparece;
+ * "+ Outra loja (CNPJ)" abre o cadastro de mais um. Loja aprovada abre direto o painel (tabela
+ * de preços); as outras mostram a situação do cadastro.
+ */
+@Composable
+private fun AreaDoNegocio(container: AppContainer, estado: EstadoPdv, vm: MeuNegocioViewModel) {
+    val pdvs = estado.pdvs
+    var escolhido by rememberSaveable { mutableStateOf<String?>(null) }
+    val atual = pdvs.firstOrNull { it.id == escolhido }
+        ?: pdvs.firstOrNull { it.status == StatusPdv.APROVADO } ?: pdvs.firstOrNull()
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (pdvs.size > 1) {
+                pdvs.forEach { p ->
+                    FilterChip(
+                        selected = p.id == atual?.id,
+                        onClick = { escolhido = p.id },
+                        label = { Text(rotuloLoja(p), maxLines = 1) },
+                    )
+                }
+            }
+            AssistChip(
+                onClick = { vm.novoCadastro() },
+                label = { Text("Outra loja (CNPJ)") },
+                leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            )
+            if (estado.mudandoRede) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+        }
+        estado.erroRede?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                atual == null -> Situacao(pdvs, vm, modoDemo = container.modoDemo)
+                atual.status == StatusPdv.APROVADO -> PainelPdv(
+                    container, atual,
+                    outrasLojas = pdvs.filter {
+                        it.id != atual.id && it.tipo == TipoEmpresa.LOJA && it.status == StatusPdv.APROVADO
+                    },
+                    aoMudarModoRede = { rede -> vm.definirModoRede(atual, rede) },
+                )
+                else -> Situacao(listOf(atual), vm, modoDemo = container.modoDemo)
+            }
+        }
+    }
+}
+
+/** "Mercado Centro · 0001-91" (final do CNPJ, para diferenciar lojas com o mesmo nome) + situação. */
+private fun rotuloLoja(p: MeuPdv): String {
+    val situacao = when (p.status) {
+        StatusPdv.APROVADO -> ""
+        StatusPdv.PENDENTE -> " (em análise)"
+        StatusPdv.REJEITADO -> " (não aprovado)"
+        StatusPdv.SUSPENSO -> " (suspenso)"
+    }
+    return p.nomeFantasia + " · " + Cnpj.formatar(p.cnpj).takeLast(7) + situacao
 }
 
 @Composable
@@ -154,7 +216,9 @@ private fun FormularioPdv(estado: EstadoPdv, vm: MeuNegocioViewModel) {
             Text(
                 if (anunciante) stringResource(R.string.anunciante_intro) else
                     "Cadastre seu estabelecimento para publicar seus preços no Tabelapp. Para evitar fraudes, " +
-                        "pedimos o alvará: nossa equipe confere se você responde pela empresa antes de liberar.",
+                        "pedimos o alvará: nossa equipe confere se você responde pela empresa antes de liberar.\n\n" +
+                        "Cada CNPJ é uma loja, com um endereço. Tem mais de uma loja? Cadastre cada CNPJ nesta " +
+                        "mesma conta; com o modo rede, a tabela de preços vale para todas.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(onClick = { vm.escolherTipo(if (anunciante) TipoEmpresa.LOJA else TipoEmpresa.ANUNCIANTE) }) {

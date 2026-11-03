@@ -52,8 +52,8 @@
 1. **Pix automático** (Mercado Pago ou Efí) para os banners. Hoje o pagamento é combinado pelo WhatsApp
    e o **Admin confirma** na aba Admin. **Planos do catálogo:** sem cobrança até decidir as regras da
    Google Play (`interesse_planos` guarda quem quer ser avisado).
-2. **Área do PDV:** cadastro de mais lojas e troca de modo rede/varejo (editar dados, planilha e promoções já
-   estão no app).
+2. ~~**Área do PDV:** cadastro de mais lojas e troca de modo rede/varejo~~ — feito na 1.0.3 (cada CNPJ é uma
+   loja; vários CNPJs na mesma conta; modo rede liga/desliga no painel).
 3. Promoção encerrada que já foi paga fica "Pausada" no histórico (não é apagada, por ser registro financeiro);
    ainda não há "reativar".
 4. **Moderação do Admin no app:** remover preço errado, suspender um PDV já aprovado (hoje só pelo banco).
@@ -89,3 +89,13 @@
   (no navegador do computador: abrir o link do QR → Ctrl+S → "Página da Web, completa"); (4) a página de
   QR Code, se for diferente. Com isso: leitor + testes no app, domínio no `network_security_config.xml`
   se a Sefaz usar http, e o código no `nfce_ufs_aceitas` do banco.
+
+## Depois da 1.0.3 — 03/11/2026
+
+- **Favoritos** na página do produto: ficaram fora da 1.0.3.
+- **Gráfico por loja** (opção de ver só a loja do preço aberto; hoje o gráfico é a média de todas as lojas).
+- **NFC-e de SP e MG**: continua pendente (ver acima o que preciso para ligar cada estado).
+- Segundo mockup (`layout-lista-e-pagina-do-produto.png`) não chegou; o layout foi feito pelo mockup da
+  página com o gráfico e pelo texto do pedido.
+- **Modo demonstração**: o modo rede só guarda a escolha (não junta as tabelas das lojas de demonstração).
+
