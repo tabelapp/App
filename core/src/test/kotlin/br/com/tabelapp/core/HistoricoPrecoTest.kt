@@ -18,7 +18,7 @@ class HistoricoPrecoTest {
         assertNull(s.variacaoPercentual)
         assertNull(s.variacaoTexto)
         assertEquals(emptyList(), s.valoresEixo)
-        assertEquals("Sem histórico de preço nesta loja.", s.descricao)
+        assertEquals("Sem histórico de preço deste produto.", s.descricao)
     }
 
     @Test fun `um ponto so`() {

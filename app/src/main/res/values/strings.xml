@@ -301,7 +301,7 @@
     <string name="produto_compartilhar">Compartilhar</string>
     <string name="produto_whatsapp">Chamar no WhatsApp</string>
     <string name="grafico_titulo">Variação do preço</string>
-    <string name="grafico_nesta_loja">nesta loja</string>
+    <string name="grafico_todas_as_lojas">em todas as lojas</string>
     <string name="grafico_erro">Não deu para carregar o histórico agora.</string>
     <string name="grafico_um_preco">Um único preço registrado até agora</string>
     <string name="grafico_aparece">O gráfico aparece quando houver 2 ou mais preços.</string>

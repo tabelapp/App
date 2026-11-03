@@ -93,7 +93,7 @@
 ## Depois da 1.0.3 — 03/11/2026
 
 - **Favoritos** na página do produto: ficaram fora da 1.0.3.
-- **Comparar o mesmo produto entre lojas** (o gráfico de hoje é só da mesma loja).
+- **Gráfico por loja** (opção de ver só a loja do preço aberto; hoje o gráfico é a média de todas as lojas).
 - **NFC-e de SP e MG**: continua pendente (ver acima o que preciso para ligar cada estado).
 - Segundo mockup (`layout-lista-e-pagina-do-produto.png`) não chegou; o layout foi feito pelo mockup da
   página com o gráfico e pelo texto do pedido.

@@ -44,8 +44,8 @@ private val Queda = Color(0xFF5BD68A)
 private val Alta = Color(0xFFFF8A80)
 
 /**
- * Cartão "Variação do preço" (fim da página do produto): gráfico de linha do mesmo produto na
- * mesma loja. Carrega à parte e nunca trava a página: carregando, erro discreto ou o gráfico.
+ * Cartão "Variação do preço" (fim da página do produto): gráfico de linha do produto em todas as
+ * lojas (dia com várias lojas = preço médio). Carrega à parte e nunca trava a página: carregando, erro discreto ou o gráfico.
  */
 @Composable
 fun CartaoVariacaoPreco(serie: SerieHistorico?, carregando: Boolean, erro: Boolean) {
@@ -57,7 +57,7 @@ fun CartaoVariacaoPreco(serie: SerieHistorico?, carregando: Boolean, erro: Boole
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.grafico_titulo), style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.grafico_nesta_loja), style = MaterialTheme.typography.labelMedium,
+                Text(stringResource(R.string.grafico_todas_as_lojas), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             when {

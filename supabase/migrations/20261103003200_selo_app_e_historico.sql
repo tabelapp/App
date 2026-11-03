@@ -6,10 +6,12 @@
 --    A regra da tabela (cotacoes_preco_app_check) já aceitava preco_app sem normal.
 --    buscar_cotacoes e precos_da_loja mudam só o valor de preco_app (mesmas colunas):
 --    o app 1.0.2 continua igual (sem o normal, ele mostra o preço comum).
---  * historico_preco_produto(cotacao): série do MESMO produto no MESMO local
---    (loja cadastrada, CNPJ da nota ou nome+endereço livres), últimos 90 dias,
---    um ponto por dia (o último do dia), no máximo 30 pontos, em ordem de data.
---    Devolve só (data, preco_centavos, preco_app): nunca quem enviou.
+--  * historico_preco_produto(cotacao): série GERAL do produto, em todas as lojas
+--    em que ele apareceu (mesmo produto_busca e mesma unidade), últimos 90 dias.
+--    Um ponto por dia: em cada local vale o último lançamento do dia, e o ponto é a
+--    MÉDIA desses preços entre os locais. No máximo 30 pontos, em ordem de data.
+--    Fica de fora: item de combo, exclusão e loja cadastrada inativa/não aprovada.
+--    Devolve só (data, preco_centavos, preco_app): nunca quem enviou nem a loja.
 --
 -- Nada é removido. Idempotente.
 -- =============================================================================
@@ -214,9 +216,7 @@ set search_path = ''
 as $$
   with alvo as (
     -- O preço aberto na página: só se ele mesmo pode aparecer na busca (loja ativa e aprovada).
-    select c.produto_busca,
-           public._local_historico(c.loja_id, substring(c.chave_acesso_nf from 7 for 14),
-                                   c.pdv_nome_livre, c.pdv_endereco_livre) as local
+    select c.produto_busca, c.unidade
     from public.cotacoes c
     left join public.lojas l on l.id = c.loja_id
     left join public.pdvs p on p.id = l.pdv_id
@@ -225,18 +225,31 @@ as $$
       and (c.loja_id is null or (l.ativa and p.status = 'aprovado'))
   ),
   pontos as (
+    -- O mesmo produto (e a mesma unidade) em qualquer loja.
     select coalesce(h.data_nf, (h.registrado_em at time zone 'America/Sao_Paulo')::date) as dia,
+           public._local_historico(h.loja_id, h.cnpj, h.pdv_nome, h.pdv_endereco) as local,
            h.preco_centavos, coalesce(h.preco_app, false) as preco_app, h.registrado_em, h.id
     from public.historico_precos h
     join alvo a on a.produto_busca = h.produto_busca
-               and a.local = public._local_historico(h.loja_id, h.cnpj, h.pdv_nome, h.pdv_endereco)
+               and a.unidade = coalesce(h.unidade, 'unidade'::public.unidade_medida)
     where h.operacao in ('criado', 'alterado')
+      and not coalesce(h.parte_de_combo, false)
+      and (h.loja_id is null or exists (
+            select 1 from public.lojas l join public.pdvs p on p.id = l.pdv_id
+            where l.id = h.loja_id and l.ativa and p.status = 'aprovado'))
   ),
-  por_dia as (
-    select distinct on (dia) dia, preco_centavos, preco_app
+  por_local_dia as (
+    -- Em cada local, o último lançamento do dia (quem corrige o preço 5 vezes conta 1).
+    select distinct on (dia, local) dia, local, preco_centavos, preco_app
     from pontos
     where dia >= public.hoje() - 90 and dia <= public.hoje()
-    order by dia, registrado_em desc, id desc
+    order by dia, local, registrado_em desc, id desc
+  ),
+  por_dia as (
+    -- Vários locais no mesmo dia: a média (arredondada para o centavo).
+    select dia, round(avg(preco_centavos))::integer as preco_centavos, bool_or(preco_app) as preco_app
+    from por_local_dia
+    group by dia
   ),
   ultimos as (
     select * from por_dia order by dia desc limit 30

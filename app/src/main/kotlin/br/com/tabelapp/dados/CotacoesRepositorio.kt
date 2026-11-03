@@ -48,8 +48,8 @@ interface CotacoesRepositorio {
     suspend fun bannersDaLoja(pdvId: String): List<Banner>
 
     /**
-     * Histórico do mesmo produto no mesmo local do preço [cotacaoId] (gráfico da página do produto):
-     * últimos 90 dias, um ponto por dia, em ordem de data.
+     * Histórico geral do produto do preço [cotacaoId], em todas as lojas (gráfico da página do produto):
+     * últimos 90 dias, um ponto por dia (a média entre as lojas daquele dia), em ordem de data.
      */
     suspend fun historicoPreco(cotacaoId: String): List<PontoPreco>
 }

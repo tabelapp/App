@@ -416,11 +416,15 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   em") / Origem (Encarte, Nota Fiscal ou Preço oficial) / OBS, WhatsApp da loja, "Sobre este preço"
   (denunciar e, para o Admin, remover), gráfico e Compartilhar (mesmo texto de antes). Favoritos ficam
   para depois.
-- **Gráfico de variação do preço:** mesmo produto na **mesma loja** (loja cadastrada, CNPJ ou
-  nome+endereço normalizados, `_local_historico`), a partir de `historico_precos`. Função
+- **Gráfico de variação do preço:** histórico **geral do produto, em todas as lojas** em que ele
+  apareceu (mesmo `produto_busca` e mesma unidade), a partir de `historico_precos`. Um ponto por dia: em
+  cada local (loja cadastrada, CNPJ ou nome+endereço, `_local_historico`) vale o último lançamento do
+  dia, e o ponto é a **média** entre os locais (arredondada para o centavo) — quem corrige o preço várias
+  vezes no dia conta uma vez só. Ficam de fora: item de combo, exclusões e loja cadastrada inativa ou não
+  aprovada. "Menor" e "Maior" no rodapé são do ponto do dia (média). Função
   `historico_preco_produto(p_cotacao_id)`: security definer, `search_path = ''`, só `authenticated`,
-  devolve só `(data, preco_centavos, preco_app)` — nunca quem enviou. Janela de **90 dias**, no máximo
-  **30 pontos**, um por dia (o último lançamento do dia; NF usa a data da nota), em ordem de data. Recebe
-  o id do preço (e não loja+produto soltos) para não virar consulta aberta a qualquer loja. Usa o preço
-  principal (de pesquisa). Desenhado com Canvas do Compose (sem biblioteca nova); com menos de 2 pontos,
-  mostra "Um único preço registrado até agora". Carrega à parte e nunca trava a página.
+  devolve só `(data, preco_centavos, preco_app)` — nunca quem enviou nem a loja. Janela de **90 dias**,
+  no máximo **30 pontos**, em ordem de data (NF usa a data da nota). Recebe o id do preço aberto (o
+  produto e a unidade saem dele). Usa o preço principal (de pesquisa). Desenhado com Canvas do Compose
+  (sem biblioteca nova); com menos de 2 pontos, mostra "Um único preço registrado até agora". Carrega à
+  parte e nunca trava a página. (Primeira versão do PR era só da mesma loja; trocado a pedido.)

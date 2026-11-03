@@ -1748,21 +1748,25 @@ update public.configuracao_app set valor = '["33", "35"]' where chave = 'nfce_uf
 do $$ begin assert public.nfce_uf_aceita('35'), 'ligar SP é só configuração'; end $$;
 update public.configuracao_app set valor = '["33"]' where chave = 'nfce_ufs_aceitas';
 
-\echo '== 1.0.3: selo "no app" sem preço normal; histórico do produto na loja (gráfico)'
+\echo '== 1.0.3: selo "no app" sem preço normal; histórico geral do produto (gráfico, todas as lojas)'
 reset role;
 insert into public.cotacoes (pdv_nome_livre, pdv_endereco_livre, produto, preco_centavos, validade, fonte, preco_app)
 values ('Loja Hist', 'Rua H, 1', 'Banana Prata Hist kg', 599, public.hoje() + 3, 'usuario_encarte', true);
--- Histórico de dias anteriores do mesmo produto no mesmo local (e ruídos que não podem entrar).
+-- Histórico de dias anteriores do mesmo produto em várias lojas (e ruídos que não podem entrar).
 insert into public.historico_precos
-  (registrado_em, operacao, cotacao_id, pdv_nome, pdv_endereco, produto, produto_busca, preco_centavos, fonte)
+  (registrado_em, operacao, cotacao_id, pdv_nome, pdv_endereco, produto, produto_busca, preco_centavos, fonte,
+   unidade, parte_de_combo)
 select ((public.hoje() - d)::timestamp + make_interval(hours => 12 + extra)) at time zone 'America/Sao_Paulo', op,
-       gen_random_uuid(), loja, 'Rua H, 1', 'Banana Prata Hist kg', public.normalizar('Banana Prata Hist kg'), preco, 'usuario_encarte'
-from (values (30, 0, 'criado', 'Loja Hist', 649), (20, 0, 'criado', 'Loja Hist', 629),
-             (10, 0, 'criado', 'Loja Hist', 649), (10, 3, 'alterado', 'Loja Hist', 639),
-             (100, 0, 'criado', 'Loja Hist', 999),        -- fora da janela de 90 dias
-             (15, 0, 'excluido', 'Loja Hist', 111),       -- exclusão não é ponto
-             (15, 0, 'criado', 'Outra Loja', 222)         -- outro local
-     ) as v(d, extra, op, loja, preco);
+       gen_random_uuid(), loja, 'Rua H, 1', 'Banana Prata Hist kg', public.normalizar('Banana Prata Hist kg'), preco,
+       'usuario_encarte', un::public.unidade_medida, combo
+from (values (30, 0, 'criado', 'Loja Hist', 649, null, false), (20, 0, 'criado', 'Loja Hist', 629, null, false),
+             (10, 0, 'criado', 'Loja Hist', 649, null, false), (10, 3, 'alterado', 'Loja Hist', 639, null, false),
+             (10, 1, 'criado', 'Outra Loja', 660, 'unidade', false),  -- outra loja: média (639+660)/2 = 649,5 -> 650
+             (100, 0, 'criado', 'Loja Hist', 999, null, false),      -- fora da janela de 90 dias
+             (15, 0, 'excluido', 'Loja Hist', 111, null, false),     -- exclusão não é ponto
+             (5, 0, 'criado', 'Loja Kg', 9999, 'kg', false),         -- outra unidade
+             (5, 0, 'criado', 'Loja Combo', 1, null, true)           -- item de combo
+     ) as v(d, extra, op, loja, preco, un, combo);
 set role authenticated;
 set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
 do $$
@@ -1774,7 +1778,7 @@ begin
   assert (select preco_app and preco_normal_centavos is null from public.buscar_cotacoes('banana prata hist')),
     'preço no app sem o normal';
   serie := array(select preco_centavos from public.historico_preco_produto(alvo));
-  assert serie = array[649, 629, 639, 599], format('série esperada 649,629,639,599; veio %s', serie);
+  assert serie = array[649, 629, 650, 599], format('série esperada 649,629,650,599; veio %s', serie);
   assert (select bool_and(data <= public.hoje() and data >= public.hoje() - 90) from public.historico_preco_produto(alvo));
   assert (select count(*) from public.historico_preco_produto(gen_random_uuid())) = 0, 'preço inexistente: vazio';
 end $$;

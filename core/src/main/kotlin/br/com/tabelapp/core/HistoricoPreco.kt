@@ -11,7 +11,7 @@ import kotlin.math.roundToLong
 data class PontoPreco(val data: LocalDate, val centavos: Long, val precoApp: Boolean = false)
 
 /**
- * Série do gráfico "Variação do preço" (mesmo produto, mesma loja). Funções puras: o app só desenha.
+ * Série do gráfico "Variação do preço" (mesmo produto em todas as lojas; com várias lojas no dia, a média). Funções puras: o app só desenha.
  * Ordem por data, um ponto por dia (o último lançado no dia), no máximo [MAXIMO_PONTOS].
  */
 class SerieHistorico private constructor(val pontos: List<PontoPreco>) {
@@ -80,7 +80,7 @@ class SerieHistorico private constructor(val pontos: List<PontoPreco>) {
     /** Leitor de tela: "Preço de R$ 6,49 em 05/10 para R$ 5,99 em 01/11, queda de 7,7%." */
     val descricao: String
         get() {
-            if (pontos.isEmpty()) return "Sem histórico de preço nesta loja."
+            if (pontos.isEmpty()) return "Sem histórico de preço deste produto."
             if (!temGrafico) return "Um único preço registrado até agora: ${Dinheiro.formatar(pontos.first().centavos)} " +
                 "em ${diaMes(pontos.first().data)}."
             val a = pontos.first()
