@@ -65,11 +65,11 @@ import br.com.tabelapp.core.CompartilharLoja
 import br.com.tabelapp.core.ItemLoja
 import br.com.tabelapp.core.Mensagens
 import br.com.tabelapp.core.PaginaLoja
-import br.com.tabelapp.core.PrecoExibido
 import br.com.tabelapp.dados.CotacoesRepositorio
 import br.com.tabelapp.dados.ErroAmigavel
 import br.com.tabelapp.ui.busca.BannerPatrocinado
 import br.com.tabelapp.ui.busca.FolhaDenunciarBanner
+import br.com.tabelapp.ui.busca.SeloNoApp
 import br.com.tabelapp.ui.busca.abrir
 import br.com.tabelapp.ui.comum.WhatsApp
 import br.com.tabelapp.ui.tema.CoresTabelapp
@@ -327,16 +327,18 @@ private fun LinhaItem(item: ItemLoja) {
                 Text(item.produto, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f).padding(top = 2.dp, end = 8.dp))
                 val normal = item.precoNormal
-                if (normal != null) {
-                    // Preço no app/clube da loja; abaixo, "no app" e o preço normal, menor e sem legenda.
+                if (item.temPrecoApp) {
+                    // Preço no app/clube da loja; abaixo, o selo "no app" e (se houver e for maior) o normal riscado.
                     Column(
                         horizontalAlignment = Alignment.End,
                         modifier = Modifier.clearAndSetSemantics { contentDescription = item.descricaoPreco },
                     ) {
                         Text(item.preco, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)
-                        Text(PrecoExibido.LEGENDA_APP, fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(normal, fontSize = 13.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        SeloNoApp()
+                        normal?.let {
+                            Text(it, fontSize = 13.sp, lineHeight = 16.sp, textDecoration = TextDecoration.LineThrough,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 } else {
                     Text(item.preco, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, color = CoresTabelapp.Preco)

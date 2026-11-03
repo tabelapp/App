@@ -44,6 +44,8 @@ object CoresTabelapp {
      */
     val AmareloMarca = Color(0xFFFDDE03)
     val Destaque = AmareloMarca
+    /** Preços: amarelo da marca e negrito (1.0.3, mockup da página do produto; antes, brancos). */
+    val Preco = AmareloMarca
     /** Fundo do "pill" selecionado (aba ativa) e de containers de destaque: amarelo-escuro. */
     val DestaqueFundo = Color(0xFF4A4100)
     /** Texto sobre o amarelo (botões cheios): 13,5:1. */
@@ -53,8 +55,8 @@ object CoresTabelapp {
     /** Vermelho escuro da marca (cifrão da lupa e "Tabelapp" na abertura): 5,5:1 sobre o amarelo. */
     val VermelhoMarca = Color(0xFFB00000)
     val IconeNeutro = Color(0xFFB8BBC0)
-    /** Preços: sempre brancos e em negrito. */
-    val Preco = Color(0xFFFFFFFF)
+    /** Nome da loja no card e "Ver loja" (azul claro; 7:1 sobre o card). */
+    val NomeLoja = Color(0xFF7FB8E8)
     val WhatsApp = Color(0xFF1FA855)
     val Erro = Color(0xFFFFB4AB)
     val SobreErro = Color(0xFF690005)

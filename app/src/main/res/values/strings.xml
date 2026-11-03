@@ -288,4 +288,21 @@
     <string name="anunciante_endereco">Endereço da empresa, só para a nossa análise: não aparece como loja na busca nem no mapa.</string>
     <string name="anunciante_painel">Conta de anunciante: seus banners aparecem aqui quando estiverem ativos.</string>
     <string name="admin_tipo_anunciante">ANUNCIANTE (sem ponto de venda)</string>
+    <!-- 1.0.3: página do produto e gráfico de variação -->
+    <string name="produto_abrir">abrir a página do produto</string>
+    <string name="produto_titulo">Produto</string>
+    <string name="produto_ver_loja">Ver loja ›</string>
+    <string name="produto_local">Local</string>
+    <string name="produto_valido_ate">Válido até</string>
+    <string name="produto_praticado_em">Preço praticado em</string>
+    <string name="produto_origem">Origem</string>
+    <string name="produto_obs">OBS</string>
+    <string name="produto_preco_normal">Preço normal</string>
+    <string name="produto_compartilhar">Compartilhar</string>
+    <string name="produto_whatsapp">Chamar no WhatsApp</string>
+    <string name="grafico_titulo">Variação do preço</string>
+    <string name="grafico_nesta_loja">nesta loja</string>
+    <string name="grafico_erro">Não deu para carregar o histórico agora.</string>
+    <string name="grafico_um_preco">Um único preço registrado até agora</string>
+    <string name="grafico_aparece">O gráfico aparece quando houver 2 ou mais preços.</string>
 </resources>

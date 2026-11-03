@@ -95,11 +95,11 @@ import br.com.tabelapp.ui.comum.DocumentoLegal
 import br.com.tabelapp.ui.comum.PainelErro
 import br.com.tabelapp.ui.comum.TelaTextoLegal
 import br.com.tabelapp.ui.comum.WhatsApp
-import br.com.tabelapp.ui.loja.TelaLoja
 import br.com.tabelapp.ui.principal.MinhaConta
 import br.com.tabelapp.ui.principal.QuemSomos
 import br.com.tabelapp.ui.principal.TelaComoUsar
 import br.com.tabelapp.ui.principal.TelaMinhasNotas
+import br.com.tabelapp.ui.produto.TelaProduto
 import br.com.tabelapp.ui.tema.ContornoNeutro
 import br.com.tabelapp.ui.tema.CoresTabelapp
 import br.com.tabelapp.ui.tema.coresBarraTopo
@@ -121,8 +121,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
     val foco = LocalFocusManager.current
     val escopo = rememberCoroutineScope()
     val contexto = LocalContext.current
-    var pdvAberto by remember { mutableStateOf<Cotacao?>(null) }
-    var sobrePreco by remember { mutableStateOf<Cotacao?>(null) }
+    var produtoAberto by remember { mutableStateOf<Cotacao?>(null) }
     var denunciandoBanner by remember { mutableStateOf<Banner?>(null) }
     var verMapa by remember { mutableStateOf(false) }
 
@@ -224,13 +223,7 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
                                     cotacao = cotacao,
                                     destaque = estado.destaques[cotacao.id],
                                     posicao = estado.posicao,
-                                    aoAbrirPdv = { pdvAberto = cotacao },
-                                    aoCompartilhar = { escopo.launch { CompartilharPreco.compartilhar(contexto, cotacao) } },
-                                    aoSobrePreco = { sobrePreco = cotacao },
-                                    aoAbrirMapa = { abrirNoMapa(contexto, cotacao) },
-                                    aoChamarNoWhatsApp = {
-                                        cotacao.telefone?.let { WhatsApp.abrirConversa(contexto, it, Mensagens.interesseNaOferta(cotacao)) }
-                                    },
+                                    aoAbrir = { produtoAberto = cotacao },
                                 )
                             }
                         }
@@ -264,8 +257,6 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
         )
     }
 
-    // Tocar no nome do comércio (loja cadastrada): "Página da loja" em tela cheia.
-    pdvAberto?.lojaId?.let { lojaId -> TelaLoja(container.cotacoes, lojaId, aoFechar = { pdvAberto = null }) }
 
     denunciandoBanner?.let { b ->
         FolhaDenunciarBanner(
@@ -275,11 +266,14 @@ fun TelaBusca(container: AppContainer, usuario: Usuario, aoEnviarPrecos: () -> U
         )
     }
 
-    sobrePreco?.let { c ->
-        FolhaSobrePreco(
+    // Tocar no card: página do produto em tela cheia (WhatsApp, "Sobre este preço", loja, gráfico...).
+    produtoAberto?.let { c ->
+        TelaProduto(
+            repositorio = container.cotacoes,
             cotacao = c,
+            destaque = estado.destaques[c.id],
             aoDenunciar = { motivo -> vm.denunciar(c, motivo) },
-            aoFechar = { sobrePreco = null },
+            aoFechar = { produtoAberto = null },
             aoRemover = if (usuario.tipo == TipoConta.ADMIN) {
                 {
                     container.pdvs.removerCotacao(c.id)
