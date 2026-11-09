@@ -1923,4 +1923,115 @@ do $$ begin
 end $$;
 delete from public.cotacoes where produto = 'Banana Prata Hist kg';
 
+\echo '== 1.0.4: leitor de encartes do Admin (lançar, desfazer, só Admin)'
+reset role;
+set role authenticated;
+-- Usuário comum (CPF) não usa nada disso.
+set request.jwt.claim.sub = 'a0000000-0000-4000-a000-00000000000a';
+select pg_temp.espera_erro($q$select public.admin_lancar_encarte('Loja X', 'Rua X', '[{"produto":"A","preco_centavos":100,"validade":"2099-01-01"}]')$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select public.admin_desfazer_lote(gen_random_uuid())$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$select * from public.admin_lojas_encarte()$q$, 'sem_permissao');
+select pg_temp.espera_erro($q$insert into public.leituras_encarte (sucesso) values (true)$q$, 'permission denied');
+do $$ begin
+  assert (select count(*) from public.leituras_encarte) = 0, 'leituras: só o Admin lê';
+end $$;
+reset role;
+insert into public.leituras_encarte (admin_id, itens, sucesso) values ('c0000000-0000-4000-a000-00000000000c', 12, true);
+set role anon;
+select pg_temp.espera_erro($q$select public.admin_lancar_encarte('L', 'E', '[]')$q$, 'permission denied for function admin_lancar_encarte');
+select pg_temp.espera_erro($q$select public.admin_desfazer_lote(gen_random_uuid())$q$, 'permission denied for function admin_desfazer_lote');
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare
+  r jsonb;
+  lote uuid;
+  v date := public.hoje() + 5;
+begin
+  assert (select count(*) from public.leituras_encarte) = 1, 'o Admin lê as leituras';
+  r := public.admin_lancar_encarte('Assaí Teste Leitor', 'Rua do Teste, 10 - Petrópolis', format(
+    '[{"produto":"Leite Leitor 1L","preco_centavos":479,"preco_normal_centavos":529,"preco_app":true,"unidade":"unidade","validade":"%1$s","obs":"Limite 6 un. por CPF"},
+      {"produto":"Picanha Leitor","preco_centavos":6990,"preco_normal_centavos":null,"preco_app":false,"unidade":"kg","validade":"%1$s","obs":null},
+      {"produto":"LEITE  leitor 1l","preco_centavos":479,"preco_app":true,"validade":"%1$s"}]', v)::jsonb);
+  lote := (r ->> 'lote_id')::uuid;
+  assert (r ->> 'recebidos')::int = 3 and (r ->> 'lancados')::int = 2, r::text;
+  perform set_config('teste.lote', lote::text, false);
+end $$;
+-- Conferido como superusuário (quem enviou não é legível pela API).
+reset role;
+do $$
+declare lote uuid := current_setting('teste.lote')::uuid;
+begin
+  assert (select count(*) from public.cotacoes where lote_id = lote) = 2;
+  assert (select preco_app and preco_normal_centavos = 529 and obs = 'Limite 6 un. por CPF' and fonte = 'usuario_encarte'
+            and loja_id is null and pdv_nome_livre = 'Assaí Teste Leitor'
+            and enviado_por = 'c0000000-0000-4000-a000-00000000000c'
+          from public.cotacoes where lote_id = lote and produto = 'Leite Leitor 1L');
+  assert (select unidade = 'kg' and not preco_app and preco_normal_centavos is null
+          from public.cotacoes where lote_id = lote and produto = 'Picanha Leitor');
+end $$;
+set role authenticated;
+set request.jwt.claim.sub = 'c0000000-0000-4000-a000-00000000000c';
+do $$
+declare
+  r jsonb;
+  lote uuid := current_setting('teste.lote')::uuid;
+  v date := public.hoje() + 5;
+begin
+  assert exists (select 1 from public.admin_lojas_encarte() where nome = 'Assaí Teste Leitor');
+  -- Desfazer: some do banco (o histórico guarda a exclusão).
+  assert public.admin_desfazer_lote(lote) = 2;
+  assert not exists (select 1 from public.cotacoes where lote_id = lote);
+  -- Validação no servidor: devolve as linhas com problema e não lança nada.
+  begin
+    perform public.admin_lancar_encarte('Loja', 'Rua', format(
+      '[{"produto":"Ok","preco_centavos":100,"validade":"%1$s"},
+        {"produto":"","preco_centavos":100,"validade":"%1$s"},
+        {"produto":"Zero","preco_centavos":0,"validade":"%1$s"},
+        {"produto":"Normal menor","preco_centavos":500,"preco_normal_centavos":400,"preco_app":true,"validade":"%1$s"},
+        {"produto":"Normal sem app","preco_centavos":500,"preco_normal_centavos":600,"validade":"%1$s"},
+        {"produto":"OBS","preco_centavos":100,"obs":"%2$s","validade":"%1$s"},
+        {"produto":"Tonelada","preco_centavos":100,"unidade":"tonelada","validade":"%1$s"},
+        {"produto":"Vencido","preco_centavos":100,"validade":"%3$s"},
+        {"produto":"Longe","preco_centavos":100,"validade":"%4$s"},
+        {"produto":"Sem validade","preco_centavos":100}]',
+      v, repeat('x', 141), public.hoje() - 31, public.hoje() + 61)::jsonb);
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm = 'itens_invalidos', sqlerrm;
+    get stacked diagnostics r = pg_exception_detail;
+    assert (select array_agg(x ->> 'erro' order by (x ->> 'linha')::int) from jsonb_array_elements(r) x)
+           = array['produto_vazio', 'preco_invalido', 'normal_invalido', 'normal_sem_app', 'obs_longa',
+                   'unidade_invalida', 'validade_vencida', 'validade_longa', 'validade_invalida'], r::text;
+  end;
+  assert not exists (select 1 from public.cotacoes where produto = 'Ok' and fonte = 'usuario_encarte');
+  begin
+    perform public.admin_lancar_encarte(' ', 'Rua', '[{"produto":"A","preco_centavos":1}]');
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm = 'loja_obrigatoria', sqlerrm;
+  end;
+  begin
+    perform public.admin_lancar_encarte('Loja', 'Rua', (select jsonb_agg(jsonb_build_object('produto', 'P' || i,
+      'preco_centavos', 100, 'validade', v)) from generate_series(1, 301) i));
+    raise exception 'devia recusar';
+  exception when others then
+    assert sqlerrm = 'itens_demais', sqlerrm;
+  end;
+  -- Lote antigo (mais de 48 h): não desfaz.
+  r := public.admin_lancar_encarte('Loja Antiga', 'Rua', format('[{"produto":"Antigo Leitor","preco_centavos":100,"validade":"%s"}]', v)::jsonb);
+  perform set_config('teste.lote', r ->> 'lote_id', false);
+end $$;
+reset role;
+update public.cotacoes set created_at = now() - interval '49 hours' where lote_id = current_setting('teste.lote')::uuid;
+set role authenticated;
+do $$ begin
+  assert public.admin_desfazer_lote(current_setting('teste.lote')::uuid) = 0;
+end $$;
+reset role;
+delete from public.cotacoes where lote_id = current_setting('teste.lote')::uuid;
+reset role;
+delete from public.leituras_encarte;
+
 \echo 'OK — todos os testes do banco passaram'
