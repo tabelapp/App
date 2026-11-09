@@ -58,6 +58,18 @@ jobs:
         with:
           name: tabelapp-demo-apk
           path: saida/demo/*.apk
+      # Testes do app (Android simulado): desenha a arte de compartilhar nos casos pedidos
+      # e guarda as prévias em PNG (artefato "previa-arte").
+      - name: Testes do app (prévia da arte de compartilhar)
+        env:
+          SUPABASE_URL: ''
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: previa-arte
+          path: app/build/previa-arte/*.png
+          if-no-files-found: ignore
       # Confere que a versão da Play Store (release, AAB) compila. Sem assinatura e sem
       # guardar o arquivo: o pacote de verdade sai pela automação "Versão para a Play Store".
       - name: Conferir pacote da Play Store (AAB, sem assinatura)
