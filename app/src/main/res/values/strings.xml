@@ -305,4 +305,8 @@
     <string name="grafico_erro">Não deu para carregar o histórico agora.</string>
     <string name="grafico_um_preco">Um único preço registrado até agora</string>
     <string name="grafico_aparece">O gráfico aparece quando houver 2 ou mais preços.</string>
+    <!-- 1.0.4: nota que o sistema não consegue ler (sem acusar a loja nem a pessoa) -->
+    <string name="erro_nota_incompativel_titulo">Esta nota não está compatível com o sistema da SeFaz.</string>
+    <string name="erro_nota_incompativel_texto">Isso acontece com algumas notas, mesmo direto no site da SeFaz. Você pode tentar outra nota.</string>
+    <string name="erro_botao_enviar_outra_nota">Enviar outra nota</string>
 </resources>

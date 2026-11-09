@@ -16,10 +16,47 @@ enum class TipoErro {
     FALHA_UPLOAD_FOTO,
     FALHA_ENVIO_NF,
     FALHA_PAGAMENTO,
+    /** A nota não pôde ser lida (QR/chave não reconhecidos ou produtos não encontrados): o problema é da nota. */
+    NOTA_INCOMPATIVEL,
     INESPERADO;
 
     /** Prefixo dos textos no strings.xml. */
     val chave: String get() = name.lowercase()
+}
+
+/**
+ * O que deu errado ao ler uma nota fiscal. Decide a mensagem e os botões da tela:
+ * quando o problema é da própria nota, a mensagem é a mesma ("não está compatível com o
+ * sistema da SeFaz"), sem acusar a loja nem a pessoa.
+ */
+enum class ProblemaNota {
+    /** O QR Code lido não é uma NFC-e reconhecida. */
+    QR_NAO_RECONHECIDO,
+    /** A chave digitada tem dígito verificador inválido. */
+    CHAVE_INVALIDA,
+    /** A página da Sefaz é de outra nota (não confere com a chave). */
+    CHAVE_NAO_CONFERE,
+    /** A página da Sefaz abriu, mas os produtos não foram encontrados. */
+    PRODUTOS_NAO_ENCONTRADOS,
+    SEM_INTERNET,
+    SEFAZ_INDISPONIVEL,
+    CAMERA_NEGADA,
+    OUTRO_ESTADO,
+    NOTA_JA_ENVIADA,
+    LIMITE_DIARIO;
+
+    /** Tela calma correspondente; null = mensagem própria de regra de negócio (continua como antes). */
+    val tipoErro: TipoErro?
+        get() = when (this) {
+            QR_NAO_RECONHECIDO, CHAVE_INVALIDA, CHAVE_NAO_CONFERE, PRODUTOS_NAO_ENCONTRADOS -> TipoErro.NOTA_INCOMPATIVEL
+            SEM_INTERNET -> TipoErro.SEM_INTERNET
+            SEFAZ_INDISPONIVEL -> TipoErro.SEFAZ_INDISPONIVEL
+            CAMERA_NEGADA -> TipoErro.CAMERA_NEGADA
+            OUTRO_ESTADO, NOTA_JA_ENVIADA, LIMITE_DIARIO -> null
+        }
+
+    /** Chave inválida não tem como ser lançada manualmente: só "Enviar outra nota". */
+    val permiteTentarDeNovo: Boolean get() = this != CHAVE_INVALIDA
 }
 
 /** Decide qual mensagem amigável corresponde a uma falha técnica. */

@@ -1,12 +1,17 @@
 package br.com.tabelapp.ui.principal
 
+import android.os.SystemClock
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.QrCode2
@@ -22,11 +27,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.tabelapp.AppContainer
 import br.com.tabelapp.dados.TipoConta
@@ -41,7 +52,7 @@ import br.com.tabelapp.ui.tema.CoresTabelapp
 private enum class Aba(val rotulo: String, val icone: ImageVector) {
     BUSCAR("Buscar", Icons.Default.Search),
     LISTA("Lista", Icons.Default.ShoppingCart),
-    ENVIAR_NF("Enviar preços", Icons.Default.QrCode2),
+    ENVIAR_NF("Ler nota", Icons.Default.QrCode2),
     MEU_NEGOCIO("Meu negócio", Icons.Default.Storefront),
     ADMIN("Admin", Icons.Default.AdminPanelSettings),
 }
@@ -65,6 +76,9 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
     var escolhidaNome by abaSalva
     val escolhida = Aba.entries.firstOrNull { it.name == escolhidaNome } ?: Aba.BUSCAR
     val aba = if (escolhida in abas) escolhida else Aba.BUSCAR
+    // Cada toque na aba "Ler nota" gera um pedido novo de câmera. Não é salvo: depois de girar a tela
+    // (ou recriar a Activity) volta a 0 e a câmera não abre sozinha.
+    var pedidoCamera by remember { mutableLongStateOf(0L) }
 
     Scaffold(
         bottomBar = {
@@ -72,6 +86,13 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
             val sistema = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             NavigationBar(Modifier.height(ALTURA_BARRA_ABAS + sistema), containerColor = CoresTabelapp.BarraInferior) {
                 abas.forEach { a ->
+                    if (a == Aba.ENVIAR_NF) {
+                        AbaLerNota(selecionada = aba == a) {
+                            escolhidaNome = a.name
+                            pedidoCamera = SystemClock.elapsedRealtimeNanos()
+                        }
+                        return@forEach
+                    }
                     NavigationBarItem(
                         selected = aba == a,
                         onClick = { escolhidaNome = a.name },
@@ -94,7 +115,9 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
         Box(Modifier.fillMaxSize().padding(bottom = margens.calculateBottomPadding())) {
             when (aba) {
                 Aba.BUSCAR -> TelaBusca(container, usuario, aoEnviarPrecos = { escolhidaNome = Aba.ENVIAR_NF.name })
-                Aba.ENVIAR_NF -> TelaEnviarNf(container, usuario, aoVerNaBusca = { escolhidaNome = Aba.BUSCAR.name })
+                Aba.ENVIAR_NF -> TelaEnviarNf(
+                    container, usuario, aoVerNaBusca = { escolhidaNome = Aba.BUSCAR.name }, pedidoCamera = pedidoCamera,
+                )
                 Aba.LISTA -> TelaLista(container, usuario)
                 Aba.MEU_NEGOCIO -> TelaMeuNegocio(container, usuario)
                 Aba.ADMIN -> TelaAdmin(container, usuario)
@@ -102,3 +125,38 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
         }
     }
 }
+
+/**
+ * Aba de destaque "Ler nota": ícone de QR Code escuro dentro de uma pílula amarela da marca,
+ * sempre amarela (selecionada ou não) e um pouco maior que os outros ícones. Área de toque da
+ * célula inteira (bem mais de 48 dp); o leitor de tela diz "Ler nota fiscal".
+ */
+@Composable
+private fun RowScope.AbaLerNota(selecionada: Boolean, aoTocar: () -> Unit) {
+    NavigationBarItem(
+        selected = selecionada,
+        onClick = aoTocar,
+        icon = {
+            Box(
+                Modifier.size(width = 60.dp, height = 36.dp).background(CoresTabelapp.Destaque, RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.QrCode2, contentDescription = "Ler nota fiscal", tint = CoresTabelapp.SobreDestaque,
+                    modifier = Modifier.size(28.dp))
+            }
+        },
+        label = {
+            Text(Aba.ENVIAR_NF.rotulo, fontWeight = if (selecionada) FontWeight.Bold else FontWeight.SemiBold,
+                modifier = Modifier.clearAndSetSemantics {})
+        },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = CoresTabelapp.SobreDestaque,
+            unselectedIconColor = CoresTabelapp.SobreDestaque,
+            selectedTextColor = CoresTabelapp.Destaque,
+            unselectedTextColor = CoresTabelapp.Destaque,
+            // A pílula amarela já é o destaque: sem o indicador padrão por trás.
+            indicatorColor = Color.Transparent,
+        ),
+    )
+}
+
