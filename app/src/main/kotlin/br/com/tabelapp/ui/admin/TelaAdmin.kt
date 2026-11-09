@@ -295,6 +295,7 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
     var suspendendo by remember { mutableStateOf<PdvAdmin?>(null) }
     var reativando by remember { mutableStateOf<PdvAdmin?>(null) }
     var vendoPlanos by remember { mutableStateOf(false) }
+    var vendoEncartes by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -306,6 +307,15 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 estado.erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                // 1.0.4: leitor de encartes (lê a imagem, o Admin confere e lança).
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Encartes", fontWeight = FontWeight.Bold)
+                        Text("Envie a foto, imagem ou PDF de um encarte: o app lê produtos e preços e você confere antes de lançar.",
+                            style = MaterialTheme.typography.bodySmall)
+                        Button(onClick = { vendoEncartes = true }, modifier = Modifier.fillMaxWidth()) { Text("Ler encarte") }
+                    }
+                }
                 when {
                     estado.carregando -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -461,6 +471,9 @@ fun TelaAdmin(container: AppContainer, usuario: Usuario) {
     }
 
     if (vendoPlanos) TelaPlanosPdvs(container.pdvs, aoFechar = { vendoPlanos = false })
+    if (vendoEncartes) {
+        TelaEncartesAdmin(container.encartesAdmin, container.imagens, container.modoDemo, aoFechar = { vendoEncartes = false })
+    }
 
     removendo?.let { p ->
         AlertDialog(
