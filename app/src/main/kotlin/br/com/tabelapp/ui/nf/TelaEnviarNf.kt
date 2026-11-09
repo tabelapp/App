@@ -89,21 +89,28 @@ import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Aba "Enviar preços": QR Code (ou chave) do cupom -> leitura na Sefaz -> conferência -> envio. */
+/**
+ * Aba "Ler nota": QR Code (ou chave) do cupom -> leitura na Sefaz -> conferência -> envio.
+ * [pedidoCamera] muda a cada toque na aba amarela: a câmera abre direto (uma vez por toque).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> Unit) {
+fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> Unit, pedidoCamera: Long = 0L) {
     val vm: EnviarNfViewModel = viewModel(key = "nf-${usuario.id}") {
         EnviarNfViewModel(container.notasFiscais, container.pdvs::consultarCnpj)
     }
     val estado by vm.estado.collectAsStateWithLifecycle()
+    val contexto = LocalContext.current
+    LaunchedEffect(pedidoCamera) {
+        if (vm.devoAbrirCamera(pedidoCamera, container.modoDemo)) abrirLeitorQr(contexto, vm)
+    }
 
     Scaffold(
         // A barra de baixo (abas) já cuida da borda inferior da tela.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Enviar preços", fontWeight = FontWeight.Bold) },
+                title = { Text("Ler nota", fontWeight = FontWeight.Bold) },
                 colors = coresBarraTopo(),
                 actions = {
                     if (estado.etapa != EtapaNf.INICIO && estado.etapa != EtapaNf.ENVIADO) {
@@ -127,41 +134,41 @@ fun TelaEnviarNf(container: AppContainer, usuario: Usuario, aoVerNaBusca: () -> 
     }
 }
 
+/** Leitor de QR Code do Google (a tela da câmera é dele). Cancelado pelo usuário: fica na tela de início. */
+private fun abrirLeitorQr(contexto: Context, vm: EnviarNfViewModel) {
+    val opcoes = GmsBarcodeScannerOptions.Builder()
+        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+        .enableAutoZoom()
+        .build()
+    GmsBarcodeScanning.getClient(contexto, opcoes).startScan()
+        .addOnSuccessListener { codigo -> vm.qrLido(codigo.rawValue.orEmpty()) }
+        // Câmera negada, ou leitor ainda sendo baixado pelo Google Play: mensagem calma.
+        .addOnFailureListener { vm.erroNoLeitor(it) }
+}
+
 @Composable
 private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
     val contexto = LocalContext.current
     val textoChave = estado.chaveManual
     val focoChave = remember { FocusRequester() }
 
-    fun abrirLeitor() {
-        val opcoes = GmsBarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-            .enableAutoZoom()
-            .build()
-        GmsBarcodeScanning.getClient(contexto, opcoes).startScan()
-            .addOnSuccessListener { codigo -> vm.qrLido(codigo.rawValue.orEmpty()) }
-            // Câmera negada, ou leitor ainda sendo baixado pelo Google Play: mensagem calma.
-            .addOnFailureListener { vm.erroNoLeitor(it) }
-        // Cancelado pelo usuário: nada a fazer.
-    }
+    fun abrirLeitor() = abrirLeitorQr(contexto, vm)
 
+    // Compacta: ao cancelar a câmera, o botão do QR e a entrada manual aparecem sem rolar.
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            Icons.Default.QrCodeScanner, contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(72.dp),
-        )
         Text(
             "Compartilhe os preços da sua compra",
-            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
         )
         Text(
             "Aponte a câmera para o QR Code impresso no final do cupom fiscal. O Tabelapp guarda somente " +
                 "as informações do vendedor, produtos e preços. As informações do comprador nunca serão armazenadas.",
             textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(onClick = ::abrirLeitor, modifier = Modifier.fillMaxWidth().height(56.dp)) {
@@ -191,24 +198,34 @@ private fun EtapaInicio(estado: EstadoNf, vm: EnviarNfViewModel) {
                 secundario = preencherManual,
                 compacto = true,
             )
-            TipoErro.QR_INVALIDO -> PainelErro(
-                TipoErro.QR_INVALIDO,
-                principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), {
-                    vm.fecharErroInicio()
-                    abrirLeitor()
-                }),
-                secundario = preencherManual,
-                compacto = true,
-            )
+            // QR que não é NFC-e reconhecida ou chave com dígito verificador inválido: o problema é da nota.
+            TipoErro.NOTA_INCOMPATIVEL -> if (estado.chaveInvalida) {
+                PainelErro(
+                    TipoErro.NOTA_INCOMPATIVEL,
+                    principal = AcaoErro(stringResource(R.string.erro_botao_enviar_outra_nota), vm::novaNota),
+                    compacto = true,
+                )
+            } else {
+                PainelErro(
+                    TipoErro.NOTA_INCOMPATIVEL,
+                    principal = AcaoErro(stringResource(R.string.erro_botao_tentar_de_novo), {
+                        vm.fecharErroInicio()
+                        abrirLeitor()
+                    }),
+                    secundario = preencherManual,
+                    compacto = true,
+                )
+            }
             else -> Unit
         }
 
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
         Text("Entrada manual", fontWeight = FontWeight.Bold)
         Text(
             "Digite os 44 números da nota (a \"chave de acesso\", impressa no cupom perto do QR Code).",
             textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
@@ -295,16 +312,13 @@ private fun EtapaFalha(estado: EstadoNf, vm: EnviarNfViewModel) {
             FalhaNf.SEM_INTERNET -> PainelErro(
                 TipoErro.SEM_INTERNET, principal = tentar, secundario = manual, observacao = aguarde,
             )
+            // A página não confere com a chave, ou abriu sem os produtos: o problema é da nota.
             FalhaNf.NOTA_DIFERENTE -> PainelErro(
-                titulo = stringResource(R.string.erro_nota_diferente_titulo),
-                texto = stringResource(R.string.erro_nota_diferente_texto),
-                principal = tentar, secundario = manual, observacao = aguarde,
+                TipoErro.NOTA_INCOMPATIVEL, principal = tentar, secundario = manual, observacao = aguarde,
             )
             FalhaNf.LEITURA -> {
                 PainelErro(
-                    titulo = stringResource(R.string.erro_leitura_nf_titulo),
-                    texto = stringResource(R.string.erro_leitura_nf_texto),
-                    principal = tentar, secundario = manual, observacao = aguarde,
+                    TipoErro.NOTA_INCOMPATIVEL, principal = tentar, secundario = manual, observacao = aguarde,
                 )
                 if (estado.temPaginaSefaz) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -70,6 +70,12 @@ android {
         }
     }
 
+    // Testes do app com Robolectric (Android simulado): a arte de compartilhar é desenhada de
+    // verdade e as prévias em PNG ficam em app/build/previa-arte (a CI publica como artefato).
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -118,4 +124,5 @@ dependencies {
     implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }

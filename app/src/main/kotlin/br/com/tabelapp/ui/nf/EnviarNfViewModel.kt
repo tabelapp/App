@@ -50,8 +50,10 @@ data class EstadoNf(
     val dataNf: LocalDate = LocalDate.now(),
     val erros: List<String> = emptyList(),
     val erroInicio: String? = null,
-    /** Erro no início com tela própria (câmera negada, QR ilegível). */
+    /** Erro no início com tela própria (câmera negada, nota incompatível). */
     val erroInicioTipo: TipoErro? = null,
+    /** A chave digitada é inválida (dígito verificador): só dá para enviar outra nota. */
+    val chaveInvalida: Boolean = false,
     /** Chave digitada na entrada manual (fica guardada; vem preenchida depois de uma falha da Sefaz). */
     val chaveManual: String = "",
     /** Há um QR Code lido guardado: dá para tentar de novo sem escanear. */
@@ -118,6 +120,20 @@ class EnviarNfViewModel(
     private val intervalo = IntervaloTentativas(10_000)
     private var htmlSefaz: String? = null
     private var urlPagina: String? = null
+    /** Último toque na aba "Ler nota" já atendido (a câmera abre uma vez por toque, nunca em loop). */
+    private var ultimoPedidoCamera = 0L
+
+    /**
+     * Toque na aba amarela "Ler nota": abre a câmera direto, uma vez por toque, só na tela de início
+     * sem nota em andamento e fora do modo demonstração. [pedido] = 0 depois de girar a tela ou
+     * recriar a Activity: aí não abre sozinho.
+     */
+    fun devoAbrirCamera(pedido: Long, modoDemo: Boolean): Boolean {
+        if (pedido == 0L || pedido == ultimoPedidoCamera) return false
+        ultimoPedidoCamera = pedido
+        val e = _estado.value
+        return !modoDemo && e.etapa == EtapaNf.INICIO && e.erroInicioTipo == null && e.erroInicio == null && !e.enviando
+    }
 
     fun htmlCapturado(html: String, url: String?) {
         htmlSefaz = html
@@ -139,9 +155,14 @@ class EnviarNfViewModel(
         val chave = ChaveAcessoNfe.deTexto(texto)
         // Estado da nota pelo código da UF na chave: só os estados que o app já sabe ler.
         val uf = chave?.let(EstadosNfce::ativoDaChave)
+        if (texto.filter { it.isDigit() }.length == 44 && chave == null) {
+            // Dígito verificador não confere: a nota não tem como ser lida (nem lançada à mão).
+            Erros.registrar("chave", "chave digitada com dígito verificador inválido")
+            _estado.update { it.copy(erroInicioTipo = TipoErro.NOTA_INCOMPATIVEL, chaveInvalida = true, erroInicio = null) }
+            return
+        }
         val erro = when {
             texto.filter { it.isDigit() }.length != 44 -> "A chave tem 44 números. Confira o que foi digitado."
-            chave == null -> "Chave inválida: algum número foi digitado errado."
             uf == null -> NOTA_DE_OUTRO_ESTADO
             else -> null
         }
@@ -167,7 +188,8 @@ class EnviarNfViewModel(
             // tela calma; se a chave veio, já fica preenchida na entrada manual.
             Erros.registrar("qr", "QR não reconhecido como NFC-e (tamanho ${texto.length})")
             _estado.update {
-                it.copy(erroInicioTipo = TipoErro.QR_INVALIDO, erroInicio = null, chaveManual = chave?.digitos ?: it.chaveManual)
+                it.copy(erroInicioTipo = TipoErro.NOTA_INCOMPATIVEL, chaveInvalida = false, erroInicio = null,
+                    chaveManual = chave?.digitos ?: it.chaveManual)
             }
             return
         }
@@ -203,7 +225,7 @@ class EnviarNfViewModel(
         }
     }
 
-    fun fecharErroInicio() = _estado.update { it.copy(erroInicioTipo = null, erroInicio = null) }
+    fun fecharErroInicio() = _estado.update { it.copy(erroInicioTipo = null, erroInicio = null, chaveInvalida = false) }
 
     fun notaLidaNaSefaz(nota: NotaLida) {
         // A página aberta precisa ser a da nota do QR Code / da chave digitada

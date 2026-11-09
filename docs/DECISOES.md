@@ -453,3 +453,39 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   pode crescer, e as lojas com plano menor mostram só a parte que o plano delas cobre.
 - Busca, página da loja, Nota Fiscal e gráfico não mudam: cada loja continua aparecendo com o seu endereço.
 
+## Versão 1.0.4 (09/11/2026)
+
+- **Aba "Ler nota" em destaque:** a antiga "Enviar preços" virou "Ler nota", com o ícone de QR Code escuro dentro
+  de uma pílula amarela da marca (sempre amarela, um pouco maior que os outros ícones), nas contas CPF, CNPJ e
+  Admin. Leitor de tela: "Ler nota fiscal".
+- **Câmera direta:** cada toque na aba amarela, com a tela de início sem nota em andamento, abre o leitor de QR
+  Code do Google (mesma permissão e erros de antes). Uma vez por toque, nunca em loop; não abre ao girar a tela
+  nem recriar a tela, com nota em andamento ou no modo demonstração. Ao cancelar, a tela de início (compacta)
+  já mostra "Ler QR Code" e a "Entrada manual" sem rolar.
+- **Nota incompatível:** QR que não é NFC-e reconhecida, chave com dígito verificador inválido, página da Sefaz
+  de outra nota e página sem os produtos mostram "Esta nota não está compatível com o sistema da SeFaz." e, menor,
+  "Isso acontece com algumas notas, mesmo direto no site da SeFaz. Você pode tentar outra nota." — sem acusar a
+  loja nem a pessoa. Os botões continuam (tentar de novo, preencher manualmente, enviar página para análise);
+  chave inválida só tem "Enviar outra nota". Sem internet, Sefaz fora, câmera negada, outro estado, nota já
+  enviada e limite diário continuam como antes. Nada novo é gravado no banco sobre a nota com problema
+  (`ProblemaNota` no core decide a mensagem).
+- **Leitor de encartes (só Admin), com conferência obrigatória:** Edge Function `ler-encarte` (Deno) recebe
+  JPEG/PNG (reduzido no app para 1600 px, qualidade média) ou PDF de até ~7 MB, confere o token e
+  `usuarios.tipo = 'admin'`, e lê com o modelo `claude-sonnet-5-5` (saída estruturada em JSON Schema; se o modelo
+  recusar por engano, o servidor da Anthropic tenta o modelo recomendado). A saída é conferida antes de voltar
+  (item fora da regra vai para "ignorados"). O prompt fica em `supabase/functions/ler-encarte/prompt.ts`.
+  A imagem não é guardada. O app mostra a tabela editável (bebida alcoólica vem desmarcada e em destaque,
+  repetidos entre imagens são unidos: mesmo produto + mesmo preço), o resumo e só então "Lançar preços"
+  (`admin_lancar_encarte`, que valida tudo de novo). "Desfazer este lote" apaga só o encarte daquele lote nas
+  últimas 48 h.
+- **Custo e limite:** no máximo 30 leituras por dia por Admin (variável `LIMITE_LEITURAS_DIA` da função), cada
+  leitura registrada em `leituras_encarte` (quando, quem, itens, sucesso/erro). A chave fica só no secret
+  `ANTHROPIC_API_KEY` do Supabase; sem ela, a função responde "leitor de encartes ainda não configurado".
+  Recomendado: limite de gasto mensal na conta da Anthropic.
+- **Validade no lançamento:** aceita vencida há no máximo 30 dias (pedido do fundador) e no máximo 60 dias à
+  frente (decisão para barrar erro de digitação de ano).
+- **Arte de compartilhar:** a lupa da marca aparece sempre, na faixa amarela ao lado de "Tabelapp"; a Tabelinha
+  (mascote, desenho original, sem alteração) sai do rodapé vermelho no canto direito, com a chamada à esquerda.
+  Regra do "no app" também na arte (selo; preço normal riscado ao lado quando houver; NF sem selo). Textos
+  longos cortam com reticências e nada sai da imagem. Prévias geradas por teste (Robolectric) na CI.
+

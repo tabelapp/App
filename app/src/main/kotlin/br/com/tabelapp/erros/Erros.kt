@@ -91,6 +91,7 @@ object Textos {
         TipoErro.FALHA_UPLOAD_FOTO -> R.string.erro_falha_upload_foto_titulo
         TipoErro.FALHA_ENVIO_NF -> R.string.erro_falha_envio_nf_titulo
         TipoErro.FALHA_PAGAMENTO -> R.string.erro_falha_pagamento_titulo
+        TipoErro.NOTA_INCOMPATIVEL -> R.string.erro_nota_incompativel_titulo
         TipoErro.INESPERADO -> R.string.erro_inesperado_titulo
     }
 
@@ -105,6 +106,7 @@ object Textos {
         TipoErro.FALHA_UPLOAD_FOTO -> R.string.erro_falha_upload_foto_texto
         TipoErro.FALHA_ENVIO_NF -> R.string.erro_falha_envio_nf_texto
         TipoErro.FALHA_PAGAMENTO -> R.string.erro_falha_pagamento_texto
+        TipoErro.NOTA_INCOMPATIVEL -> R.string.erro_nota_incompativel_texto
         TipoErro.INESPERADO -> R.string.erro_inesperado_texto
     }
 

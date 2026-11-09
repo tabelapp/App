@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.WifiOff
@@ -57,6 +58,7 @@ fun iconeDoErro(tipo: TipoErro): ImageVector = when (tipo) {
     TipoErro.FALHA_UPLOAD_FOTO -> Icons.Outlined.AddAPhoto
     TipoErro.FALHA_ENVIO_NF -> Icons.Outlined.Sync
     TipoErro.FALHA_PAGAMENTO -> Icons.Outlined.Payments
+    TipoErro.NOTA_INCOMPATIVEL -> Icons.Outlined.Receipt
     TipoErro.INESPERADO -> Icons.Outlined.Info
 }
 
