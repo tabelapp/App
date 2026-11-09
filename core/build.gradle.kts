@@ -20,8 +20,6 @@ kotlin {
 dependencies {
     // Lê o HTML da página de consulta da NFC-e (Sefaz).
     implementation(libs.jsoup)
-    // Ler o JSON devolvido pela função de encartes (só a árvore JSON; sem plugin).
-    implementation(libs.kotlinx.serialization.json)
     testImplementation(kotlin("test"))
     testImplementation(libs.junit)
 }

@@ -12,8 +12,8 @@ Essenciais para lançar:
 - [x] **Versão para a Play Store:** automação "Versão para a Play Store" (AAB + APK de produção, número de
       versão automático, assinatura pelos secrets ASSINATURA_*). 1.0.2 publicada; 1.0.3 e 1.0.4 geradas.
 - [x] **1.0.4:** aba "Ler nota" amarela que abre a câmera direto; mensagem de nota incompatível com a SeFaz;
-      leitor de encartes na aba Admin (servidor + conferência + lançar/desfazer); arte de compartilhar com a
-      Tabelinha, a lupa e o selo "no app".
+      arte de compartilhar com a
+      Tabelinha, a lupa e o selo "no app". (Leitor de encartes na aba Admin: adiado.)
 
 Importantes, podem vir logo depois:
 - [ ] **Pix automático** (Mercado Pago ou Efí) — hoje o pagamento é manual (WhatsApp + confirmação do Admin).
@@ -38,8 +38,6 @@ Contas e publicação:
       regras da Play Store, antes de divulgar os planos.
 
 Serviços:
-- [ ] **Leitor de encartes (1.0.4):** chave da API da Anthropic com limite de gasto + secret `ANTHROPIC_API_KEY`
-      no Supabase + secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` no GitHub (passo a passo no PR da 1.0.4).
 - [ ] **Google Cloud:** chave do mapa + login com Google (`docs/GOOGLE_CLOUD.md`); secrets `MAPS_API_KEY` e
       `GOOGLE_WEB_CLIENT_ID` no GitHub; ativar o provedor Google no Supabase.
 - [x] **E-mail próprio (SMTP):** Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`,

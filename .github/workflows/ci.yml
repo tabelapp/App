@@ -33,19 +33,6 @@ jobs:
       - name: Site sem link quebrado (python3 scripts/conferir-site.py)
         run: python3 scripts/conferir-site.py
 
-  funcoes:
-    name: Função de encartes (Deno)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Testes (quem pode chamar, limite, entrada e saída)
-        run: deno test --no-check supabase/functions/ler-encarte/
-      - name: Conferir tipos
-        run: deno check supabase/functions/ler-encarte/index.ts supabase/functions/ler-encarte/leitor_test.ts
-
   android:
     name: App Android (testes + APK de debug)
     runs-on: ubuntu-latest

@@ -102,9 +102,6 @@
 ## Depois da 1.0.4 — 09/11/2026
 
 - **Dashboard do Admin**: usuários inscritos, PDVs cadastrados, notas lançadas e produtos cadastrados.
-- **Leitor de encartes**: depende dos secrets (chave da API no Supabase; token e código do projeto no GitHub).
-  Enquanto não estiverem cadastrados, a tela "Encartes" do Admin mostra "leitor de encartes ainda não
-  configurado" e o resto do app funciona normalmente. Custo: acompanhar a tabela `leituras_encarte`.
-- **Leitor de encartes — PDF**: PDFs até ~7 MB vão direto; maiores, converter em imagem antes.
+- Leitor de encartes na aba Admin: adiado (custo ~US$ 0,07 por encarte pela API; ideia para a 1.0.5 se for delegar o lançamento)
 - **Tabelinha**: usada só na arte de compartilhar (canto inferior direito). Outras telas, se quiser, depois.
 
