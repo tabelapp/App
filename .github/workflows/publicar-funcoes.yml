@@ -1,0 +1,33 @@
+name: Publicar função de encartes
+
+# Publica as Edge Functions do Supabase (hoje: ler-encarte) quando elas mudam na main, ou à mão:
+# Actions → "Publicar função de encartes" → Run workflow.
+# Precisa dos secrets do GitHub SUPABASE_ACCESS_TOKEN (Access Token da conta no Supabase) e
+# SUPABASE_PROJECT_REF (o código do projeto, que aparece no endereço do painel). Sem eles, só avisa.
+# A chave da API da Anthropic NÃO fica aqui: é o secret ANTHROPIC_API_KEY do próprio Supabase.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/publicar-funcoes.yml"
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir secrets
+        if: env.SUPABASE_ACCESS_TOKEN == '' || env.SUPABASE_PROJECT_REF == ''
+        run: echo "::warning::Faltam os secrets SUPABASE_ACCESS_TOKEN e/ou SUPABASE_PROJECT_REF — a função não foi publicada."
+      - uses: supabase/setup-cli@v1
+        if: env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_PROJECT_REF != ''
+        with:
+          version: latest
+      - name: Publicar ler-encarte
+        if: env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_PROJECT_REF != ''
+        run: supabase functions deploy ler-encarte --project-ref "$SUPABASE_PROJECT_REF"
