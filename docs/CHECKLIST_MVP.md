@@ -1,4 +1,4 @@
-# Checklist do MVP (atualizado em 15/10/2026)
+# Checklist do MVP (atualizado em 09/11/2026)
 
 ## A. Desenvolvimento (Claude)
 Essenciais para lançar:
@@ -9,9 +9,11 @@ Essenciais para lançar:
       suspender/reativar um PDV aprovado com motivo (o dono vê em "Meu negócio").
 - [x] **Coordenadas das lojas cadastradas:** o painel do PDV localiza o endereço e grava no banco (loja nova,
       endereço editado, lojas antigas); "Estou na loja" usa o GPS; botão do Admin para as que faltam.
-- [~] **Versão para a Play Store:** pronto no app — automação "Versão para a Play Store" (AAB + APK de
-      produção, número de versão automático, assinatura pelos secrets ASSINATURA_*). Falta o fundador criar
-      a chave de envio e cadastrar os secrets (`docs/PLAY_STORE.md`).
+- [x] **Versão para a Play Store:** automação "Versão para a Play Store" (AAB + APK de produção, número de
+      versão automático, assinatura pelos secrets ASSINATURA_*). 1.0.2 publicada; 1.0.3 e 1.0.4 geradas.
+- [x] **1.0.4:** aba "Ler nota" amarela que abre a câmera direto; mensagem de nota incompatível com a SeFaz;
+      leitor de encartes na aba Admin (servidor + conferência + lançar/desfazer); arte de compartilhar com a
+      Tabelinha, a lupa e o selo "no app".
 
 Importantes, podem vir logo depois:
 - [ ] **Pix automático** (Mercado Pago ou Efí) — hoje o pagamento é manual (WhatsApp + confirmação do Admin).
@@ -19,15 +21,16 @@ Importantes, podem vir logo depois:
 - [x] PDV: cadastrar mais lojas (um CNPJ por loja) e ligar/desligar o modo rede (1.0.3).
 - [ ] Promoção pausada: botão "reativar".
 - [ ] Busca: "carregar mais" além de 100 resultados.
+- [ ] **Dashboard do Admin:** usuários inscritos, PDVs cadastrados, notas lançadas e produtos cadastrados.
 
 ## B. Configuração e decisões (fundador) — atualizado em 15/10/2026
 Contas e publicação:
 - [ ] **Decidir a conta que publica** (própria, com ou sem CNPJ). Dá para transferir o app depois.
-- [ ] **Juntar o trabalho na branch principal (`main`)** — o Claude abre o pedido (Pull Request) quando pedir;
-      só depois disso aparece o botão da automação "Versão para a Play Store".
-- [ ] **Google Play Console:** conta (US$ 25, uma vez), ficha da loja (ícone 512×512, imagem 1024×500, 2+ telas,
+- [x] **Juntar o trabalho na branch principal (`main`)** (PRs #6, #7 e o da 1.0.4).
+- [x] **Google Play Console:** conta criada; 1.0.2 publicada.
+- [ ] Ficha da loja completa no **Google Play Console:** conta (US$ 25, uma vez), ficha da loja (ícone 512×512, imagem 1024×500, 2+ telas,
       descrição), classificação etária e "Segurança dos dados" (sugestão em `docs/PLAY_STORE.md`).
-- [ ] **Chave de envio** (`scripts/criar-chave-envio.sh`) + secrets `ASSINATURA_KEYSTORE_BASE64`,
+- [x] **Chave de envio** (`scripts/criar-chave-envio.sh`) + secrets `ASSINATURA_KEYSTORE_BASE64`,
       `ASSINATURA_SENHA`, `ASSINATURA_ALIAS` no GitHub.
 - [ ] Primeiro envio em **Teste interno**; depois, cadastrar no Google Cloud a **SHA-1 da assinatura do Google**
       e a da chave de envio (mapa e login com Google).
@@ -35,16 +38,19 @@ Contas e publicação:
       regras da Play Store, antes de divulgar os planos.
 
 Serviços:
+- [ ] **Leitor de encartes (1.0.4):** chave da API da Anthropic com limite de gasto + secret `ANTHROPIC_API_KEY`
+      no Supabase + secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` no GitHub (passo a passo no PR da 1.0.4).
 - [ ] **Google Cloud:** chave do mapa + login com Google (`docs/GOOGLE_CLOUD.md`); secrets `MAPS_API_KEY` e
       `GOOGLE_WEB_CLIENT_ID` no GitHub; ativar o provedor Google no Supabase.
-- [ ] **E-mail próprio (SMTP):** Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`,
+- [x] **E-mail próprio (SMTP):** Gmail `tabelapp.economia@gmail.com` com Senha de app (`smtp.gmail.com`,
       porta 465) + modelo de `docs/EMAIL_SENHA.md` + **Email OTP Length = 6** — sem isso o "Esqueci a
       senha" não chega para os usuários. (Resend/Brevo só com domínio próprio.)
 - [ ] **Supabase de produção:** plano pago (não pausa, tem backup) ou rotina que mantenha ativo.
 - [ ] **Sua conta como Admin** no banco (SQL do README, passo 9), se ainda não fez.
 
 Jurídico e negócio:
-- [ ] **Publicar a Política de Privacidade e os Termos** num endereço web (`site/`, GitHub Pages); revisão de advogado.
+- [x] **Publicar a Política de Privacidade e os Termos** num endereço web (site publicado no GitHub Pages).
+- [ ] Revisão de advogado da Política de Privacidade e dos Termos.
 - [ ] **Recebimento por Pix:** chave Pix e rotina de conferir o pagamento antes de ativar plano/banner no Admin.
 - [ ] Conferir o **WhatsApp do Tabelapp** em `configuracao_app.whatsapp_contato` (usado em "Assinar pelo WhatsApp").
 - [ ] Definir o **link de download** usado no compartilhamento.
