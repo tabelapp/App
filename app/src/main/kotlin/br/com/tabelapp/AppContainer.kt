@@ -4,7 +4,6 @@ import android.content.Context
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
-import br.com.tabelapp.dados.EncartesAdminRepositorio
 import br.com.tabelapp.dados.Geocodificador
 import br.com.tabelapp.dados.Imagens
 import br.com.tabelapp.dados.LeitorTexto
@@ -15,14 +14,12 @@ import br.com.tabelapp.dados.PdvRepositorio
 import br.com.tabelapp.dados.Preferencias
 import br.com.tabelapp.dados.demo.DemoAuthRepositorio
 import br.com.tabelapp.dados.demo.DemoBanco
-import br.com.tabelapp.dados.demo.DemoEncartesAdmin
 import br.com.tabelapp.dados.demo.DemoCotacoesRepositorio
 import br.com.tabelapp.dados.demo.DemoListasRepositorio
 import br.com.tabelapp.dados.demo.DemoNotaFiscalRepositorio
 import br.com.tabelapp.dados.demo.DemoPdvRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseAuthRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseCotacoesRepositorio
-import br.com.tabelapp.dados.supabase.SupabaseEncartesAdmin
 import br.com.tabelapp.dados.supabase.SupabaseListasRepositorio
 import br.com.tabelapp.dados.supabase.SupabaseNotaFiscalRepositorio
 import br.com.tabelapp.dados.supabase.SupabasePdvRepositorio
@@ -59,8 +56,6 @@ class AppContainer(contexto: Context) {
     val notasFiscais: NotaFiscalRepositorio
     val pdvs: PdvRepositorio
     val listas: ListasRepositorio
-    /** Leitor de encartes da aba Admin (1.0.4). */
-    val encartesAdmin: EncartesAdminRepositorio
 
     init {
         if (modoDemo) {
@@ -70,7 +65,6 @@ class AppContainer(contexto: Context) {
             notasFiscais = DemoNotaFiscalRepositorio(banco)
             pdvs = DemoPdvRepositorio(banco)
             listas = DemoListasRepositorio(banco)
-            encartesAdmin = DemoEncartesAdmin()
         } else {
             val googleConfigurado = BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
             val supabase = createSupabaseClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY) {
@@ -86,7 +80,6 @@ class AppContainer(contexto: Context) {
             notasFiscais = SupabaseNotaFiscalRepositorio(supabase)
             pdvs = SupabasePdvRepositorio(supabase, ConsultaCnpj())
             listas = SupabaseListasRepositorio(supabase)
-            encartesAdmin = SupabaseEncartesAdmin(supabase, BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
         }
     }
 }

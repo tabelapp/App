@@ -10,8 +10,6 @@ object ErrosServidor {
         "sem_permissao" to "Você não tem permissão para fazer isso.",
         "cota_excedida" to "Limite do plano atingido. Itens excedentes pausados.",
         "itens_vazios" to "Adicione pelo menos um produto.",
-        "loja_obrigatoria" to "Informe o nome da loja.",
-        "endereco_obrigatorio" to "Informe o endereço da loja (ou a cidade e o estado).",
         "itens_demais" to "Muitos itens de uma vez. Divida em partes menores.",
         "itens_invalidos" to "Alguns itens têm dados inválidos. Confira produto, preço e validade.",
         "loja_invalida" to "Loja não encontrada ou inativa.",
