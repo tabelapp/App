@@ -69,12 +69,14 @@ object ArteCompartilhar {
 
         // 1. Faixa amarela: lupa (marca, sempre) + "Tabelapp" + "Quem pesquisa economiza".
         canvas.drawRect(0f, 0f, LADO.toFloat(), FAIXA, Paint().apply { color = AMARELO })
-        val lado = 132
+        // O vetor da lupa tem margem interna (cabe no círculo do ícone): a área desenhada é maior que a lupa visível.
+        val lado = 200
+        val esquerdaLupa = MARGEM.toInt() - 54
         val lupa: Drawable? = runCatching { ResourcesCompat.getDrawable(res, R.drawable.lupa_marca, null) }.getOrNull()
         val xTexto = if (lupa != null) {
-            lupa.setBounds(MARGEM.toInt() - 8, ((FAIXA - lado) / 2).toInt(), MARGEM.toInt() - 8 + lado, ((FAIXA + lado) / 2).toInt())
+            lupa.setBounds(esquerdaLupa, ((FAIXA - lado) / 2).toInt(), esquerdaLupa + lado, ((FAIXA + lado) / 2).toInt())
             lupa.draw(canvas)
-            MARGEM + lado + 8f
+            esquerdaLupa + lado - 30f
         } else {
             MARGEM
         }
@@ -113,8 +115,10 @@ object ArteCompartilhar {
         }
         y = base + 24f
         var xLinha2 = MARGEM
+        var seloAbaixo = false
         if (a.seloApp) {
             val cabeAoLado = x + 24f + larguraSelo <= LADO - MARGEM
+            seloAbaixo = !cabeAoLado
             val (sx, sy) = if (cabeAoLado) (x + 24f) to (base - 62f) else MARGEM to y
             selo(canvas, sx, sy, larguraSelo, pSelo)
             // Selo na linha de baixo: o preço normal vai ao lado dele.
@@ -127,7 +131,7 @@ object ArteCompartilhar {
             canvas.drawText(normal, xLinha2, yNormal, pNormal)
             canvas.drawText(" " + ArtePreco.ROTULO_NORMAL, xLinha2 + pNormal.measureText(normal), yNormal, rotulo)
         }
-        if (a.seloApp || a.precoNormal != null) y += 74f
+        if (seloAbaixo || a.precoNormal != null) y += 74f
         y += 20f
 
         // 4. Local, endereço e validade/OBS: abaixo do topo da Tabelinha, mais estreito.
