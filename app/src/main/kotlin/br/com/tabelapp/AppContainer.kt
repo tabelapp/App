@@ -1,6 +1,7 @@
 package br.com.tabelapp
 
 import android.content.Context
+import br.com.tabelapp.dados.AtualizacaoApp
 import br.com.tabelapp.dados.AuthRepositorio
 import br.com.tabelapp.dados.ConsultaCnpj
 import br.com.tabelapp.dados.CotacoesRepositorio
@@ -49,6 +50,8 @@ class AppContainer(contexto: Context) {
     val localizacao = Localizacao(contexto)
     val geocodificador = Geocodificador(contexto)
     val imagens = Imagens(contexto)
+    /** Aviso de versão nova pela Play Store (desligado no modo demonstração). */
+    val atualizacao = AtualizacaoApp(contexto, preferencias, ativo = !modoDemo)
     val leitorTexto = LeitorTexto(imagens)
 
     val auth: AuthRepositorio

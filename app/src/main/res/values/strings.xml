@@ -309,4 +309,11 @@
     <string name="erro_nota_incompativel_titulo">Esta nota não está compatível com o sistema da SeFaz.</string>
     <string name="erro_nota_incompativel_texto">Isso acontece com algumas notas, mesmo direto no site da SeFaz. Você pode tentar outra nota.</string>
     <string name="erro_botao_enviar_outra_nota">Enviar outra nota</string>
+    <!-- 1.0.4: aviso de versão nova (Play Store, modo flexível) -->
+    <string name="atualizacao_disponivel">Nova versão do Tabelapp disponível</string>
+    <string name="atualizacao_atualizar">Atualizar</string>
+    <string name="atualizacao_agora_nao">Agora não</string>
+    <string name="atualizacao_baixando">Baixando a nova versão…</string>
+    <string name="atualizacao_baixada">Nova versão baixada.</string>
+    <string name="atualizacao_reiniciar">Reiniciar para concluir</string>
 </resources>

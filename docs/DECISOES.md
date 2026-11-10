@@ -474,4 +474,11 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   (mascote, desenho original, sem alteração) sai do rodapé vermelho no canto direito, com a chamada à esquerda.
   Regra do "no app" também na arte (selo; preço normal riscado ao lado quando houver; NF sem selo). Textos
   longos cortam com reticências e nada sai da imagem. Prévias geradas por teste (Robolectric) na CI.
+- **Aviso de versão nova (Play Store, modo flexível):** ao abrir o app, a API de atualização dentro do app
+  (`app-update-ktx`) pergunta à Play se há versão nova. Se houver, aparece uma faixa discreta embaixo,
+  "Nova versão do Tabelapp disponível", com "Atualizar" e "Agora não". Atualizar baixa em segundo plano; ao
+  terminar, a faixa mostra "Reiniciar para concluir". "Agora não" (ou recusar na tela da Play) não repete no
+  mesmo dia. Nunca aparece na aba "Ler nota", para não interromper a leitura da nota nem o envio dos preços.
+  Toda falha (sem Play Store, sem internet, app instalado fora da Play, como o APK do CI) é silenciosa e o app
+  segue normal. No modo demonstração a API não é chamada. Regra em `AvisoAtualizacao` (core), com teste.
 

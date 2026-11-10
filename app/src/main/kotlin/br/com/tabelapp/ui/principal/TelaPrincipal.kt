@@ -44,6 +44,7 @@ import br.com.tabelapp.dados.TipoConta
 import br.com.tabelapp.dados.Usuario
 import br.com.tabelapp.ui.admin.TelaAdmin
 import br.com.tabelapp.ui.busca.TelaBusca
+import br.com.tabelapp.ui.comum.AvisoAtualizacaoApp
 import br.com.tabelapp.ui.lista.TelaLista
 import br.com.tabelapp.ui.nf.TelaEnviarNf
 import br.com.tabelapp.ui.pdv.TelaMeuNegocio
@@ -122,6 +123,13 @@ fun TelaPrincipal(container: AppContainer, usuario: Usuario, abaSalva: MutableSt
                 Aba.MEU_NEGOCIO -> TelaMeuNegocio(container, usuario)
                 Aba.ADMIN -> TelaAdmin(container, usuario)
             }
+            // Versão nova na Play Store: faixa discreta embaixo. Nunca na aba "Ler nota"
+            // (não interrompe a leitura da nota nem o envio dos preços).
+            AvisoAtualizacaoApp(
+                container.atualizacao,
+                ocupado = aba == Aba.ENVIAR_NF,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
