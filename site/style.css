@@ -54,3 +54,19 @@ footer { border-top: 1px solid var(--contorno); color: var(--texto-2); font-size
 footer .barra { display: block; padding: 20px 16px 32px; }
 footer p { margin: 4px 0; color: var(--texto-2); }
 footer strong { color: var(--texto); }
+/* Tabelinha (mascote de apoio; a lupa continua sendo a marca). PNG/WebP já transparentes: sem sombra. */
+.ilustra { display: block; height: auto; max-width: 100%; }
+.ilustrada { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.texto-ilustrado { width: 100%; }
+.ilustra-topo { width: 160px; }
+.ilustra-lado { width: 150px; }
+.ilustra-cartao { width: auto; height: 110px; margin: 0 auto 10px; }
+@media (min-width: 640px) {
+  .ilustrada { flex-direction: row; align-items: center; gap: 24px; }
+  .texto-ilustrado { flex: 1; min-width: 0; }
+  .ilustra { flex: none; }
+  .ilustra-topo { width: 220px; }
+  .ilustra-lado { width: 170px; }
+  .ilustra-cartao { height: 130px; }
+}
+
