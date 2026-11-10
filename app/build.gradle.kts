@@ -119,6 +119,8 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
 
     implementation(libs.play.services.code.scanner)
+    // Aviso de versão nova pela Play Store (atualização dentro do app, modo flexível).
+    implementation(libs.play.app.update.ktx)
     implementation(libs.play.services.text.recognition)
     implementation(libs.maps.compose)
     implementation(libs.play.services.maps)

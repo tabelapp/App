@@ -103,5 +103,8 @@
 
 - **Dashboard do Admin**: usuários inscritos, PDVs cadastrados, notas lançadas e produtos cadastrados.
 - Leitor de encartes na aba Admin: adiado (custo ~US$ 0,07 por encarte pela API; ideia para a 1.0.5 se for delegar o lançamento)
+- **Versão mínima obrigatória** (ideia para o futuro): bloquear versões muito antigas com a atualização
+  IMEDIATA da Play (ou um número mínimo guardado em `configuracao_app`). Usar só se um dia houver uma correção
+  crítica; hoje o aviso é só o flexível, que nunca obriga.
 - **Tabelinha**: usada só na arte de compartilhar (canto inferior direito). Outras telas, se quiser, depois.
 

@@ -2,6 +2,7 @@ package br.com.tabelapp.dados
 
 import android.content.Context
 import androidx.core.content.edit
+import java.time.LocalDate
 
 /** Preferências locais do aparelho (não vão para o servidor). */
 class Preferencias(contexto: Context) {
@@ -20,8 +21,14 @@ class Preferencias(contexto: Context) {
         get() = prefs.getString(CHAVE_ACEITE, null)
         set(valor) = prefs.edit { if (valor == null) remove(CHAVE_ACEITE) else putString(CHAVE_ACEITE, valor) }
 
+    /** Dia em que a pessoa tocou em "Agora não" no aviso de versão nova (não repete no mesmo dia). */
+    var atualizacaoDispensadaEm: LocalDate?
+        get() = prefs.getString(CHAVE_ATUALIZACAO, null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        set(valor) = prefs.edit { if (valor == null) remove(CHAVE_ATUALIZACAO) else putString(CHAVE_ATUALIZACAO, valor.toString()) }
+
     private companion object {
         const val CHAVE_DISCLAIMER = "disclaimer_aceito_v1"
         const val CHAVE_ACEITE = "aceite_termos_pendente"
+        const val CHAVE_ATUALIZACAO = "atualizacao_dispensada_em"
     }
 }
