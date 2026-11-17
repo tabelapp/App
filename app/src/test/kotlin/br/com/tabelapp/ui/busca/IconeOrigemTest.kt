@@ -1,6 +1,8 @@
 package br.com.tabelapp.ui.busca
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,11 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -42,7 +42,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], application = android.app.Application::class, qualifiers = "w800dp-h1000dp")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class IconeOrigemTest {
-    @get:Rule val regra = createComposeRule()
+    @get:Rule val regra = createAndroidComposeRule<ComponentActivity>()
     private val pasta = File("build/previa-card").apply { mkdirs() }
 
     private fun cot(produto: String, preco: Long, fonte: Fonte) = Cotacao(
@@ -90,8 +90,15 @@ class IconeOrigemTest {
             val sem = regra.onNodeWithTag("sem$i").fetchSemanticsNode().size.height
             assertEquals("card $i ($print): o ícone não pode mudar a altura", sem, com)
         }
-        val bmp = regra.onNodeWithTag("com").captureToImage().asAndroidBitmap()
-        File(pasta, "$print.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // Print: desenha a tela inteira num bitmap e recorta a lista "com ícone".
+        val raiz = regra.activity.window.decorView.rootView
+        val tela = Bitmap.createBitmap(raiz.width, raiz.height, Bitmap.Config.ARGB_8888)
+        regra.runOnUiThread { raiz.draw(Canvas(tela)) }
+        val b = regra.onNodeWithTag("com").fetchSemanticsNode().boundsInRoot
+        val x = b.left.toInt().coerceAtLeast(0)
+        val y = b.top.toInt().coerceAtLeast(0)
+        val recorte = Bitmap.createBitmap(tela, x, y, minOf(b.width.toInt(), tela.width - x), minOf(b.height.toInt(), tela.height - y))
+        File(pasta, "$print.png").outputStream().use { recorte.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test fun `os tres icones - card do tamanho de sempre`() = conferir(360, 1f, "cards-360dp")
