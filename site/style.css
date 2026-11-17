@@ -54,19 +54,36 @@ footer { border-top: 1px solid var(--contorno); color: var(--texto-2); font-size
 footer .barra { display: block; padding: 20px 16px 32px; }
 footer p { margin: 4px 0; color: var(--texto-2); }
 footer strong { color: var(--texto); }
-/* Tabelinha (mascote de apoio; a lupa continua sendo a marca). PNG/WebP já transparentes: sem sombra. */
-.ilustra { display: block; height: auto; max-width: 100%; }
+/* Segurança: nenhuma imagem passa da largura do que a contém (sem rolagem horizontal). */
+img { max-width: 100%; height: auto; }
+main, .grade, .cartao, .ilustrada, .texto-ilustrado { min-width: 0; }
+
+/* Tabelinha (mascote de apoio; a lupa continua sendo a marca). Imagens já transparentes: sem sombra.
+   Celular: a imagem fica acima (cartões) ou abaixo (seções) do texto. */
+.ilustra { display: block; height: auto; max-width: 100%; object-fit: contain; }
 .ilustrada { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .texto-ilustrado { width: 100%; }
 .ilustra-topo { width: 160px; }
 .ilustra-lado { width: 150px; }
 .ilustra-cartao { width: auto; height: 110px; margin: 0 auto 10px; }
-@media (min-width: 640px) {
+@media (min-width: 640px) and (max-width: 767px) {
   .ilustrada { flex-direction: row; align-items: center; gap: 24px; }
-  .texto-ilustrado { flex: 1; min-width: 0; }
+  .texto-ilustrado { flex: 1; }
   .ilustra { flex: none; }
   .ilustra-topo { width: 220px; }
   .ilustra-lado { width: 170px; }
   .ilustra-cartao { height: 130px; }
 }
-
+/* Computador: duas colunas, texto à esquerda e imagem à direita, centralizados na vertical.
+   Nenhuma imagem passa de 300 px de altura nem de 320 px de largura. */
+@media (min-width: 768px) {
+  .ilustrada { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 32px; }
+  .ilustra-topo, .ilustra-lado { width: auto; max-width: 320px; max-height: 300px; }
+  .ilustra-topo { height: 280px; }
+  .ilustra-lado { height: 180px; }
+  /* Cartões: a Tabelinha vira um selo pequeno no canto de cima, ao lado do título. Fica fora do fluxo
+     do texto, então o cartão tem exatamente o tamanho de antes das imagens. */
+  .cartao.com-ilustra { position: relative; }
+  .cartao.com-ilustra .ilustra-cartao { position: absolute; top: 8px; right: 14px; width: auto; height: 52px; max-width: 90px; margin: 0; }
+  .cartao.com-ilustra h3 { padding-right: 96px; }
+}

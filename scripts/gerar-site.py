@@ -11,6 +11,7 @@ O número de WhatsApp dos botões fica só em site/config.js.
 
 Uso: python3 scripts/gerar-site.py
 """
+import hashlib
 import html
 import pathlib
 import re
@@ -52,7 +53,7 @@ MODELO = """<!doctype html>
 <meta name="description" content="{descricao}">
 <meta name="theme-color" content="#283847">
 <link rel="icon" href="{favicon}">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v={versao_css}">
 <script src="config.js" defer></script>
 </head>
 <body>
@@ -81,10 +82,16 @@ def pagina(arquivo: str, titulo: str, corpo: str, texto_longo: bool, descricao: 
         MODELO.format(
             titulo=html.escape(titulo), descricao=html.escape(descricao), favicon=FAVICON, logo=LOGO, menu=menu,
             classe=' class="texto"' if texto_longo else "", corpo=corpo.strip(), email=EMAIL,
+            versao_css=versao_css(),
         ),
         encoding="utf-8",
     )
     print(f"gerado site/{arquivo}")
+
+
+def versao_css() -> str:
+    """Muda sempre que o style.css muda: o navegador nunca usa um CSS antigo guardado com o HTML novo."""
+    return hashlib.sha256((DESTINO / "style.css").read_bytes()).hexdigest()[:8]
 
 
 def inline(texto: str) -> str:
