@@ -39,7 +39,7 @@ import org.robolectric.annotation.GraphicsMode
  * sistema em 130% e tela estreita. Os prints ficam em app/build/previa-card/ (a CI publica).
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = android.app.Application::class, qualifiers = "w800dp-h1000dp")
+@Config(sdk = [35], application = android.app.Application::class, qualifiers = "w800dp-h1100dp-xxhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class IconeOrigemTest {
     @get:Rule val regra = createAndroidComposeRule<ComponentActivity>()
@@ -92,6 +92,9 @@ class IconeOrigemTest {
         }
         // Print: desenha a tela inteira num bitmap e recorta a lista "com ícone".
         val raiz = regra.activity.window.decorView.rootView
+        regra.runOnUiThread { raiz.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(raiz.width, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(raiz.height, android.view.View.MeasureSpec.EXACTLY)) }
         val tela = Bitmap.createBitmap(raiz.width, raiz.height, Bitmap.Config.ARGB_8888)
         regra.runOnUiThread { raiz.draw(Canvas(tela)) }
         val b = regra.onNodeWithTag("com").fetchSemanticsNode().boundsInRoot
