@@ -1,30 +1,46 @@
 package br.com.tabelapp.ui.busca
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -32,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -41,8 +58,10 @@ import br.com.tabelapp.core.Cotacao
 import br.com.tabelapp.core.Destaque
 import br.com.tabelapp.core.Dinheiro
 import br.com.tabelapp.core.Geo
+import br.com.tabelapp.core.OrigemPreco
 import br.com.tabelapp.core.PontoGeo
 import br.com.tabelapp.core.PrecoExibido
+import br.com.tabelapp.ui.comum.IconeCupomQr
 import br.com.tabelapp.ui.tema.ContornoMarca
 import br.com.tabelapp.ui.tema.CoresTabelapp
 
@@ -71,12 +90,17 @@ fun CartaoCotacao(
     /** Toque no card: abre a página do produto. */
     aoAbrir: () -> Unit,
     alternado: Boolean = false,
+    /** Ícone de origem do preço no canto de baixo (null = sem ícone: valor desconhecido nunca vira ícone). */
+    origem: OrigemPreco? = OrigemPreco.de(cotacao.fonte),
 ) {
     val cores = MaterialTheme.colorScheme
     val maisBarato = destaque == Destaque.MENOR_PRECO
     val distancia = Geo.distanciaKm(posicao, cotacao.local)?.let(Geo::formatarDistancia)
     val rotuloAbrir = stringResource(R.string.produto_abrir)
     val descricao = PrecoExibido.descricaoCartao(cotacao)
+    // Espaço à direita para o ícone de origem (40 dp + folga), só nas linhas que ficam ao lado dele.
+    val folgaIcone = if (origem != null) 48.dp else 0.dp
+    ComIconeNoPreco(icone = origem?.let { { IconeOrigem(it) } }) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = fundoAlternado(alternado),
@@ -100,7 +124,7 @@ fun CartaoCotacao(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = folgaIcone)) {
                 Text(
                     listOfNotNull(cotacao.pdvNome, distancia).joinToString(" · "),
                     fontSize = 13.sp,
@@ -129,10 +153,75 @@ fun CartaoCotacao(
                     null -> Unit
                 }
             }
-            PrecoComSelo(cotacao, tamanho = 20.sp, modifier = Modifier.padding(top = 2.dp))
+            PrecoComSelo(
+                cotacao, tamanho = 20.sp,
+                modifier = Modifier.padding(top = 2.dp, end = folgaIcone).marcarCentroDoPreco(),
+            )
+        }
+    }
+    }
+}
+
+/** Linha de alinhamento: o centro vertical da linha do preço (para alinhar o ícone de origem com ela). */
+private val CentroDoPreco = HorizontalAlignmentLine { primeiro, _ -> primeiro }
+
+private fun Modifier.marcarCentroDoPreco(): Modifier = layout { medivel, restricoes ->
+    val p = medivel.measure(restricoes)
+    layout(p.width, p.height, mapOf(CentroDoPreco to p.height / 2)) { p.place(0, 0) }
+}
+
+/**
+ * Coloca o [icone] no canto direito do card, centralizado na linha do preço, POR CIMA do card:
+ * o card mede exatamente o que mediria sem o ícone (não cresce, mesmo com o nome em duas linhas ou
+ * fonte grande). O ícone fica fora da área "abrir produto", então tocar nele não abre a página.
+ */
+@Composable
+private fun ComIconeNoPreco(icone: (@Composable () -> Unit)?, conteudo: @Composable () -> Unit) {
+    if (icone == null) {
+        conteudo()
+        return
+    }
+    Layout(content = { conteudo(); icone() }) { medidas, restricoes ->
+        val corpo = medidas[0].measure(restricoes)
+        val ic = medidas[1].measure(Constraints())
+        val centro = corpo[CentroDoPreco].takeIf { it != AlignmentLine.Unspecified } ?: (corpo.height - ic.height / 2)
+        layout(corpo.width, corpo.height) {
+            corpo.place(0, 0)
+            ic.place(
+                corpo.width - ic.width - 10.dp.roundToPx(),
+                (centro - ic.height / 2).coerceIn(0, (corpo.height - ic.height).coerceAtLeast(0)),
+            )
         }
     }
 }
+
+/** Círculo cinza neutro (um pouco mais claro que o card) com o ícone da origem; o toque mostra o texto. */
+@Composable
+private fun IconeOrigem(origem: OrigemPreco) {
+    val contexto = LocalContext.current
+    Box(
+        Modifier.size(40.dp).clip(CircleShape).background(FundoIconeOrigem)
+            .clickable(onClickLabel = origem.texto) {
+                Toast.makeText(contexto, origem.texto, Toast.LENGTH_SHORT).show()
+            }
+            .semantics { contentDescription = origem.texto; role = Role.Button },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            when (origem) {
+                OrigemPreco.NOTA_FISCAL -> IconeCupomQr
+                OrigemPreco.ENCARTE -> Icons.Outlined.Description
+                OrigemPreco.TABELA_DA_LOJA -> Icons.Outlined.LocalOffer
+            },
+            contentDescription = null,
+            tint = CoresTabelapp.IconeNeutro,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+/** Branco translúcido: fica um pouco mais claro que o card, nos dois tons alternados. */
+private val FundoIconeOrigem = Color(0x1FFFFFFF)
 
 /**
  * Preço principal em amarelo e negrito, com "a partir de" e a unidade em letra menor; com preço no

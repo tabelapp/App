@@ -482,3 +482,16 @@ Decisão do fundador, por causa da política de pagamentos da Google Play:
   Toda falha (sem Play Store, sem internet, app instalado fora da Play, como o APK do CI) é silenciosa e o app
   segue normal. No modo demonstração a API não é chamada. Regra em `AvisoAtualizacao` (core), com teste.
 
+## Versão 1.0.5 (17/11/2026)
+
+- **Ícone de origem do preço no card** (Buscar e "Últimos preços lançados"): círculo de 40 dp, cinza neutro
+  (branco translúcido sobre o card), ícone de 22 dp em cinza claro, no canto inferior direito e centralizado na
+  linha do preço. Nota fiscal = cupom com esboço de QR Code (vetor próprio, `IconeCupomQr`); encarte =
+  documento com linhas (`Description`); tabela da loja = etiqueta (`LocalOffer`). Tocar mostra o texto
+  ("Preço de nota fiscal", "Preço de encarte", "Preço da tabela da loja") num aviso curto (Toast, ~2 s) e não
+  abre o produto. A origem é a mesma `Fonte` da linha "Origem" da página do produto (`OrigemPreco` no core);
+  valor desconhecido ou vazio = sem ícone. O ícone fica por cima do card: o card tem exatamente a mesma altura
+  (teste com nome em duas linhas, fonte em 130% e tela de 300 dp).
+- Manifest: `android.hardware.screen.portrait` como não obrigatório (o app não some da Play em aparelhos sem
+  modo retrato).
+

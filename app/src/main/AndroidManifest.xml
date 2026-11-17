@@ -8,6 +8,10 @@
 
     <!-- allowBackup=false: a sessão de login não vai para o backup na nuvem (segurança e LGPD).
          dataExtractionRules (Android 12+): também não vai na transferência direta entre celulares. -->
+    <!-- O app usa a tela em pé, mas não exige o sensor/modo retrato: não esconde o app na Play
+         para Chromebooks, tablets e TVs sem esse recurso. -->
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+
     <application
         android:name=".TabelappApplication"
         android:allowBackup="false"

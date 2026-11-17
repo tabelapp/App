@@ -44,6 +44,8 @@ androidx-compose-material-icons = { module = "androidx.compose.material:material
 
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 play-app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "appUpdate" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 # Leitor de QR Code do Google (tela pronta, não precisa pedir permissão de câmera).
